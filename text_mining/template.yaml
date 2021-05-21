@@ -1,0 +1,8 @@
+name: Text Mining Dashboard
+description: >
+  An automated Text Mining Interactive Dashboard template.
+  Original Code By: Michael Sheppard.
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon.
+  National Syndromic and Surveillance Program (NSSP).
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true
