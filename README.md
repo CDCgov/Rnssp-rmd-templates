@@ -1,14 +1,29 @@
 # Rnssp-rmd-templates
-Templates to extend Rnssp templates. 
-Please, download .zip releases for integration with the Rnssp package.
+Templates to extend Rnssp templates.
 
-# Contributing to this project
+## Installation
+To add any of the template of this repository, please install the [Rnssp]("https://github.com/CDCgov/Rnssp") R package first.
+ Then, from your R console, run `Rnssp::list_templates()` function to list the available templates.
+ To download and add specific template to your existing `Rnssp` installation, use the `add_rmd_template(template_name = <specify template name>)` function as depicted in the example below (with `text_mining` template report):
+ ```r
+ library("Rnssp")
+
+ # Provide a detailed tabular view of all available template reports
+ list_templates(as.table = TRUE) %>% View()
+
+ # Extend the Rnssp package with the Text Mining Template report
+ add_rmd_report(template_name = "text_mining")
+ ```
+
+Alternatively, users can download .zip releases of the templated for manual integration with the Rnssp package by running the `add_rmd_template()` without argument.
+
+## Contributing to this project
 Should you want to contribute to this project, submit a push request to this Github repository and consider submitting a request to be added as a developer to gazondekon@cdc.gov.
 
-# Getting Help
+## Getting Help
 If you encounter a clear bug, please consider emailing the author at gazondekon@cdc.gov and/or file an issue with a minimal reproducible example.
 
-## Public Domain Standard Notice
+### Public Domain Standard Notice
 This repository constitutes a work of the United States Government and is not
 subject to domestic copyright protection under 17 USC § 105. This repository is in
 the public domain within the United States, and copyright and related rights in
@@ -17,7 +32,7 @@ All contributions to this repository will be released under the CC0 dedication. 
 submitting a pull request you are agreeing to comply with this waiver of
 copyright interest.
 
-## License Standard Notice
+### License Standard Notice
 The repository utilizes code licensed under the terms of the Apache Software
 License and therefore is licensed under ASL v2 or later.
 
@@ -34,14 +49,14 @@ program. If not, see http://www.apache.org/licenses/LICENSE-2.0.html
 
 The source code forked from other open source projects will inherit its license.
 
-## Privacy Standard Notice
+### Privacy Standard Notice
 This repository contains only non-sensitive, publicly available data and
 information. All material and community participation is covered by the
 [Disclaimer](https://github.com/CDCgov/template/blob/master/DISCLAIMER.md)
 and [Code of Conduct](https://github.com/CDCgov/template/blob/master/code-of-conduct.md).
 For more information about CDC's privacy policy, please visit [http://www.cdc.gov/other/privacy.html](https://www.cdc.gov/other/privacy.html).
 
-## Contributing Standard Notice
+### Contributing Standard Notice
 Anyone is encouraged to contribute to the repository by [forking](https://help.github.com/articles/fork-a-repo)
 and submitting a pull request. (If you are new to GitHub, you might start with a
 [basic tutorial](https://help.github.com/articles/set-up-git).) By contributing
@@ -53,7 +68,7 @@ later.
 All comments, messages, pull requests, and other submissions received through
 CDC including this GitHub page may be subject to applicable federal law, including but not limited to the Federal Records Act, and may be archived. Learn more at [http://www.cdc.gov/other/privacy.html](http://www.cdc.gov/other/privacy.html).
 
-## Records Management Standard Notice
+### Records Management Standard Notice
 This repository is not a source of government records, but is a copy to increase
 collaboration and collaborative potential. All government records will be
 published through the [CDC web site](http://www.cdc.gov).
