@@ -6,15 +6,15 @@ state and is being actively
 developed.](https://www.repostatus.org/badges/latest/active.svg)](https://github.com/CDCgov/Rnssp-rmd-templates)
 <!-- badges: end -->
 
-Report Templates to extend the [Rnssp](https://github.com/CDCgov/Rnssp) package.
+Report Templates to extend the [`Rnssp`](https://github.com/CDCgov/Rnssp) package.
 
 ## Installation
 
-To add any of the template of this repository, please install the [Rnssp]("https://github.com/CDCgov/Rnssp") R package first.
+To add any of the template of this repository, **please install the  [`Rnssp`](https://github.com/CDCgov/Rnssp) package first**.
 
  Then, from your R console, run `Rnssp::list_templates()` function to list the available templates.
  
- To download and add specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template(template_name = <specify template name>)` function as depicted in the example below (with `text_mining` template report):
+ To download and add specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template(template_name = <specify template>)` function as depicted in the example below (with `text_mining` template report):
  
  ```r
  library("Rnssp")
