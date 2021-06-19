@@ -35,9 +35,9 @@ params:
     choices: [Chief Complaint Query Validation, Facility Location (Full Details)]
   definition: 
     label: "Syndrome Definition: " 
-    value: !r  dplyr::pull(head(readRDS(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds")), 1), syndrome)
+    value: !r  fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); dplyr::pull(head(readRDS(fl), 1), syndrome)
     input: select
-    choices: !r dplyr::pull(readRDS(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds")), syndrome)
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); dplyr::pull(readRDS(fl), syndrome)
 ---
 
 ```{r setup, include = FALSE}
