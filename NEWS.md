@@ -14,7 +14,7 @@ State Emergency Department template available.
 <details>
 
 <summary>6/19/2021</summary>
-The Text Mining has been updated. This version contains the following updates:
+The Text Mining template has been updated. This version contains the following updates:
 
 * Users now have a choice to select a syndrome definition from a list of all CCDD categories, subsyndromes, and syndromes that are currently in the system. Users no longer need to manually paste in the query to populate on the Background tab. The input option allows for users to type and search for a definition type and name when knitting with parameters. As done in the combined category fields in ESSENCE, CCDD categories are proceeded by CCDD Category, subsyndromes by Subsyndrome, and syndrome by Syndrome.
 
