@@ -2,7 +2,7 @@
 .RData
 .Rproj.user/
 .Rproj
-.html
+*.html
 Rnssp.Rproj
 .Rhistory
 .Rproj.user
