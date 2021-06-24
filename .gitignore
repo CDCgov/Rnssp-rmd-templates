@@ -1,0 +1,11 @@
+.Rhistory
+.RData
+.Rproj.user/
+.Rproj
+.html
+Rnssp.Rproj
+.Rhistory
+.Rproj.user
+inst/doc
+*.rds
+Rnssp.Rcheck/
