@@ -2,7 +2,7 @@
 
 ## State Emergency Department template (`state_ed_report`)
 
-<details>
+<details open>
 
 <summary>6/8/2021</summary>
 State Emergency Department template available.
@@ -24,7 +24,7 @@ The Text Mining has been updated. This version contains the following updates:
 
 </details>
 
-<details>
+<details open>
 <summary>5/21/2021</summary>
 Text Mining template available.
 </details>
