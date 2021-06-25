@@ -23,7 +23,7 @@ To use any of the templates of this repository, **please install the  [`Rnssp`](
  list_templates(as.table = TRUE) %>% View()
 
  # Extend the Rnssp package with the Text Mining template report
- add_rmd_report(template_name = "text_mining")
+ add_rmd_template(template_name = "text_mining")
  ```
 
 Alternatively, users can download .zip releases of the templated for manual integration with the Rnssp package by running the `Rnssp::add_rmd_template()` without argument.
