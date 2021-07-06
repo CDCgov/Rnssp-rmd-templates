@@ -1,4 +1,4 @@
-name: Essence Chief Complaint And Discharge Diagnosis Categories
+name: Essence CCDD Categories
 description: >
   This template generates a trend report of CCDD Categories between the MMWR weeks containing the dates you choose. 
   You are able to select as many of the CCDD Categories as you would like to generate this report and are able
