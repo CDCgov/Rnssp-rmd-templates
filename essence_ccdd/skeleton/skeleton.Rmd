@@ -1,5 +1,5 @@
 ---
-title: "ESSENCE Chief Complaint and Discharge Diagnosis Categories"
+title: "ESSENCE CCDD Categories"
 date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
 output: html_document
 
