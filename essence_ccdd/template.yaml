@@ -1,0 +1,10 @@
+name: Essence Chief Complaint And Discharge Diagnosis Categories
+description: >
+  This template generates a trend report of CCDD Categories between the MMWR weeks containing the dates you choose. 
+  You are able to select as many of the CCDD Categories as you would like to generate this report and are able
+  to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) filters.
+  Original Code By: Kelly Carey.
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic and Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC). 
+create_dir: false
