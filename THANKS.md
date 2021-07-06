@@ -10,6 +10,7 @@ We would like to acknowledge the following persons for their support and contrib
 <!-- This list will keep growing as we receive new contributions -->
 * [Aaron Kite-Powell](https://github.com/akitepowell)
 * [Michael Sheppard](https://github.com/Michael-Sheppard)
+* [Kelly Carey](https://github.com/kellycarey)
 * [Roseric Azondekon](https://github.com/rosericazondekon)
 * The [National Syndromic Surveillance Program (NSSP)](https://www.cdc.gov/nssp/index.html)
 * and the [NSSP Community of Practice](https://nsspcommunityofpractice.org/)
