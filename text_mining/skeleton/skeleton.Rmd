@@ -126,9 +126,9 @@ if(params$data_source == "Chief Complaint Query Validation"){
 }else if(params$data_source == "Facility Location (Full Details)"){
   if("All Ages" %in% params$age_groups){
     if(params$site == "All"){
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails&ccddCategory=", definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
     } else{
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&ccddCategory=", definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
     }
   }else {
     
@@ -147,10 +147,10 @@ if(params$data_source == "Chief Complaint Query Validation"){
     
     if(params$site == "All"){
       url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate,
-                    "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails&ccddCategory=", definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string,  "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+                    "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string,  "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
     } else{
       url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate,
-                    "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&ccddCategory=", definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string,  "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+                    "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string,  "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
     }
   }
 }
