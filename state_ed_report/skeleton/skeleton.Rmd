@@ -110,12 +110,6 @@ myProfile <- Credentials$new(
 
 ```
 
-```{r, echo = FALSE, eval = FALSE}
-
-load("~/myProfile.rds")
-
-```
-
 ```{r set_model_specification, echo = FALSE, message = FALSE, warning = FALSE}
 
 metric <- params$ts_type
