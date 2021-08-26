@@ -27,7 +27,7 @@ params:
   ccdd_categories:
     label: "CCDD Categories"
     value: !r c("CLI CC with CLI DD and Coronavirus DD v1", "CDC Pneumonia CCDD v1", "CDC COVID-Specific DD v1")
-    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_ed_report", "skeleton", "ccdd_cat.rds"), destfile = fl); dplyr::pull(readRDS("ccdd_cat.rds"), ccdd_category)
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_ed_report", "skeleton", "ccdd_cat.rds"), destfile = fl); dplyr::pull(readRDS(fl), ccdd_category)
     input: select
     multiple: yes
   start_date:
