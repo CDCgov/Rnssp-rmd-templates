@@ -92,6 +92,7 @@ library(DT)
 endDate <- format(params$end_date, "%d%b%Y")
 startDate <- format(params$start_date, "%d%b%Y")
 hasBeenE <- as.numeric(params$has_been_E)
+definition <- params$definition
 ```
 
 ```{r set_nssp_user_profile, echo=FALSE, message=FALSE, include=FALSE}
@@ -103,23 +104,24 @@ myProfile <- Credentials$new(
 ```
 
 ```{r ESSENCE data pull, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
+definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
 
-if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")) == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition), "ccdd category: "), " ", "%20")
+if (definition_pattern == "CCDD Category") {
+  definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
   definition_type <- "&ccddCategory="
 }
 
-if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")) == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition), "subsyndrome: "), " ", "%20")
+if (definition_pattern == "Subsyndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "%20")
   definition_type <- "&subsyndrome="
 }
 
-if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition), "syndrome: "), " ", "%20")
+if (definition_pattern == "Syndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
   definition_type <- "&syndrome="
 }
 
-if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")) == "None (Custom CCDD Query)") {
+if (definition_pattern == "None (Custom CCDD Query)") {
   definition_string <- str_replace_all(params$ccdd_query, "\\^", "%5E") %>%
     str_replace_all(" ", "%20") %>%
     str_replace_all("\\[", "%5B") %>%
@@ -151,11 +153,11 @@ if (params$data_source == "Chief Complaint Query Validation") {
       str_replace_all("Distribute", "distribute") %>%
       str_replace_all("School", "school") %>%
       paste0("age", .)
-
+    
     if (grepl("age\\d{1}", age_group_string)) {
       age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
     }
-
+    
     if (params$site == "All") {
       url <- paste0(
         "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate,
@@ -224,11 +226,11 @@ Column
 
 The purpose of this interactive dashboard is to summarize the chief complaint text and diagnosis codes as part of an initial description of the content of these fields in *existing* syndromes or categories. This report template is available via the `Rnssp` library and allows users to input a list of parameters, including: 
 
-  * AMC username and password (securely encrypted to a user profile object of class `Credentials`)
-  * Start and end date of query
-  * Has been Emergency: TRUE/FALSE option for limiting to emergency department visits 
-  * Data source: options include the Chief Complaint Query Validation (CCQV) data source or Facility Location (Full Details)
-  * Syndrome definition: CCDD Category, Subsyndrome, or Syndrome. Currently includes all definitions within ESSENCE as of June 17th, 2021
+* AMC username and password (securely encrypted to a user profile object of class `Credentials`)
+* Start and end date of query
+* Has been Emergency: TRUE/FALSE option for limiting to emergency department visits 
+* Data source: options include the Chief Complaint Query Validation (CCQV) data source or Facility Location (Full Details)
+* Syndrome definition: CCDD Category, Subsyndrome, or Syndrome. Currently includes all definitions within ESSENCE as of June 17th, 2021
 
 The data source used in this dashboard is the Chief Complaint Query Validation (CCQV) data source in NSSP-ESSENCE, which includes the chief complaint and discharge diagnosis fields, and does not include facility location, patient location, or other demographic information. This data source was created with the Syndromic Community of Practice (CoP) so that users can test and create new syndrome categories using a large corpus of chief complaint and diagnosis code data that includes more variation than would be present in any one site.  Some sites have opted out of contributing their data to the Query Validation data source, including Arizona, Idaho, Illinois, Marion County, Indiana, Massachusetts, North Dakota, and Ohio.
 
@@ -236,49 +238,49 @@ The data source used in this dashboard is the Chief Complaint Query Validation (
 
 The visualizations in this dashboard include total weekly volume of encounters, the 200 most frequent n-gram frequencies of chief complaint terms and discharge diagnosis codes, term co-occurrence network graphs for the ChiefComplaintParsed and CCDD fields, a chief complaint term correlation network graph, and n-grams with significant increases or decreases in occurrence over time. Potential clusters or groupings of terms are visualized by node color and can be selected from the "Select by group" drop down menu. All interactive widgets were produced with the `plotly` and `visNetwork` packages which provide hovering functionality such as displaying data point values, ICD-10 code descriptions, and co-occurrence frequencies. 
 
-### `r paste("Query Details:", str_squish(str_remove_all(params$definition, "CCDD Category|Syndrome|Subsyndrome|:")))`
+### `r paste("Query Details:", str_squish(str_remove_all(definition, "CCDD Category|Syndrome|Subsyndrome|:")))`
 
 ```{r query, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (params$age_groups == "All Ages") {
-  field <- str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
-
+  field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
+  
   if (params$ccdd_query != "") {
     query <- params$ccdd_query
-
+    
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
       scroll_box(width = "1000px", height = "300px")
   } else {
     query <- readRDS("syndef.rds") %>%
-      filter(syndrome == params$definition) %>%
+      filter(syndrome == definition) %>%
       pull(query_logic)
-
+    
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
       scroll_box(width = "1000px", height = "300px")
   }
 } else {
-  field <- c(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
+  field <- c(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
     unique()
-
+  
   if (params$ccdd_query != "") {
     query <- params$ccdd_query
-
+    
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
       scroll_box(width = "1000px", height = "300px")
   } else {
     query <- readRDS("syndef.rds") %>%
-      filter(syndrome == params$definition) %>%
+      filter(syndrome == definition) %>%
       pull(query_logic)
-
+    
     age_groups <- as.character(str_match(params$age_group, pattern = "\\d{2}-\\d{2}|\\d{2}\\+")) %>%
       ifelse(length(.) == 1, ., paste(., collapse = ", "))
-
+    
     data.frame(Fields = field, Query = c(str_replace_all(query, pattern = "\\^", "\\\\^"), age_groups)) %>%
       kable() %>%
       kable_styling() %>%
@@ -334,7 +336,7 @@ data %>%
 
 Chief Complaint {data-navmenu="Character and Token Length of CC and DD Fields"} 
 =======================================================================
-  
+
 Column 
 -----------------------------------------------------------------------
 
@@ -949,13 +951,22 @@ Chief Complaint Correlation {data-navmenu="Term Network Graphs"}
 pal <- c("#003C67FF", "#4A6990FF")
 
 # Static ggraph option
-cc_cor1 <- unnested_cc_unigrams %>%
+check_row <- unnested_cc_unigrams %>%
   select(
     linenumber,
     word
   ) %>%
   group_by(word) %>%
   filter(n() >= 20) %>%
+  nrow()
+
+cc_cor1 <- unnested_cc_unigrams %>%
+  select(
+    linenumber,
+    word
+  ) %>%
+  group_by(word) %>%
+  {if(check_row != 0) filter(., n() >= 20) else filter(., n() > 0)} %>% 
   pairwise_cor(word, linenumber, sort = TRUE) %>%
   filter(correlation > 0.15) %>%
   mutate(
@@ -968,7 +979,7 @@ cc_cor1 <- unnested_cc_unigrams %>%
 cc_cor_graph <- cc_cor1 %>%
   graph_from_data_frame()
 
-ggraph(cc_cor_graph, layout = "fr") +
+cc_cor_graph %>% ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
   geom_node_point(color = pal[1], size = 5) +
   geom_node_text(aes(label = name), repel = TRUE) +
@@ -1208,7 +1219,7 @@ if (nrow(cc_unigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1222,7 +1233,7 @@ if (nrow(cc_unigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1252,7 +1263,7 @@ if (nrow(dd_unigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1267,7 +1278,7 @@ if (nrow(dd_unigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1302,7 +1313,7 @@ if (nrow(cc_unigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1316,7 +1327,7 @@ if (nrow(cc_unigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1346,7 +1357,7 @@ if (nrow(dd_unigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1361,7 +1372,7 @@ if (nrow(dd_unigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1398,7 +1409,7 @@ if (nrow(cc_bigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1412,7 +1423,7 @@ if (nrow(cc_bigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1441,7 +1452,7 @@ if (nrow(dd_bigrams_increasing) > 0) {
           y = ""
         )
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1457,7 +1468,7 @@ if (nrow(dd_bigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1494,7 +1505,7 @@ if (nrow(cc_bigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1508,7 +1519,7 @@ if (nrow(cc_bigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")
@@ -1537,7 +1548,7 @@ if (nrow(dd_bigrams_decreasing) > 0) {
           y = ""
         )
     }))
-
+  
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1553,7 +1564,7 @@ if (nrow(dd_bigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-
+  
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")
