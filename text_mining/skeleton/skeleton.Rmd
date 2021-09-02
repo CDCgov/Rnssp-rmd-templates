@@ -13,12 +13,12 @@ params:
     label: "NSSP Username: "
     value: ""
     input: text
-	placeholder: "username"
+    placeholder: "username"
   password:
     label: "NSSP Password: "
     value: ""
     input: password
-	placeholder: "password"
+    placeholder: "password"
   start_date:
     label: "Enter Start Date: "
     value: !r lubridate::ceiling_date(Sys.Date() - 90, unit = "1 week")
@@ -56,7 +56,7 @@ params:
     label: "CCDD Query: "
     value: ""
     input: text
-	placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
   doc_title:
     label: "Title: "
     value: Text Mining Template (NSSP-ESSENCE)
@@ -982,7 +982,8 @@ cc_cor1 <- unnested_cc_unigrams %>%
 cc_cor_graph <- cc_cor1 %>%
   graph_from_data_frame()
 
-cc_cor_graph %>% ggraph(layout = "fr") +
+cc_cor_graph %>% 
+  ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
   geom_node_point(color = pal[1], size = 5) +
   geom_node_text(aes(label = name), repel = TRUE) +
