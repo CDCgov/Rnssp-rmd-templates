@@ -13,10 +13,12 @@ params:
     label: "NSSP Username: "
     value: ""
     input: text
+	placeholder: "username"
   password:
     label: "NSSP Password: "
     value: ""
     input: password
+	placeholder: "password"
   start_date:
     label: "Enter Start Date: "
     value: !r lubridate::ceiling_date(Sys.Date() - 90, unit = "1 week")
@@ -52,8 +54,9 @@ params:
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
     label: "CCDD Query: "
-    value: "^[;/ ]J10^,OR,^[;/ ]J.10^"
+    value: ""
     input: text
+	placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
   doc_title:
     label: "Title: "
     value: Text Mining Template (NSSP-ESSENCE)
