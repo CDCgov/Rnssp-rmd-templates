@@ -1,24 +1,21 @@
 ---
-title: "ESSENCE CCDD Categories Trends"
+title: "ESSENCE Chief Complaint and Discharge Diagnosis Categories"
 date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
 output: html_document
 
-description: This template generates a trend report of CCDD Categories between 
-  the MMWR weeks containing the dates you choose. You are able to select as many
-  of the CCDD Categories as you would like to generate this report and are able
-  to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) 
-  filters. Remember to change the title to your liking.
-  PLEASE Knit it with Parameters!!!
+description: "This template generates a trend report of CCDD Categories between the MMWR weeks containing the dates you choose. You are able to select as many of the CCDD Categories as you would like to generate this report and are able to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) filters. This report can be run for national data or for a specific site. Please knit the document with selections for all input parameters."
 
 params:
   username:
     label: "NSSP Username: "
     value: ""
     input: text
+    placeholder: "username"
   password:
     label: "NSSP Password: "
     value: ""
     input: password
+    placeholder: "password"
   start_date:
     label: "Enter Start Date: "
     value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
@@ -27,82 +24,93 @@ params:
     label: "Enter End Date: "
     value: !r Sys.Date()
     input: date
+  site:
+    label: "Site ID:"
+    value: ""
+    input: select
+    choices: ["National", "HHS Region I", "HHS Region II", "HHS Region III", "HHS Region IV", "HHS Region V", "HHS Region VI", "HHS Region VII", "HHS Region VIII", "HHS Region IX", "HHS Region X", "857 - Alaska", "858 - Alabama", "859 - Arkansas", "860 - Arizona", "861 - California", "862 - El Dorado County, CA", "863 - Monterey County, CA", "865 - Nevada County, CA", "866 - Riverside County, CA", "867 - Sacramento County, CA", "868 - San Diego County, CA" , "869 - San Mateo County, CA", "871 - Santa_Cruz County, CA", "872 - Solano County, CA", "873 - Stanislaus County, CA", "879 - Colorado-North Central Region (CO_NCR)", "880 - Connecticut", "881 - District of Columbia", "882 - Delaware", "884 - Florida", "885 - Georgia", "886 - Hawaii", "888 - Linn County, IA", "889 - Idaho", "890 - Illinois", "892 - Indiana", "893 - Marion County, IN", "894 - Kansas", "895 - Kentucky", "896 - Louisiana", "899 - Massachusetts", "901 - Maryland", "902 - Maine", "903 - Michigan", "904 - Minnesota", "905 - Mississippi", "906 - Missouri", "907 - Montana", "908 - North Carolina", "909 - North Dakota", "910 - Nebraska", "911 - New Hampshire", "912 - New Jersey", "913 - New Mexico", "914 - Nevada", "915 - New York City", "916 - New York", "917 - Ohio", "918 - Oklahoma", "919 - Oregon", "920 - Pennsylvania", "922 - Rhode Island", "923 - South Carolina", "924 - South Dakota", "925 - Tennessee" , "926 - Texas", "928 - TX_Region65", "929 - Texas Region 2/3, TX", "930 - Utah", "931 - Virginia", "933 - Vermont", "934 - Washington", "936 - Wisconsin", "937 - West Virginia", "938 - Wyoming", "955 - Yolo, CA", "977 - Plumas County, CA", "978 - Yosemite Gateway Region, CA", "979 - Guam"]
   ccdd_category:
     label: "Select CCDD Categories"
-    value: "Select All"
+    value: "Air Quality-Related Respiratory Illness v1"
     choices:
-     - All Traffic Related v2
-     - CDC Acute Hepatitis C v1
-     - CDC Alcohol v1
-     - CDC All Drug v2
-     - CDC Anxiety Disorders v1
-     - CDC Assault Firearm Injury v1
-     - CDC Asthma CCDD v1
-     - CDC Attention-Deficit Hyperactivity Disorders v1
-     - CDC Benzodiazepine Overdose v1
-     - CDC Bipolar Disorders v1
-     - CDC Chicken Pox v1
-     - CDC Chronic Hepatitis C v1
-     - CDC Coronavirus-DD v1
-     - CDC COVID-Specific DD v1
-     - CDC Depressive Disorders v1
-     - CDC Diabetic Ketoacidosis v1
-     - CDC Dialysis v1
-     - CDC Disruptive Behavioral and Impulse-Control v1
-     - CDC Eating Disorders v1
-     - CDC Firearm Injury v2
-     - CDC Food Poisoning v1
-     - CDC Hand Foot and Mouth v1
-     - CDC Hepatitis A v1
-     - CDC Heroin Overdose v4 
-     - CDC Influenza DD v1 
-     - CDC Intentional Firearm Injury v1 
-     - CDC Intimate Partner Violence v2 
-     - CDC Legionella v1 
-     - CDC Lyme Disease v1 
-     - CDC Measles CCDD v1 
-     - CDC Medication Refill v1 
-     - CDC Mental Health v1 
-     - CDC Obsessive-Compulsive Disorders v1 
-     - CDC Opioid Overdose v3 
-     - CDC Persons Experiencing Homelessness DD v1 
-     - CDC Pertussis v1 
-     - CDC Pneumonia CCDD v1 
-     - CDC Pregnancy and Pregnancy Loss and Delivery v1
-     - CDC Respiratory Syncytial Virus v1 
-     - CDC Schizophrenia Spectrum Disorders v1 
-     - CDC Sexual Violence v3 
-     - CDC Shigella v1 
-     - CDC Stimulants v3 
-     - CDC Suicidal Ideation v1 
-     - CDC Suicide Attempt v1 
-     - CDC Suspected Child Abuse and Neglect v1 
-     - CDC Synthetic Cannabinoids v1 
-     - CDC Tic Disorders v1 
-     - CDC Tick Exposure v1 
-     - CDC Trauma and Stressor-related Disorders v1 
-     - CDC Unintentional Carbon Monoxide Exposure v1 
-     - CDC Unintentional Firearm Injury v1 
-     - CDC Vaccine-Associated Adverse Events v1 
-     - CDC Vaping and E Cig Injuries v1 
-     - Change in Taste or Smell v1 
-     - CLI CC with CLI DD and Coronavirus DD v2 
-     - Cold Related Illness v1 
-     - Fever and Cough-Sob-DiffBr neg Influenza DD v2 
-     - Fever and Cough-Sob-DiffBr v2 
-     - Foreign Travel v2 
-     - Heat Related Illness v2 
-     - ILI CCDD Neg Coronavirus DD v1 
-     - ILI CCDD v1 
-     - ILI Neg Influenza Mention v1 
-     - ILI Syndrome Neg Coronavirus DD v1 
-     - Intimate Partner Violence v1 
-     - Marijuana v3 
-     - Mumps v1 
-     - Norovirus v1 
-     - SDC Disaster Related Mental Health v1 
-     - SDC Suicide Related v1 
-     - Sexual Violence v2
+     - "Air Quality-Related Respiratory Illness v1"
+     - "All Traffic Related v2"
+     - "CDC Acute Hepatitis C v1"
+     - "CDC Alcohol v1"
+     - "CDC All Drug v2"
+     - "CDC Anxiety Disorders v1"
+     - "CDC Assault Firearm Injury v1"
+     - "CDC Asthma CCDD v1"
+     - "CDC Attention-Deficit Hyperactivity Disorders v1"
+     - "CDC Benzodiazepine Overdose v1"
+     - "CDC Bipolar Disorders v1"
+     - "CDC Chicken Pox v1"
+     - "CDC Chronic Hepatitis C v1"
+     - "CDC Coronavirus-DD v1"
+     - "CDC COVID-Specific DD v1"
+     - "CDC Depressive Disorders v1"
+     - "CDC Diabetic Ketoacidosis v1"
+     - "CDC Dialysis v1"
+     - "CDC Disruptive Behavioral and Impulse-Control v1"
+     - "CDC Eating Disorders v1"
+     - "CDC Falls 65 and Older v1"
+     - "CDC Firearm Injury v2"
+     - "CDC Food Poisoning v1"
+     - "CDC Hand Foot and Mouth v1"
+     - "CDC Hepatitis A v1"
+     - "CDC Heroin Overdose v4" 
+     - "CDC Hip Fracture 65 and Older v1"
+     - "CDC Influenza DD v1" 
+     - "CDC Intentional Firearm Injury v1" 
+     - "CDC Intimate Partner Violence v2 "
+     - "CDC Legionella v1"
+     - "CDC Lyme Disease v1" 
+     - "CDC Measles CCDD v1" 
+     - "CDC Medication Refill v1"
+     - "CDC Mental Health v1" 
+     - "CDC Myocardiitis with No Specified Pathogen v1"
+     - "CDC Obsessive-Compulsive Disorders v1" 
+     - "CDC Opioid Overdose v3" 
+     - "CDC Persons Experiencing Homelessness DD v1" 
+     - "CDC Pertussis v1"
+     - "CDC Pneumonia CCDD v1" 
+     - "CDC Pregnancy and Pregnancy Loss and Delivery v1"
+     - "CDC Respiratory Syncytial Virus v1" 
+     - "CDC Schizophrenia Spectrum Disorders v1" 
+     - "CDC Seizure or Epilepsy v1"
+     - "CDC Sexual Violence v3" 
+     - "CDC Shigella v1" 
+     - "CDC Stimulants v3" 
+     - "CDC Suicidal Ideation v1" 
+     - "CDC Suicide Attempt v1" 
+     - "CDC Suspected Child Abuse and Neglect v1" 
+     - "CDC Synthetic Cannabinoids v1" 
+     - "CDC Tic Disorders v1"
+     - "CDC Tick Exposure v1" 
+     - "CDC Trauma and Stressor-related Disorders v1" 
+     - "CDC Unintentional Carbon Monoxide Exposure v1" 
+     - "CDC Unintentional Firearm Injury v1" 
+     - "CDC Vaccine-Associated Adverse Events v1" 
+     - "CDC Vaping and E Cig Injuries v1" 
+     - "Change in Taste or Smell v1" 
+     - "CLI CC with CLI DD and Coronavirus DD v2" 
+     - "Cold Related Illness v1" 
+     - "Fever and Cough-Sob-DiffBr neg Influenza DD v2" 
+     - "Fever and Cough-Sob-DiffBr v2" 
+     - "Fire and Smoke Inhalation v1"
+     - "Foreign Travel v2" 
+     - "Heat Related Illness v2" 
+     - "ILI CCDD Neg Coronavirus DD v1" 
+     - "ILI CCDD v1"
+     - "ILI Neg Influenza Mention v1" 
+     - "ILI Syndrome Neg Coronavirus DD v1" 
+     - "Intimate Partner Violence v1" 
+     - "Marijuana v3" 
+     - "Mumps v1" 
+     - "Norovirus v1" 
+     - "SDC Disaster Related Mental Health v1" 
+     - "SDC Suicide Related v1" 
+     - "Sexual Violence v2"
     input: select
     multiple: yes
   ddi: 
@@ -115,48 +123,18 @@ params:
     input: numeric
 ---
 
-```{r setup, include = FALSE}
-## Libraries ----
+```{r loadPackages, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 library(Rnssp)
+library(knitr)
 library(tidyverse)
-library(MMWRweek)
 library(lubridate)
+library(MMWRweek)
+library(gridExtra)
+library(distill)
 library(cowplot)
+library(viridis)
 library(scales)
-```
-
-
-```{r graphFunctions, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
-plot.generator <- function(df, ccdd.per.name) { # inputs(dataframe for volume data, "CCDD Text Name")
-  ccdd.count.name <- paste(ccdd.per.name, "Data Count", sep = " ")
-  # generate count var name
-  df <- df %>%
-    select(week, year, all_of(ccdd.per.name), all_of(ccdd.count.name)) # subsets to ccdd info only
-
-  count.plot <- df %>% # generate count plot
-    ggplot(aes(x = week, y = df[[4]], color = as.factor(year))) +
-    geom_line(size = 1.2) +
-    theme_bw() +
-    theme(text = element_text(size = 16), legend.position = "none") +
-    scale_y_continuous(labels = comma) +
-    scale_color_viridis_d(begin = 0.1, end = 0.9) +
-    ylim(c(0, NA)) +
-    labs(title = "Visit Count", x = "MMWR Week", y = "Visit Count", color = "Year")
-
-  percent.plot <- df %>% # generate percent plot
-    ggplot(aes(x = week, y = df[[3]], color = as.factor(year))) +
-    geom_line(size = 1.2) +
-    theme_bw() +
-    theme(text = element_text(size = 16), legend.position = "none") +
-    scale_y_continuous(labels = comma) +
-    scale_color_viridis_d(begin = 0.1, end = 0.9) +
-    ylim(c(0, NA)) +
-    labs(title = "Percent of ED Visits", x = "MMWR Week", y = "Percent of Visits", color = "Year")
-
-  plots <- plot_grid(count.plot, percent.plot, align = "hv", axis = "bt", ncol = 1, greedy = TRUE)
-  legend <- get_legend(percent.plot + theme(legend.position = "bottom"))
-  plot_grid(plots, legend, ncol = 1, rel_heights = c((14 / 15), (1 / 15)))
-}
+library(sjmisc)
 ```
 
 ```{r setUpProfile, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
@@ -167,15 +145,45 @@ userProfile <- Credentials$new(
 ```
 
 ```{r FormatUserInputs, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+# site id; default is national
+site.info <- params$site
+site.api <- ""
+hhs.api1 <- ""
+hhs.api2 <- ""
+
+if (str_contains(site.info, pattern = "HHS Region", ignore.case = TRUE)) {
+  hhs.api1 <- paste0(
+    "&geography=region%20",
+    str_to_lower(
+      str_replace(site.info,
+        pattern = "HHS Region ",
+        replacement = ""
+      )
+    )
+  )
+  hhs.api2 <- "dhhsregion"
+}
+if (str_contains(site.info, pattern = "Site", ignore.case = TRUE)) {
+  site.api <- paste0(
+    "&site=",
+    str_sub(site.info,
+      start = 1,
+      end = 3
+    )
+  )
+}
+
 # data quality parameters
-cov.lte <- params$cov # coefficient of variance; if none selected default is all facilities less than or equal to 1,000
+# coefficient of variance; if none selected default is all facilities less than or equal to 1,000
+cov.lte <- params$cov
 if (is.na(cov.lte)) {
   cov.lte <- 1000
 } else {
   cov.lte <- cov.lte
 }
 
-ddi.gte <- params$ddi # avg weekly discharge diagnosis informative; if none selected default is all facilities
+# avg weekly discharge diagnosis informative; if none selected default is all facilities
+ddi.gte <- params$ddi
 if (is.na(ddi.gte)) {
   ddi.gte <- 0
 } else {
@@ -183,22 +191,43 @@ if (is.na(ddi.gte)) {
 }
 
 # format end dates
-report.end.date <- as.Date(params$end_date)
-report.end.date <- MMWRweek(report.end.date)
-report.end.date <- MMWRweek2Date(report.end.date$MMWRyear, report.end.date$MMWRweek, 7)
-api.end.date <- format(as.Date(report.end.date), "%d%b%Y")
-end.date.for.text <- format(as.Date(report.end.date), "%B %d, %Y")
+report.end.date <- params$end_date %>%
+  as.Date()
+report.end.date <- report.end.date %>%
+  MMWRweek()
 
-report.start.date <- as.Date(params$start_date)
-report.start.date <- MMWRweek(report.start.date)
+report.end.date <- MMWRweek2Date(report.end.date$MMWRyear, report.end.date$MMWRweek, 7)
+
+api.end.date <- report.end.date %>%
+  as.Date() %>%
+  format(., "%d%b%Y")
+end.date.for.text <- report.end.date %>%
+  as.Date() %>%
+  format(., "%B %d, %Y")
+
+report.start.date <- params$start_date %>%
+  as.Date()
+report.start.date <- report.start.date %>%
+  MMWRweek()
+
 report.start.date <- MMWRweek2Date(report.start.date$MMWRyear, report.start.date$MMWRweek, 1)
-api.start.date <- format(as.Date(report.start.date), "%d%b%Y")
-start.date.for.text <- format(as.Date(report.start.date), "%B %d, %Y")
+api.start.date <- report.start.date %>%
+  as.Date() %>%
+  format(., "%d%b%Y")
+start.date.for.text <- report.start.date %>%
+  as.Date() %>%
+  format(., "%B %d, %Y")
 
 # # calculate years of DQ filters needed
-start.date.year <- as.numeric(format(report.start.date, "%Y"))
-print(start.date.year)
-current.year <- as.numeric(format(Sys.Date(), "%Y"))
+start.date.year <- params$start_date %>%
+  as.Date() %>%
+  format(., "%Y") %>%
+  as.numeric()
+# print(start.date.year)
+current.year <- Sys.Date() %>%
+  format(., "%Y") %>%
+  as.numeric()
+
 if (current.year - start.date.year == 0) {
   dq.filter.year <- "Current"
 } else if (current.year - start.date.year == 1) {
@@ -213,34 +242,82 @@ if (current.year - start.date.year == 0) {
 }
 
 # format ccdd categories for api (default if none are selected is all available categories)
-ccdd.cats.for.api <- paste(params$`Select CCDD Categories`, collapse = "&ccddCategory=")
-ccdd.cats.for.api <- str_replace_all(ccdd.cats.for.api, " ", "%20")
-
-if (ccdd.cats.for.api == "Select%20All") {
-  ccdd.cats.for.api <- "all%20traffic%20related%20v2&ccddCategory=cdc%20acute%20hepatitis%20c%20v1&ccddCategory=cdc%20alcohol%20v1&ccddCategory=cdc%20all%20drug%20v2&ccddCategory=cdc%20assault%20firearm%20injury%20v1&ccddCategory=cdc%20asthma%20ccdd%20v1&ccddCategory=cdc%20benzodiazepine%20overdose%20v1&ccddCategory=cdc%20chicken%20pox%20v1&ccddCategory=cdc%20chronic%20hepatitis%20c%20v1&ccddCategory=cdc%20covid-specific%20dd%20v1&ccddCategory=cdc%20diabetic%20ketoacidosis%20v1&ccddCategory=cdc%20dialysis%20v1&ccddCategory=cdc%20firearm%20injury%20v2&ccddCategory=cdc%20food%20poisoning%20v1&ccddCategory=cdc%20hand%20foot%20and%20mouth%20v1&ccddCategory=cdc%20hepatitis%20a%20v1&ccddCategory=cdc%20heroin%20overdose%20v4&ccddCategory=cdc%20influenza%20dd%20v1&ccddCategory=cdc%20intentional%20firearm%20injury%20v1&ccddCategory=cdc%20intimate%20partner%20violence%20v2&ccddCategory=cdc%20legionella%20v1&ccddCategory=cdc%20lyme%20disease%20v1&ccddCategory=cdc%20measles%20ccdd%20v1&ccddCategory=cdc%20medication%20refill%20v1&ccddCategory=cdc%20opioid%20overdose%20v3&ccddCategory=cdc%20pertussis%20v1&ccddCategory=cdc%20pneumonia%20ccdd%20v1&ccddCategory=cdc%20pregnancy%20and%20pregnancy%20loss%20and%20delivery%20v1&ccddCategory=cdc%20respiratory%20syncytial%20virus%20v1&ccddCategory=cdc%20sexual%20violence%20v3&ccddCategory=cdc%20shigella%20v1&ccddCategory=cdc%20stimulants%20v3&ccddCategory=cdc%20suicidal%20ideation%20v1&ccddCategory=cdc%20suicide%20attempt%20v1&ccddCategory=cdc%20suspected%20child%20abuse%20and%20neglect%20v1&ccddCategory=cdc%20synthetic%20cannabinoids%20v1&ccddCategory=cdc%20tick%20exposure%20v1&ccddCategory=cdc%20unintentional%20carbon%20monoxide%20exposure%20v1&ccddCategory=cdc%20unintentional%20firearm%20injury%20v1&ccddCategory=cdc%20vaccine-associated%20adverse%20events%20v1&ccddCategory=cdc%20vaping%20and%20e%20cig%20injuries%20v1&ccddCategory=change%20in%20taste%20or%20smell%20v1&ccddCategory=cli%20cc%20with%20cli%20dd%20and%20coronavirus%20dd%20v2&ccddCategory=cold%20related%20illness%20v1&ccddCategory=fever%20and%20cough-sob-diffbr%20neg%20influenza%20dd%20v2&ccddCategory=fever%20and%20cough-sob-diffbr%20v2&ccddCategory=foreign%20travel%20v2&ccddCategory=heat%20related%20illness%20v2&ccddCategory=cdc%20persons%20experiencing%20homelessness%20dd%20v1&ccddCategory=ili%20ccdd%20neg%20coronavirus%20dd%20v1&ccddCategory=ili%20ccdd%20v1&ccddCategory=ili%20neg%20influenza%20mention%20v1&ccddCategory=ili%20syndrome%20neg%20coronavirus%20dd%20v1&ccddCategory=marijuana%20v3&ccddCategory=mumps%20v1&ccddCategory=norovirus%20v1&ccddCategory=sdc%20disaster%20related%20mental%20health%20v1&ccddCategory=sdc%20suicide%20related%20v1&ccddCategory=cdc%20anxiety%20disorders%20v1&ccddCategory=cdc%20attention-deficit%20hyperactivity%20disorders%20v1&ccddCategory=cdc%20bipolar%20disorders%20v1&ccddCategory=cdc%20depressive%20disorders%20v1&ccddCategory=cdc%20disruptive%20behavioral%20and%20impulse-control%20v1&ccddCategory=cdc%20eating%20disorders%20v1&ccddCategory=cdc%20mental%20health%20v1&ccddCategory=cdc%20obsessive-compulsive%20disorders%20v1&ccddCategory=cdc%20schizophrenia%20spectrum%20disorders%20v1&ccddCategory=cdc%20trauma%20and%20stressor-related%20disorders%20v1&ccddCategory=cdc%20tic%20disorders%20v1"
-} else {
-  ccdd.cats.for.api <- ccdd.cats.for.api
-}
+ccdd.cats.for.api <- params$ccdd_category %>%
+  paste(., collapse = "&ccddCategory=")
+ccdd.cats.for.api <- ccdd.cats.for.api %>%
+  str_replace_all(., " ", "%20")
 ```
 
 ```{r essenceAPIswDQfilters, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
-essence.ccdd.api <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, "&percentParam=ccddCategory&ddInformativeAvgWeeklyPercent", dq.filter.year, "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date, "&medicalGroupingSystem=essencesyndromes&userId=4092&dqCOVHasBeenE", dq.filter.year, "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year, "Year=", as.character(cov.lte), "&ccddCategory=", ccdd.cats.for.api, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year, "Year=", as.character(ddi.gte), "&rowFields=timeResolution&columnField=ccddCategory")
+essence.ccdd.api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, hhs.api1,
+  "&percentParam=ccddCategory&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date,
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site.api,
+  "&dqCOVHasBeenE", dq.filter.year,
+  "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year,
+  "Year=", as.character(cov.lte),
+  "&ccddCategory=", ccdd.cats.for.api,
+  "&geographySystem=hospital", hhs.api2,
+  "&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "Year=", as.character(ddi.gte),
+  "&rowFields=timeResolution&columnField=ccddCategory"
+)
 
-essence.sex.api <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year, "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date, "&medicalGroupingSystem=essencesyndromes&userId=4092&dqCOVHasBeenE", dq.filter.year, "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year, "Year=", as.character(cov.lte), "&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year, "Year=", as.character(ddi.gte), "&rowFields=timeResolution&rowFields=sex&columnField=hasBeenE")
+essence.sex.api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, hhs.api1,
+  "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date,
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site.api,
+  "&dqCOVHasBeenE", dq.filter.year,
+  "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year,
+  "Year=", as.character(cov.lte),
+  "&geographySystem=hospital", hhs.api2,
+  "&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "Year=", as.character(ddi.gte),
+  "&rowFields=timeResolution&rowFields=sex&columnField=hasBeenE"
+)
 
-essence.age.api <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year, "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date, "&medicalGroupingSystem=essencesyndromes&userId=4092&dqCOVHasBeenE", dq.filter.year, "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year, "Year=", as.character(cov.lte), "&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year, "Year=", as.character(ddi.gte), "&rowFields=timeResolution&rowFields=ageNCHS&columnField=hasBeenE")
+essence.age.api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api.end.date, hhs.api1,
+  "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date,
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site.api,
+  "&dqCOVHasBeenE", dq.filter.year,
+  "YearOperator=lte&aqtTarget=TableBuilder&dqCOVHasBeenE", dq.filter.year,
+  "Year=", as.character(cov.lte),
+  "&geographySystem=hospital", hhs.api2,
+  "&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "Year=", as.character(ddi.gte),
+  "&rowFields=timeResolution&rowFields=ageNCHS&columnField=hasBeenE"
+)
 
-dq.facilities.api <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/summaryData?endDate=", api.end.date, "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year, "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date, "&medicalGroupingSystem=essencesyndromes&userId=4092&dqCOVHasBeenE", dq.filter.year, "YearOperator=lte&aqtTarget=TimeSeries&dqCOVHasBeenE", dq.filter.year, "Year=", as.character(cov.lte), "&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year, "Year=", as.character(ddi.gte))
+dq.facilities.api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/summaryData?endDate=", api.end.date, hhs.api1,
+  "&percentParam=noPercent&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "YearOperator=gte&datasource=va_hosp&startDate=", api.start.date,
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site.api,
+  "&dqCOVHasBeenE", dq.filter.year,
+  "YearOperator=lte&aqtTarget=TimeSeries&dqCOVHasBeenE", dq.filter.year,
+  "Year=", as.character(cov.lte),
+  "&geographySystem=hospital", hhs.api2,
+  "&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1&ddInformativeAvgWeeklyPercent", dq.filter.year,
+  "Year=", as.character(ddi.gte)
+)
 
-nodq.facilities.api <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/summaryData?endDate=", api.end.date, "&percentParam=noPercent&datasource=va_hosp&startDate=", api.start.date, "&medicalGroupingSystem=essencesyndromes&userId=4092&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1")
+nodq.facilities.api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/summaryData?endDate=", api.end.date, hhs.api1,
+  "&percentParam=noPercent&datasource=va_hosp&startDate=", api.start.date,
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site.api,
+  "&aqtTarget=TimeSeries&geographySystem=hospital", hhs.api2,
+  "&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1"
+)
 ```
 
 ```{r loadData, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 # load trend data
 ccdd.volume <- userProfile$get_api_data(essence.ccdd.api, fromCSV = TRUE)
-
 ccdd.sex <- userProfile$get_api_data(essence.sex.api, fromCSV = TRUE)
-
 ccdd.age <- userProfile$get_api_data(essence.age.api, fromCSV = TRUE)
 
 # load DQ data
@@ -255,7 +332,7 @@ facility.no.dq.sum.stats <- no.dq.api.response$summaryData
 # format date variabless
 date.var.creation <- function(api.df) {
   api.df.cleaned <- api.df %>%
-    as.tibble() %>%
+    as_tibble() %>%
     separate(timeResolution, c("year", "week"), sep = "-", remove = TRUE) %>%
     mutate(
       week = as.numeric(week),
@@ -287,7 +364,9 @@ ccdd.age <- ccdd.age %>%
 
 # calculate overall totals
 ccdd.volume2 <- ccdd.volume
-ccdd.volume2$total.ccdd.count <- rowSums(select(ccdd.volume, contains("Data Count")))
+ccdd.volume2$total.ccdd.count <- ccdd.volume %>%
+  select(., contains("Data Count")) %>%
+  rowSums()
 ccdd.volume.total.count <- ccdd.volume %>%
   select(year, week, ends_with("All Count")) %>%
   select(1:3)
@@ -297,7 +376,8 @@ ccdd.volume2 <- ccdd.volume2 %>%
   mutate(total.ccdd.per = (total.ccdd.count / total.volume) * 100) %>%
   select(year, week, total.ccdd.count, total.volume, total.ccdd.per)
 
-per.all.cases.ccdd <- (sum(ccdd.volume2$total.ccdd.count, na.rm = TRUE) / sum(ccdd.volume2$total.volume, na.rm = TRUE)) * 100
+per.all.cases.ccdd <- (sum(ccdd.volume2$total.ccdd.count, na.rm = TRUE) /
+  sum(ccdd.volume2$total.volume, na.rm = TRUE)) * 100
 per.all.cases.ccdd <- round(per.all.cases.ccdd, digits = 1)
 ```
 
@@ -305,9 +385,9 @@ per.all.cases.ccdd <- round(per.all.cases.ccdd, digits = 1)
 alc.key.terms <- "Alcohol|Drug|EVALI|Heroin|Marijuana|Medication|Opioid|Stimulants|Cannabinoids|Vaping|Overdose"
 com.dis.key.terms <- "Hepatitis|Chicken Pox|Cold Related|Hand Foot and Mouth|ILI CCDD|ILI Neg|ILI Syndrome Neg|CDC Influenza DD|Measles|Mumps|Norovirus|Pertussis|Pneumonia|Respiratory Syncytial|Shigella|Vaccine-Associated"
 covid.key.terms <- "Coronavirus-DD|CLI|COVID|Fever and Cough-Sob-DiffBr|Foreign Travel|Taste or Smell"
-env.com.key.terms <- "AFM|Asthma|Diabetic|Dialysis|Food|Heat|Legionella|Lyme|Tick|Carbon Monoxide"
+env.com.key.terms <- "AFM|Asthma|Diabetic|Dialysis|Food|Heat|Legionella|Lyme|Tick|Carbon Monoxide|Seizure|Epilepsy|Air|Fire|Smoke"
 psy.so.key.terms <- "Homelessness|Mental Health|Suicide|Suicidal|Anxiety|Attention|Bipolar|Depressive|Disruptive Behavioral|Eating Disorders|Obsessive|Schizophrenia|Tic Disorders|Trauma and Stressor"
-injury.key.terms <- "Firearm|Pregnancy|Violence|Abuse|Traffic|Falls 65 and Older|Hip Fracture 65 and Older"
+injury.key.terms <- "Firearm|Pregnancy|Violence|Abuse|Traffic|Falls|Fracture"
 
 categorization.function <- function(key.term.list) {
   ccdd.subset <- select(ccdd.volume, !contains("All Count") & !contains("Data Count")) %>%
@@ -324,24 +404,18 @@ psy.so <- categorization.function(psy.so.key.terms)
 injury <- categorization.function(injury.key.terms)
 
 # check to make sure all categories are accounted for
-num.ccdd.codes <- as.numeric(ncol(
-  select(
-    ccdd.volume, # number of ccdd codes in report
-    !contains("All Count") & !contains("Data Count") &
-      !week & !year & !Date & !month & !linenumber
-  )
-))
+num.ccdd.codes <- as.numeric(ncol(select(
+  ccdd.volume, # number of ccdd codes in report
+  !contains("All Count") & !contains("Data Count") &
+    !week & !year & !Date & !month & !linenumber
+)))
+num.ccdd.catigorized <- as.numeric(length(alc.drug) + length(com.dis) + length(covid) + # number of ccdd codes categorized
+  length(env.com) + length(psy.so) + length(injury))
 
-num.ccdd.catigorized <- as.numeric(
-  length(alc.drug) + length(com.dis) + # number of ccdd codes categorized
-    length(covid) + length(env.com) + length(psy.so) + length(injury)
-)
-
-all.ccdd.names <- colnames(
-  ccdd.volume %>%
-    select(!contains("All Count") & !contains("Data Count") &
-      !week & !year & !Date & !month & !linenumber)
-)
+all.ccdd.names <- ccdd.volume %>%
+  select(!contains("All Count") & !contains("Data Count") &
+    !week & !year & !Date & !month & !linenumber) %>%
+  colnames()
 
 categorized.ccdd.names <- c(alc.drug, com.dis, covid, env.com, psy.so, injury)
 
@@ -351,12 +425,41 @@ categorized.duplicate.ccdd <- categorized.ccdd.names[duplicated(categorized.ccdd
 categorized.duplicate.ccdd
 ```
 
-```{r graphNoCCDD, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+```{r graphFunctions, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+plot.generator <- function(df, ccdd.per.name) { # inputs(dataframe for volume data, "CCDD Text Name")
+  ccdd.count.name <- paste(ccdd.per.name, "Data Count", sep = " ") # generate count var name
+  df <- df %>%
+    select(week, year, all_of(ccdd.per.name), all_of(ccdd.count.name)) # subsets to ccdd info only
+
+  count.plot <- df %>% # generate count plot
+    ggplot(aes(x = week, y = .data[[ccdd.count.name]], color = as.factor(year))) +
+    geom_line(size = 1.2) +
+    theme_bw() +
+    theme(text = element_text(size = 16), legend.position = "none") +
+    scale_y_continuous(labels = comma, limits = c(0, NA)) +
+    scale_color_viridis_d(begin = 0.1, end = 0.9) +
+    labs(title = "Visit Count", x = "MMWR Week", y = "Visit Count", color = "Year")
+  percent.plot <- df %>% # generate percent plot
+    ggplot(aes(x = week, y = .data[[ccdd.per.name]], color = as.factor(year))) +
+    geom_line(size = 1.2) +
+    theme_bw() +
+    theme(text = element_text(size = 16), legend.position = "none") +
+    scale_y_continuous(labels = comma, limits = c(0, NA)) +
+    scale_color_viridis_d(begin = 0.1, end = 0.9) +
+    labs(title = "Percent of ED Visits", x = "MMWR Week", y = "Percent of Visits", color = "Year")
+
+  plots <- plot_grid(count.plot, percent.plot, align = "hv", axis = "bt", ncol = 1, greedy = TRUE)
+  legend <- get_legend(percent.plot + theme(legend.position = "bottom"))
+  plot_grid(plots, legend, ncol = 1, rel_heights = c((14 / 15), (1 / 15)))
+}
+
 no.ccdd.selections.plot.output <- ggdraw() +
   draw_label("There were no CCDD categories selected in this section.", fontface = "bold", size = 16)
 ```
 
 # Introduction
+
+Report run on `r format(Sys.Date(), "%B %d, %Y")` for all visits from `r params$site`.
 
 ## About
 
@@ -370,7 +473,8 @@ These syndromes represent `r as.character(per.all.cases.ccdd)`% of all emergency
 facility.no.dq.sum.stats <- facility.no.dq.sum.stats %>%
   select(date, Hospital) %>%
   rename("no.dq.hospital" = "Hospital")
-facility.sum.stats <- left_join(facility.dq.sum.stats, facility.no.dq.sum.stats, by = "date")
+facility.sum.stats <- facility.dq.sum.stats %>%
+  left_join(., facility.no.dq.sum.stats, by = "date")
 
 facility.sum.stats <- facility.sum.stats %>%
   mutate(
@@ -380,14 +484,37 @@ facility.sum.stats <- facility.sum.stats %>%
     percent.of.hospitals = (Hospital / no.dq.hospital) * 100
   )
 
-avg.num.facilties <- as.character(round(mean(facility.sum.stats$Hospital), digits = 0))
-avg.percent.facilities <- as.character(round(mean(facility.sum.stats$percent.of.hospitals), digits = 1))
+avg.num.facilties <- facility.sum.stats %>%
+  pull(Hospital) %>%
+  mean() %>%
+  round(., 0) %>%
+  as.character()
 
-min.num.facilties <- as.character(min(facility.sum.stats$Hospital))
-max.num.facilties <- as.character(max(facility.sum.stats$Hospital))
+avg.percent.facilities <- facility.sum.stats %>%
+  pull(percent.of.hospitals) %>%
+  mean() %>%
+  round(., 1) %>%
+  as.character()
 
-min.percent.facilties <- as.character(round(min(facility.sum.stats$percent.of.hospitals), digits = 1))
-max.percent.facilties <- as.character(round(max(facility.sum.stats$percent.of.hospitals), digits = 1))
+min.num.facilties <- facility.sum.stats %>%
+  pull(Hospital) %>%
+  min() %>%
+  as.character()
+max.num.facilties <- facility.sum.stats %>%
+  pull(Hospital) %>%
+  max() %>%
+  as.character()
+
+min.percent.facilties <- facility.sum.stats %>%
+  pull(percent.of.hospitals) %>%
+  min() %>%
+  round(., 1) %>%
+  as.character()
+max.percent.facilties <- facility.sum.stats %>%
+  pull(percent.of.hospitals) %>%
+  max() %>%
+  round(., 1) %>%
+  as.character()
 ```
 
 Emergency department visits are categorized via free text queries on the chief complaint and discharge diagnosis fields, and reporting varies at a facility level. To ensure enough information was consistently provided to NSSP ESSENCE for categorization during the time period in this report, facilities were included if they met the following standards:
@@ -406,21 +533,32 @@ dq.facilities.included.plot <- facility.sum.stats %>%
   theme_bw() +
   theme(text = element_text(size = 16), axis.text.y = element_text(size = 12)) +
   ylim(c(0, NA)) +
-  labs(x = "Date", y = "Facility Count", title = "Facility Count")
+  labs(
+    x = "Date",
+    y = "Facility Count",
+    title = "Facility Count"
+  )
 
 percent.dq.facilities.included.plot <- facility.sum.stats %>%
   ggplot() +
   geom_line(aes(x = as.Date(mmwr.date), y = percent.of.hospitals), size = 1.2) +
   theme_bw() +
   theme(text = element_text(size = 16), axis.text.y = element_text(size = 12)) +
-  ylim(c(0, NA)) +
   ylim(c(0, 100)) +
   labs(
-    x = "Date", y = "Percent of Facilities", title = "Percent of Facilities",
+    x = "Date",
+    y = "Percent of Facilities",
+    title = "Percent of Facilities",
     caption = "The decline in the percent of facilities included reflects onboarding of \nnew facilities that did not send data for the entire time period of this analysis."
   )
 
-plot_grid(dq.facilities.included.plot, percent.dq.facilities.included.plot, align = "hv", axis = "bt", ncol = 1, greedy = TRUE)
+plot_grid(dq.facilities.included.plot,
+  percent.dq.facilities.included.plot,
+  align = "hv",
+  axis = "bt",
+  ncol = 1,
+  greedy = TRUE
+)
 ```
 
 # Total Emergency Visits
@@ -428,15 +566,19 @@ plot_grid(dq.facilities.included.plot, percent.dq.facilities.included.plot, alig
 ## Total Emergency Department Visits by Year
 
 ```{r totVolxWeek, echo=FALSE, error=FALSE, message=FALSE, warning=FALSE, fig.width=9, fig.height=4, layout="l-page"}
-TotalEVisits <- ccdd.volume %>%
+TotalEVisits <- ccdd.volume2 %>%
   ggplot() +
-  geom_line(aes(x = week, y = `All Traffic Related v2 All Count`, color = as.factor(year)), size = 1.2) +
+  geom_line(aes(x = week, y = total.volume, color = as.factor(year)), size = 1.2) +
   theme_bw() +
-  scale_y_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = comma, limits = c(0, NA)) +
   theme(text = element_text(size = 16)) +
   scale_color_viridis_d(begin = 0.1, end = 0.9) +
-  ylim(c(0, NA)) +
-  labs(title = "Total Emergency Room Visits by Year", x = "MMWR Week", y = "Visit Count", color = "Year")
+  labs(
+    title = "Total Emergency Room Visits by Year",
+    x = "MMWR Week",
+    y = "Visit Count",
+    color = "Year"
+  )
 TotalEVisits
 ```
 
@@ -448,11 +590,15 @@ visitsBYsex <- ccdd.sex %>%
   geom_line(aes(x = week, y = Yes, color = as.factor(sex)), size = 1.2) +
   facet_wrap(~ as.factor(year), ncol = 1, scales = "fixed") +
   theme_bw() +
-  scale_y_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = comma, limits = c(0, NA)) +
   theme(text = element_text(size = 16)) +
   scale_color_viridis_d(begin = 0.1, end = 0.9) +
-  ylim(c(0, NA)) +
-  labs(title = "Total Emergency Room Visits by Sex", x = "MMWR Week", y = "Visit Count", color = "Sex")
+  labs(
+    title = "Total Emergency Room Visits by Sex",
+    x = "MMWR Week",
+    y = "Visit Count",
+    color = "Sex"
+  )
 visitsBYsex
 ```
 
@@ -464,10 +610,9 @@ visitsBYage <- ccdd.age %>%
   geom_line(aes(x = week, y = Yes, color = as.factor(ageNCHS)), size = 1.2) +
   facet_wrap(~ as.factor(year), ncol = 1, scales = "fixed") +
   theme_bw() +
-  scale_y_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = comma, limits = c(0, NA)) +
   theme(text = element_text(size = 16)) +
   scale_color_viridis_d(begin = 0, end = 1) +
-  ylim(c(0, NA)) +
   labs(title = "Total Emergency Room Visits by NCHS Age Group", x = "MMWR Week", y = "Visit Count", color = "Age Group")
 visitsBYage
 ```
