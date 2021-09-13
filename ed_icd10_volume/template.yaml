@@ -1,4 +1,4 @@
-name: Emergency Department ICD-10 Category Volumes
+name: ED ICD-10 Category Volumes
 description: >
   This template generates heat maps of the top N ICD-10-CM codes 
   by ICD-10-CM chapter, ICD-10-CM section, ICD-10-CM diagnosis code, 
