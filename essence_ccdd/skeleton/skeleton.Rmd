@@ -1,5 +1,5 @@
 ---
-title: "ESSENCE Chief Complaint and Discharge Diagnosis Categories"
+title: "`r params$doc_title`"
 date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
 output: html_document
 
@@ -16,6 +16,10 @@ params:
     value: ""
     input: password
     placeholder: "password"
+  doc_title:
+    label: "Title: "
+    value: State ED Report Template (NSSP-ESSENCE)
+    input: text
   start_date:
     label: "Enter Start Date: "
     value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
