@@ -18,7 +18,7 @@ params:
     placeholder: "password"
   doc_title:
     label: "Title: "
-    value: State ED Report Template (NSSP-ESSENCE)
+    value: "ESSENCE Chief Complaint and Discharge Diagnosis Categories"
     input: text
   start_date:
     label: "Enter Start Date: "
