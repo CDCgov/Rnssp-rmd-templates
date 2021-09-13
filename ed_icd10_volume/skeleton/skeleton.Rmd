@@ -3,7 +3,7 @@ title: "`r paste('Top', params$topn, 'Conditions by Volume')`"
 date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
 output: distill::distill_article
 
-description: "This template generates heat maps of the top 10 ICD-10-CM codes by ICD-10 Chapter, ICD-10 Section, ICD-10 Code, and Clinical Classifications Software Refined (CCSR) category. You are able to select national, HHS region, or site level data for a time frame of interest, data quality filters, and any age group category currently in ESSENCE. Please knit the document with selections for all input parameters."
+description: "This template generates heat maps of the top N ICD-10-CM codes by ICD-10 Chapter, ICD-10 Section, ICD-10 Code, and Clinical Classifications Software Refined (CCSR) category. You are able to select national, HHS region, or site level data for a time frame of interest, data quality filters, and any age group category currently in ESSENCE. Please knit the document with selections for all input parameters."
   
 params:
   username:
