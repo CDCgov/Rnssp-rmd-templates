@@ -147,7 +147,7 @@ if (params$data_source == "Chief Complaint Query Validation") {
 } else if (params$data_source == "Facility Location (Full Details)") {
   if (params$age_groups == "All Ages") {
     if (params$site == "All") {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system,"&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
     } else {
       url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
     }
@@ -160,11 +160,11 @@ if (params$data_source == "Chief Complaint Query Validation") {
       str_replace_all("Distribute", "distribute") %>%
       str_replace_all("School", "school") %>%
       paste0("age", .)
-    
+
     if (grepl("age\\d{1}", age_group_string)) {
       age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
     }
-    
+
     if (params$site == "All") {
       url <- paste0(
         "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate,
@@ -173,7 +173,7 @@ if (params$data_source == "Chief Complaint Query Validation") {
     } else {
       url <- paste0(
         "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails?endDate=", endDate,
-        "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system , "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
+        "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
       )
     }
   }
@@ -250,10 +250,10 @@ The visualizations in this dashboard include total weekly volume of encounters, 
 
 if (params$age_groups == "All Ages") {
   field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
-  
+
   if (params$ccdd_query != "") {
     query <- params$ccdd_query
-    
+
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
@@ -262,7 +262,7 @@ if (params$age_groups == "All Ages") {
     query <- readRDS("syndef.rds") %>%
       filter(syndrome == definition) %>%
       pull(query_logic)
-    
+
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
@@ -271,10 +271,10 @@ if (params$age_groups == "All Ages") {
 } else {
   field <- c(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
     unique()
-  
+
   if (params$ccdd_query != "") {
     query <- params$ccdd_query
-    
+
     data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
       kable() %>%
       kable_styling() %>%
@@ -283,10 +283,10 @@ if (params$age_groups == "All Ages") {
     query <- readRDS("syndef.rds") %>%
       filter(syndrome == definition) %>%
       pull(query_logic)
-    
+
     age_groups <- as.character(str_match(params$age_group, pattern = "\\d{2}-\\d{2}|\\d{2}\\+")) %>%
       ifelse(length(.) == 1, ., paste(., collapse = ", "))
-    
+
     data.frame(Fields = field, Query = c(str_replace_all(query, pattern = "\\^", "\\\\^"), age_groups)) %>%
       kable() %>%
       kable_styling() %>%
@@ -972,7 +972,9 @@ cc_cor1 <- unnested_cc_unigrams %>%
     word
   ) %>%
   group_by(word) %>%
-  {if(check_row != 0) filter(., n() >= 20) else filter(., n() > 0)} %>% 
+  {
+    if (check_row != 0) filter(., n() >= 20) else filter(., n() > 0)
+  } %>%
   pairwise_cor(word, linenumber, sort = TRUE) %>%
   filter(correlation > 0.15) %>%
   mutate(
@@ -985,7 +987,7 @@ cc_cor1 <- unnested_cc_unigrams %>%
 cc_cor_graph <- cc_cor1 %>%
   graph_from_data_frame()
 
-cc_cor_graph %>% 
+cc_cor_graph %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
   geom_node_point(color = pal[1], size = 5) +
@@ -1226,7 +1228,7 @@ if (nrow(cc_unigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1240,7 +1242,7 @@ if (nrow(cc_unigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1270,7 +1272,7 @@ if (nrow(dd_unigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1285,7 +1287,7 @@ if (nrow(dd_unigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1320,7 +1322,7 @@ if (nrow(cc_unigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1334,7 +1336,7 @@ if (nrow(cc_unigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1364,7 +1366,7 @@ if (nrow(dd_unigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1379,7 +1381,7 @@ if (nrow(dd_unigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1416,7 +1418,7 @@ if (nrow(cc_bigrams_increasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1430,7 +1432,7 @@ if (nrow(cc_bigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1459,7 +1461,7 @@ if (nrow(dd_bigrams_increasing) > 0) {
           y = ""
         )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1475,7 +1477,7 @@ if (nrow(dd_bigrams_increasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1512,7 +1514,7 @@ if (nrow(cc_bigrams_decreasing) > 0) {
         ) +
         theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1526,7 +1528,7 @@ if (nrow(cc_bigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")
@@ -1555,7 +1557,7 @@ if (nrow(dd_bigrams_decreasing) > 0) {
           y = ""
         )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1571,7 +1573,7 @@ if (nrow(dd_bigrams_decreasing) > 0) {
     )) %>%
     theme_box() %>%
     colformat_double(digits = 2)
-  
+
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")

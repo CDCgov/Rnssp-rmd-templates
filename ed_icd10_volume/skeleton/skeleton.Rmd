@@ -75,22 +75,17 @@ userProfile <- Credentials$new(
 ```{r setup_parameters, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
 # define age group information; default is Age Group
 age_group_info <- readRDS("essagegrps.rds")
-
 age_group_info <- age_group_info %>%
   filter(essence_age_groups == params$agegroup)
-
 row_age_cat <- age_group_info %>%
   pull(row_age_cat)
-
 essence_age_var <- age_group_info %>%
   pull(essence_age_var)
-
 # define dates
 report_end_date <- params$end_date %>%
   as.Date()
 report_end_date <- report_end_date %>%
   MMWRweek()
-
 report_end_date <- MMWRweek2Date(
   report_end_date$MMWRyear,
   report_end_date$MMWRweek, 7
@@ -101,12 +96,10 @@ api_end_date <- report_end_date %>%
 end_date_for_text <- report_end_date %>%
   as.Date() %>%
   format(., "%B %d, %Y")
-
 report_start_date <- params$start_date %>%
   as.Date()
 report_start_date <- report_start_date %>%
   MMWRweek()
-
 report_start_date <- MMWRweek2Date(
   report_start_date$MMWRyear,
   report_start_date$MMWRweek, 1
@@ -114,23 +107,19 @@ report_start_date <- MMWRweek2Date(
 api_start_date <- report_start_date %>%
   as.Date() %>%
   format(., "%d%b%Y")
-
 start_date_for_text <- report_start_date %>%
   as.Date() %>%
   format(., "%B %d, %Y")
-
 # define site; default is national
 site_info <- params$site
 site_api <- ""
 hhs_api1 <- ""
 hhs_api2 <- ""
-
 if (str_contains(site_info, pattern = "HHS Region", ignore.case = TRUE)) {
   hhs_api1 <- site_info %>%
     str_replace(., pattern = "HHS Region ", replacement = "") %>%
     str_to_lower() %>%
     paste0("&geography=region%20", .)
-
   hhs_api2 <- "dhhsregion"
 }
 if (str_contains(site_info, pattern = "Site", ignore.case = TRUE)) {
@@ -138,16 +127,13 @@ if (str_contains(site_info, pattern = "Site", ignore.case = TRUE)) {
     str_sub(., start = 6, end = 8) %>%
     paste0("&site=", .)
 }
-
 # define data quality filters
 start_date_year <- params$start_date %>%
   format(., "%Y") %>%
   as.numeric()
-
 current_year <- Sys.Date() %>%
   format(., "%Y") %>%
   as.numeric()
-
 if (current_year - start_date_year == 0) {
   dq_filter_year <- "Current"
 } else if (current_year - start_date_year == 1) {
@@ -160,19 +146,16 @@ if (current_year - start_date_year == 0) {
   dq_filter_year <- "Four"
 } else {
 }
-
 # coefficient of variance; if none selected default is all facilities less than or equal to 1,000,000
 cov_lte <- params$cov
 if (is.na(cov_lte)) {
   cov_lte <- 1000000
 }
-
 # avg weekly discharge diagnosis informative; if none selected default is all facilities
 ddi_gte <- params$ddi
 if (is.na(ddi_gte)) {
   ddi_gte <- 0
 }
-
 # top number of categories to graph
 topn <- params$topn
 ```
@@ -192,7 +175,6 @@ icd_chapter_json <- paste0(
   "&detector=nodetectordetector&timeResolution=daily&hasBeenE=1", row_age_cat,
   "&rowFields=icdChapter&columnField=hasBeenE"
 )
-
 icd_section_json <- paste0(
   "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=", api_end_date,
   "&dqCOVHasBeenE", dq_filter_year,
@@ -207,7 +189,6 @@ icd_section_json <- paste0(
   "&detector=nodetectordetector&timeResolution=daily&hasBeenE=1", row_age_cat,
   "&rowFields=icdSection&columnField=hasBeenE"
 )
-
 icd_diagnosis_json <- paste0(
   "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=", api_end_date,
   "&dqCOVHasBeenE", dq_filter_year,
@@ -222,7 +203,6 @@ icd_diagnosis_json <- paste0(
   "&detector=nodetectordetector&timeResolution=daily&hasBeenE=1", row_age_cat,
   "&rowFields=icdDiagnosis&columnField=hasBeenE"
 )
-
 ccsr_json <- paste0(
   "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=", api_end_date,
   "&dqCOVHasBeenE", dq_filter_year,
@@ -237,7 +217,6 @@ ccsr_json <- paste0(
   "&detector=nodetectordetector&timeResolution=daily&hasBeenE=1", row_age_cat,
   "&rowFields=icdCCSR&columnField=hasBeenE"
 )
-
 total_volume_json <- paste0(
   "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=", api_end_date,
   "&dqCOVHasBeenE", dq_filter_year,
@@ -252,7 +231,6 @@ total_volume_json <- paste0(
   "&detector=nodetectordetector&timeResolution=daily&hasBeenE=1", row_age_cat,
   "&columnField=hasBeenE"
 )
-
 ```
 
 ```{r pull_icd_chapter_data, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
@@ -284,37 +262,27 @@ total_volume_data <- userProfile$get_api_data(total_volume_json)
 # standardize age group variable across age group selections
 icd_chapter_data <- icd_chapter_data %>%
   rename("age_group" = all_of(essence_age_var))
-
 icd_section_data <- icd_section_data %>%
   rename("age_group" = all_of(essence_age_var))
-
 icd_diagnosis_data <- icd_diagnosis_data %>%
   rename("age_group" = all_of(essence_age_var))
-
 icd_ccsr_data <- icd_ccsr_data %>%
   rename("age_group" = all_of(essence_age_var))
-
 total_volume_data <- total_volume_data %>%
   rename("age_group" = all_of(essence_age_var))
-
 # retain or remove unknown ages
 if (params$addunknown == FALSE) {
   icd_chapter_data <- icd_chapter_data %>%
     filter(age_group != "Unknown")
-
   icd_section_data <- icd_section_data %>%
     filter(age_group != "Unknown")
-
   icd_diagnosis_data <- icd_diagnosis_data %>%
     filter(age_group != "Unknown")
-
   icd_ccsr_data <- icd_ccsr_data %>%
     filter(age_group != "Unknown")
-
   total_volume_data <- total_volume_data %>%
     filter(age_group != "Unknown")
 }
-
 # define column headers for age groups
 total_volume_headers <- total_volume_data %>%
   mutate(
@@ -322,7 +290,6 @@ total_volume_headers <- total_volume_data %>%
     header_text = paste0(age_group, "\n(N=", count, ")")
   ) %>%
   select(age_group, header_text)
-
 # rank categories by visit volume; subset to top N categories by age group
 # icd10 chapters
 icd_chapter_ranks <- icd_chapter_data %>%
@@ -336,16 +303,13 @@ icd_chapter_ranks <- icd_chapter_data %>%
   filter(rank_value <= topn) %>%
   left_join(., total_volume_headers, by = "age_group") %>%
   rename("visit_count" = "count")
-
 icd_chapter_frequency <- icd_chapter_ranks %>%
   group_by(icdChapter) %>%
   count() %>%
   rename("icd_category_count" = "n")
-
 icd_chapter_ranks <- icd_chapter_ranks %>%
   left_join(., icd_chapter_frequency, by = "icdChapter") %>%
   rename("icd_group" = "icdChapter")
-
 # icd10 sections
 icd_section_ranks <- icd_section_data %>%
   arrange(age_group, desc(count)) %>%
@@ -359,16 +323,13 @@ icd_section_ranks <- icd_section_data %>%
   filter(rank_value <= topn) %>%
   left_join(., total_volume_headers, by = "age_group") %>%
   rename("visit_count" = "count")
-
 icd_section_frequency <- icd_section_ranks %>%
   group_by(icdSection) %>%
   count() %>%
   rename("icd_category_count" = "n")
-
 icd_section_ranks <- icd_section_ranks %>%
   left_join(., icd_section_frequency, by = "icdSection") %>%
   rename("icd_group" = "icdSection")
-
 # icd10 diagnoses
 icd_diagnosis_ranks <- icd_diagnosis_data %>%
   arrange(age_group, desc(count)) %>%
@@ -381,16 +342,13 @@ icd_diagnosis_ranks <- icd_diagnosis_data %>%
   filter(rank_value <= topn) %>%
   left_join(., total_volume_headers, by = "age_group") %>%
   rename("visit_count" = "count")
-
 icd_diagnosis_frequency <- icd_diagnosis_ranks %>%
   group_by(icdDiagnosis) %>%
   count() %>%
   rename("icd_category_count" = "n")
-
 icd_diagnosis_ranks <- icd_diagnosis_ranks %>%
   left_join(., icd_diagnosis_frequency, by = "icdDiagnosis") %>%
   rename("icd_group" = "icdDiagnosis")
-
 # ccsr
 icd_ccsr_ranks <- icd_ccsr_data %>%
   arrange(age_group, desc(count)) %>%
@@ -403,12 +361,10 @@ icd_ccsr_ranks <- icd_ccsr_data %>%
   filter(rank_value <= topn) %>%
   left_join(., total_volume_headers, by = "age_group") %>%
   rename("visit_count" = "count")
-
 icd_ccsr_frequency <- icd_ccsr_ranks %>%
   group_by(icdCCSR) %>%
   count() %>%
   rename("icd_category_count" = "n")
-
 icd_ccsr_ranks <- icd_ccsr_ranks %>%
   left_join(., icd_ccsr_frequency, by = "icdCCSR") %>%
   rename("icd_group" = "icdCCSR")
@@ -433,7 +389,6 @@ table_generation_function <- function(icd_data, plot_title) {
     scale_y_discrete(name = "Rank", limits = rev) +
     scale_x_discrete(name = "Age Group", position = "top") +
     scale_fill_viridis_d()
-
   return(output_figure)
 }
 ```
@@ -448,7 +403,7 @@ table_generation_function <- function(icd_data, plot_title) {
 
 **Age Groups**: `r params$agegroup`
 
-**Data Quality**: All emergency department visits from facilities with an average weekly discharge diagnosis greater than or equal to `r params$ddi_gte`% and a coefficient of variation for emergency department visit volume less than or equal to `r params$cov_lte` from January 1, `r current_year` to present are included in this report.
+**Data Quality**: All emergency department visits from facilities with an average weekly discharge diagnosis greater than or equal to `r params$ddi`% and a coefficient of variation for emergency department visit volume less than or equal to `r params$cov` from January 1, `r current_year` to present are included in this report.
 
 ## Visit Groupings
 
@@ -499,4 +454,3 @@ table_generation_function(
   paste0("Top ", topn, " CCSR Diagnostic Category Visit Volumes by Age Group")
 )
 ```
-
