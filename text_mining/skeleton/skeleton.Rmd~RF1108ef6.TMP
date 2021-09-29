@@ -25,7 +25,7 @@ params:
     input: date
   end_date:
     label: "Enter End Date: "
-    value: !r Sys.Date()
+    value: !r as.Date("2021-07-15")
     input: date
   has_been_E: 
     label: "Has Been Emergency: "
