@@ -53,14 +53,21 @@ params:
     input: select
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
-    label: "CCDD Query: "
+    label: "CCDD Query:"
     value: ""
     input: text
     placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+  complex_query: 
+    label: "Complex Query (will override all previous parameters):"
+    value: ""
+    input: text
+    placeholder: "ESSENCE Data Details API URL (NOTE: Will overwrite all previous parameters!)"
   doc_title:
     label: "Title: "
     value: Text Mining Template (NSSP-ESSENCE)
     input: text
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = FALSE}
@@ -98,7 +105,8 @@ hasBeenE <- as.numeric(params$has_been_E)
 definition <- params$definition
 
 premature_quit <- params$definition == "None (Custom CCDD Query)" & 
-  (params$ccdd_query == "" | is.null(params$ccdd_query) | grepl("^\\s*$", params$ccdd_query))
+  (params$ccdd_query == "" | is.null(params$ccdd_query) | grepl("^\\s*$", params$ccdd_query)) & params$complex_query == ""
+
 ```
 
 ```{r knit_exit_condition, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_quit}
@@ -115,84 +123,117 @@ myProfile <- Credentials$new(
 ```
 
 ```{r ESSENCE data pull, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
-definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
 
-if (definition_pattern == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
-  definition_type <- "&ccddCategory="
-  grouping_system <- "essencesyndromes"
-}
-
-if (definition_pattern == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
-  if (params$data_source == "Chief Complaint Query Validation") {
-    definition_type <- "&subsyndrome="
-  } else{
-    definition_type <- "&medicalGrouping="
-    grouping_system <- "chiefcomplaintsubsyndromes"
+if (nchar(params$complex_query) > 0) {
+  
+  url <- params$complex_query
+  
+  if (!grepl("&field=", url)) {
+    url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
   }
-}
-
-if (definition_pattern == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
-  definition_type <- "&syndrome="
-  grouping_system <- "essencesyndromes"
-}
-
-if (definition_pattern == "None (Custom CCDD Query)") {
-  definition_string <- str_replace_all(params$ccdd_query, "\\^", "%5E") %>%
-    str_replace_all(" ", "%20") %>%
-    str_replace_all("\\[", "%5B") %>%
-    str_replace_all("\\]", "%5D")
-  definition_type <- "&ccddFreeText="
-  grouping_system <- "essencesyndromes"
-}
-
-if (params$site != "All") {
-  site_id <- readRDS("nca_hosp.rds") %>%
-    filter(site_name == params$site) %>%
-    pull(site_id)
-}
-
-if (params$data_source == "Chief Complaint Query Validation") {
-  url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE)
-} else if (params$data_source == "Facility Location (Full Details)") {
-  if (params$age_groups == "All Ages") {
-    if (params$site == "All") {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system,"&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
-    } else {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+  
+  definition <- "None (Complex Query)"
+  
+} else {
+  definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
+  
+  if (definition_pattern == "CCDD Category") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
+    definition_type <- "&ccddCategory="
+    grouping_system <- "essencesyndromes"
+  }
+  
+  if (definition_pattern == "Subsyndrome") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
+    if (params$data_source == "Chief Complaint Query Validation") {
+      definition_type <- "&subsyndrome="
+    } else{
+      definition_type <- "&medicalGrouping="
+      grouping_system <- "chiefcomplaintsubsyndromes"
     }
-  } else {
-    age_group_string <- params$age_groups %>%
-      str_replace_all(": ", "=") %>%
-      str_replace_all(" ", "") %>%
-      paste(collapse = "&age") %>%
-      str_remove_all("AgeGroup|Reporting") %>%
-      str_replace_all("Distribute", "distribute") %>%
-      str_replace_all("School", "school") %>%
-      paste0("age", .)
-    
-    if (grepl("age\\d{1}", age_group_string)) {
-      age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
-    }
-    
-    if (params$site == "All") {
-      url <- paste0(
-        "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
-        "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
-      )
+  }
+  
+  if (definition_pattern == "Syndrome") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
+    definition_type <- "&syndrome="
+    grouping_system <- "essencesyndromes"
+  }
+  
+  if (definition_pattern == "None (Custom CCDD Query)") {
+    definition_string <- str_replace_all(params$ccdd_query, "\\^", "%5E") %>%
+      str_replace_all(" ", "%20") %>%
+      str_replace_all("\\[", "%5B") %>%
+      str_replace_all("\\]", "%5D")
+    definition_type <- "&ccddFreeText="
+    grouping_system <- "essencesyndromes"
+  }
+  
+  if (params$site != "All") {
+    site_id <- readRDS("nca_hosp.rds") %>%
+      filter(site_name == params$site) %>%
+      pull(site_id)
+  }
+  
+  if (params$data_source == "Chief Complaint Query Validation") {
+    url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE)
+  } else if (params$data_source == "Facility Location (Full Details)") {
+    if (params$age_groups == "All Ages") {
+      if (params$site == "All") {
+        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system,"&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      } else {
+        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      }
     } else {
-      url <- paste0(
-        "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
-        "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system , "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
-      )
+      age_group_string <- params$age_groups %>%
+        str_replace_all(": ", "=") %>%
+        str_replace_all(" ", "") %>%
+        paste(collapse = "&age") %>%
+        str_remove_all("AgeGroup|Reporting") %>%
+        str_replace_all("Distribute", "distribute") %>%
+        str_replace_all("School", "school") %>%
+        paste0("age", .)
+      
+      if (grepl("age\\d{1}", age_group_string)) {
+        age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
+      }
+      
+      if (params$site == "All") {
+        url <- paste0(
+          "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
+          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
+        )
+      } else {
+        url <- paste0(
+          "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
+          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system , "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
+        )
+      }
     }
   }
 }
 # Data Pull from NSSP-ESSENCE
-api_data <- myProfile$get_api_data(url, fromCSV = TRUE)
+api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE),
+                silent = TRUE)
 
+premature_knit2 <- class(api_data) == "try-error" &
+  nchar(params$complex_query) == 0
+
+premature_knit3 <- class(api_data) == "try-error" & 
+  nchar(params$complex_query) > 0
+```
+
+```{r knit_exit_condition2, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit2}
+knitr::knit_exit("Render ends prematurely. 
+                 The Data pulls fails! Please, Check your User Credentials!")
+```
+
+```{r knit_exit_condition3, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit3}
+knitr::knit_exit("Render ends prematurely. 
+                 The Data pulls fails! Please, Check your User Credentials and Make sure your Complex Query is an API URL!")
+```
+
+
+```{r comp_data, echo = FALSE, warning = FALSE, message = FALSE}
 data <- api_data %>%
   clean_text() %>%
   separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
@@ -260,51 +301,77 @@ The visualizations in this dashboard include total weekly volume of encounters, 
 
 ```{r query, echo = FALSE, warning = FALSE, message = FALSE}
 
-if (params$age_groups == "All Ages") {
-  field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
+if (nchar(params$complex_query) > 0) {
+  query <- as.character(params$complex_query) %>%
+    str_replace_all("api/dataDetails/csv", "servlet/DataDetailsServlet")
   
-  if (params$ccdd_query != "") {
-    query <- params$ccdd_query
-    
-    data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
-      kable() %>%
-      kable_styling() %>%
-      scroll_box(width = "1000px", height = "300px")
-  } else {
-    query <- readRDS("syndef.rds") %>%
-      filter(syndrome == definition) %>%
-      pull(query_logic)
-    
-    data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
-      kable() %>%
-      kable_styling() %>%
-      scroll_box(width = "1000px", height = "300px")
-  }
+  query_url <- paste0("[API URL](", query, ")")
+  
+  fields <- c(
+    "syndromeFreeText",
+    "ccddCategoryFreeText"
+  )
+  
+  syndrome_free_text <- URLdecode(unique(as.character(str_match(params$complex_query, pattern = "(?<=syndromeFreeText=)(.*?)(?=&)"))))
+  ccdd_category_free_text <- URLdecode(unique(as.character(str_match(params$complex_query, pattern = "(?<=ccddCategoryFreeText=)(.*?)(?=&)"))))
+  
+  # data.frame(URL = query, Query = "Complex Query Option (API URL)") %>%
+  data.frame(Fields = fields, Query = c(syndrome_free_text, ccdd_category_free_text)) %>%
+    mutate(Query = str_replace_all(Query, pattern = "\\^", "\\\\^")) %>%
+    kable("html") %>%
+    kable_styling() %>%
+    add_footnote(label = query_url, escape = FALSE, notation = "symbol") %>%
+    scroll_box(width = "1000px", height = "300px") 
+  
 } else {
-  field <- c(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
-    unique()
   
-  if (params$ccdd_query != "") {
-    query <- params$ccdd_query
+  if (params$age_groups == "All Ages") {
+    field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
     
-    data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
-      kable() %>%
-      kable_styling() %>%
-      scroll_box(width = "1000px", height = "300px")
+    if (params$ccdd_query != "") {
+      query <- params$ccdd_query
+      
+      data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
+        kable() %>%
+        kable_styling() %>%
+        scroll_box(width = "1000px", height = "300px")
+    } else {
+      query <- readRDS("syndef.rds") %>%
+        filter(syndrome == definition) %>%
+        pull(query_logic)
+      
+      data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
+        kable() %>%
+        kable_styling() %>%
+        scroll_box(width = "1000px", height = "300px")
+    }
   } else {
-    query <- readRDS("syndef.rds") %>%
-      filter(syndrome == definition) %>%
-      pull(query_logic)
+    field <- c(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
+      unique()
     
-    age_groups <- as.character(str_match(params$age_group, pattern = "\\d{2}-\\d{2}|\\d{2}\\+")) %>%
-      ifelse(length(.) == 1, ., paste(., collapse = ", "))
-    
-    data.frame(Fields = field, Query = c(str_replace_all(query, pattern = "\\^", "\\\\^"), age_groups)) %>%
-      kable() %>%
-      kable_styling() %>%
-      scroll_box(width = "1000px", height = "300px")
+    if (params$ccdd_query != "") {
+      query <- params$ccdd_query
+      
+      data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
+        kable() %>%
+        kable_styling() %>%
+        scroll_box(width = "1000px", height = "300px")
+    } else {
+      query <- readRDS("syndef.rds") %>%
+        filter(syndrome == definition) %>%
+        pull(query_logic)
+      
+      age_groups <- as.character(str_match(params$age_group, pattern = "\\d{2}-\\d{2}|\\d{2}\\+")) %>%
+        ifelse(length(.) == 1, ., paste(., collapse = ", "))
+      
+      data.frame(Fields = field, Query = c(str_replace_all(query, pattern = "\\^", "\\\\^"), age_groups)) %>%
+        kable() %>%
+        kable_styling() %>%
+        scroll_box(width = "1000px", height = "300px")
+    }
   }
 }
+
 ```
 
 Column 
