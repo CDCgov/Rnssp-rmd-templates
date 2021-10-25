@@ -60,6 +60,14 @@ library(tidytext)
 library(splitstackshape)
 library(UpSetR)
 ```
+```{r create_export_dir, echo=FALSE, message=FALSE, warning=FALSE}
+outdir <- "Output"
+unlink(outdir, recursive=TRUE)
+
+if(params$data_export){
+  dir.create(outdir, showWarnings = FALSE)
+}
+```
 
 ```{r set_end_start_dates, echo=FALSE, message=FALSE, include=FALSE}
 endDate <- format(params$end_date, "%d%b%Y")
@@ -292,12 +300,13 @@ def1_full <- try(
   silent = TRUE
 )
 
-premature_quit <- all(class(def1_full) == "try-error")
+premature_quit <- any(all(class(def1_full) == "try-error"), all(dim(def1_full) == c(0, 0)))
+
 ```
 
 ```{r knit_quit, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_quit}
 knitr::knit_exit("Render ends prematurely.
-                 The Data pulls fails! Please, Check your User Credentials!")
+                 The Data pull fails! Please, Check your User Credentials!")
 ```
 
 ```{r def1_extract, echo=FALSE, message=FALSE, warning=FALSE}
@@ -1261,15 +1270,6 @@ ggplot(data = top_words_combined) +
 
 <!-- Output Tables -->
 <!-- ### Output tables -->
-```{r create_export_dir, echo=FALSE, message=FALSE, warning=FALSE}
-outdir <- "Output"
-unlink(outdir, recursive=TRUE)
-
-if(params$data_export){
-  dir.create(outdir, showWarnings = FALSE)
-}
-```
-
 
 ```{r onedef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 1 & params$data_export}
 
