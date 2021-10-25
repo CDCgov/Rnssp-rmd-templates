@@ -1,0 +1,10 @@
+name: Syndrome Definition Evaluation
+description: >
+  An automated report template that allows ESSENCE users 
+  to evaluate the data details (line level) results of 
+  one, two, or three syndrome definitions at a time. 
+  Original Code By: Sara Chronister (Maricopa, AZ). 
+  Revamped and Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic and Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true
