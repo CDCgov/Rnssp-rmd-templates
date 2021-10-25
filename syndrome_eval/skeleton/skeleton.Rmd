@@ -1313,7 +1313,7 @@ write.csv(
 # Def1 and Def2
 write.csv(
   file = file.path(outdir, paste(def1_short, "and", def2_short, "Visits.csv")),
-  x = two_defs_table[two_defs_table$def1_def2 == 1, ],
+  x = two_defs_table[two_defs_table$Both == 1, ],
   row.names = FALSE
 )
 
