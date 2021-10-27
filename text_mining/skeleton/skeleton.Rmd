@@ -2,7 +2,6 @@
 title: "`r params$doc_title`"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 description: This template is a Text Analysis Interactive Dashboard. 
-  Remember to change the title to your liking.
   PLEASE Knit it with Parameters!!!
 output: 
   flexdashboard::flex_dashboard:
@@ -215,20 +214,20 @@ if (nchar(params$complex_query) > 0) {
 api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE),
                 silent = TRUE)
 
-premature_knit2 <- class(api_data) == "try-error" &
+premature_knit2 <- all(class(api_data) == "try-error") &
   nchar(params$complex_query) == 0
 
-premature_knit3 <- class(api_data) == "try-error" & 
+premature_knit3 <- all(class(api_data) == "try-error") & 
   nchar(params$complex_query) > 0
 ```
 
 ```{r knit_exit_condition2, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit2}
-knitr::knit_exit("Render ends prematurely. 
+knitr::knit_exit("Render ends prematurely.
                  The Data pulls fails! Please, Check your User Credentials!")
 ```
 
 ```{r knit_exit_condition3, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit3}
-knitr::knit_exit("Render ends prematurely. 
+knitr::knit_exit("Render ends prematurely.
                  The Data pulls fails! Please, Check your User Credentials and Make sure your Complex Query is an API URL!")
 ```
 
