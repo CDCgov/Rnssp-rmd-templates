@@ -43,6 +43,18 @@ params:
     value: false
 ---
 
+```{r test, include=FALSE, eval=FALSE}
+params <- list(
+  site = "All",
+  start_date = as.Date("2021-07-01"),
+  end_date = Sys.Date(),
+  has_been_E = TRUE,
+  definition = c("CCDD Category: CLI CC with CLI DD and Coronavirus DD v2", 
+                 "CCDD Category: ILI CCDD v1", 
+                 "CCDD Category: CDC Influenza DD v1")
+)
+```
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -314,7 +326,7 @@ knitr::knit_exit("Render ends prematurely.
 def1 <- def1_full %>%
   mutate(def1 = 1) %>%
   mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
-
+rm(def1_full)
 def1_total <- nrow(def1)
 def1_total_pretty <- format(def1_total, big.mark = ",", scientific = FALSE)
 ```
@@ -326,7 +338,7 @@ def2_full <- myProfile$get_api_data(def2_url, fromCSV = TRUE)
 def2 <- def2_full %>%
   mutate(def2 = 1) %>%
   mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
-
+rm(def2_full)
 def2_total <- nrow(def2)
 def2_total_pretty <- format(def2_total, big.mark = ",", scientific = FALSE)
 ```
@@ -338,7 +350,7 @@ def3_full <- myProfile$get_api_data(def3_url, fromCSV = TRUE)
 def3 <- def3_full %>%
   mutate(def3 = 1) %>%
   mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
-
+rm(def3_full)
 def3_total <- nrow(def3)
 def3_total_pretty <- format(def3_total, big.mark = ",", scientific = FALSE)
 ```
@@ -368,7 +380,7 @@ knitr::knit_exit("Render ends prematurely.
 
 <!-- Data Processing -->
 
-```{r def1_elements, echo=FALSE, message=FALSE, warning=FALSE}
+```{r def1_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 def1_elements <- def1_structure$`Syndrome Element`
 
@@ -398,7 +410,7 @@ def1_elements_detected_table <- def1_elements_detected %>%
 
 
 
-```{r def2_elements, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
+```{r def2_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params$definition) >= 2}
 
 def2_elements <- def2_structure$`Syndrome Element`
 
@@ -428,7 +440,7 @@ def2_elements_detected_table <- def2_elements_detected %>%
 
 
 
-```{r def3_elements, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r def3_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params$definition) > 2}
 
 def3_elements <- def3_structure$`Syndrome Element`
 

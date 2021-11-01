@@ -35,19 +35,28 @@ detect_elements <- function(data, terms, text_field) {
   terms_detected_list <- list()
   
   for (i in 1:length(terms)) {
-    terms_detected_list[[i]] <- terms_detected_setup %>%
-      dplyr::mutate(term = str_detect(field, terms[i])) %>%
-      dplyr::mutate(term = ifelse(term == TRUE, 1, 0))
-    
-    names(terms_detected_list[[i]]) <- c("EssenceID", 
-                                     text_field, 
-                                     "TruePositive", 
-                                     paste("element", terms_colnames[i], sep = "_")
-      )
+    if(i == 1){
+      terms_detected_list[[i]] <- terms_detected_setup %>%
+        dplyr::mutate(term = str_detect(field, terms[i])) %>%
+        dplyr::mutate(term = ifelse(term == TRUE, 1, 0)) %>% 
+        dplyr::arrange(EssenceID)
+      
+      names(terms_detected_list[[1]]) <- c("EssenceID", 
+                                           text_field, 
+                                           "TruePositive", 
+                                           paste("element", terms_colnames[i], sep = "_"))
+    } else{
+      terms_detected_list[[i]] <- terms_detected_setup %>%
+        dplyr::mutate(term = str_detect(field, terms[i])) %>%
+        dplyr::mutate(term = ifelse(term == TRUE, 1, 0)) %>% 
+        dplyr::arrange(EssenceID) %>% 
+        select(term)
+      
+      names(terms_detected_list[[i]]) <- paste("element", terms_colnames[i], sep = "_")
+    }
   }
   
-  purrr::reduce(terms_detected_list, full_join) %>%
-    select(EssenceID, TruePositive, text_field, all_of(everything()))
+  do.call(cbind, terms_detected_list)
 }
 
 #### ChiefComplaintUpdates ####

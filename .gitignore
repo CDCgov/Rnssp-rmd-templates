@@ -4,6 +4,7 @@
 .Rproj
 *.html
 Rnssp.Rproj
+Rnssp-rmd-templates.Rproj
 .Rhistory
 .Rproj.user
 inst/doc
