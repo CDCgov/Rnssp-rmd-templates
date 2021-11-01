@@ -43,19 +43,6 @@ params:
     value: false
 ---
 
-```{r test, include=FALSE, eval=FALSE}
-params <- list(
-  site = "All",
-  start_date = as.Date("2021-07-01"),
-  end_date = Sys.Date(),
-  has_been_E = TRUE,
-  definition = c("CCDD Category: CLI CC with CLI DD and Coronavirus DD v2", 
-                 "CCDD Category: ILI CCDD v1", 
-                 "CCDD Category: CDC Influenza DD v1")
-)
-```
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -72,6 +59,7 @@ library(tidytext)
 library(splitstackshape)
 library(UpSetR)
 ```
+
 ```{r create_export_dir, echo=FALSE, message=FALSE, warning=FALSE}
 outdir <- "Output"
 unlink(outdir, recursive=TRUE)
