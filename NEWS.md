@@ -11,6 +11,7 @@ State Emergency Department template available.
 </details>
 
 <hr>
+
 ## Text Analysis Interactive Dashboard template (`text_mining`)
 
 <details>
@@ -73,6 +74,7 @@ Text Mining template available.
 </details>
 
 <hr>
+
 ## Essence Chief Complaint and Discharge Diagnosis Categories template (`essence_ccdd`)
 
 <details>
@@ -97,6 +99,7 @@ This template generates a trend report of CCDD Categories between the MMWR weeks
 
 
 <hr>
+
 ## Emergency Department ICD-10 Category Volumes template (`ed_icd10_volume`)
 
 <details>
@@ -121,6 +124,7 @@ This template explores explores the top N categories by volume for the new ICD C
 </details>
 
 <hr>
+
 ## Syndrome Definition Evaluation template (`syndrome_eval`)
 
 <details>
