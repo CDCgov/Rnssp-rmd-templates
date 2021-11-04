@@ -129,6 +129,15 @@ This template explores the top N categories by volume for the new ICD Chapter, S
 
 <details>
 
+<summary>3/11/2021</summary>
+The Syndrome Definition Evaluation template has been updated.
+
+This critical update fixes an issue related to API URLs being ill-constructed when syndromes or subsyndromes are selected.
+
+</details>
+
+<details>
+
 <summary>1/11/2021</summary>
 The Syndrome Definition Evaluation template has been updated for performance and efficiency. It contains:
 
