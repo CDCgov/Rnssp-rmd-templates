@@ -116,13 +116,13 @@ if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndro
 
 if (as.character(str_match(params$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "subsyndrome: "), " ", "%20")
-  definition_type <- "&subsyndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
 if (as.character(str_match(params$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "syndrome: "), " ", "%20")
-  definition_type <- "&syndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "essencesyndromes"
 }
 
@@ -179,13 +179,13 @@ if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyn
 
 if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "subsyndrome: "), " ", "%20")
-  definition_type <- "&subsyndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
 if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "syndrome: "), " ", "%20")
-  definition_type <- "&syndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "essencesyndromes"
 }
 
@@ -241,13 +241,13 @@ if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyn
 
 if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "subsyndrome: "), " ", "%20")
-  definition_type <- "&subsyndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
 if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "syndrome: "), " ", "%20")
-  definition_type <- "&syndrome="
+  definition_type <- "&medicalGrouping="
   grouping_system <- "essencesyndromes"
 }
 
