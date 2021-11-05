@@ -26,7 +26,7 @@ To use any of the templates of this repository, **please install the  [`Rnssp`](
  add_rmd_template(template_name = "text_mining")
  ```
 
-Alternatively, users can download .zip releases of the templated for manual integration with the Rnssp package by running the `Rnssp::add_rmd_template()` without argument.
+Alternatively, users can download .zip releases of the templates for manual integration with the Rnssp package by running the `Rnssp::add_rmd_template()` without argument.
 
 ## Contributing to this project
 Should you want to contribute to this project, submit a push request to this Github repository and consider submitting a request to be added as a developer to gazondekon@cdc.gov.
