@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>IDE on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/ide/</link>
+    <description>Recent content in IDE on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/ide/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Requirements</title>
+      <link>/usage/requirements/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/requirements/</guid>
+      <description>For a pleasant experience with the Rnssp R Markdown templates, users&#39; system requirements must satisfied the following requirements:
+ Proper installation and configuration of R (&amp;gt;= 3.6.0) Proper installation and configuration of an RStudio Integrated Development Environment Installation of the Rnssp R package  The development version of the Rnssp R package can be installed from Github using the devtools or the remotes R package:
+# install the Rnssp package using devtools devtools::install_github(&amp;#34;cdcgov/Rnssp&amp;#34;) # devtools::install_github(&amp;#34;cdcgov/Rnssp&amp;#34;, force = TRUE) or</description>
+    </item>
+    
+  </channel>
+</rss>

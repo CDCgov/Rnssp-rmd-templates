@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>template on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/template/</link>
+    <description>Recent content in template on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/template/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>State Emergency Department</title>
+      <link>/templates/stateedreport/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/stateedreport/</guid>
+      <description>name: state_ed_report fullname: Text Analysis Interactive Dashboard description: &amp;gt;An automated Text Analysis Interactive Dashboard template. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The state emergency department report template (state_ed_report) summarizes trend classification and ESSENCE alerting for the CCDD categories at the state and county level. All trends are reported as percent of daily emergency department visits.</description>
+    </item>
+    
+    <item>
+      <title>Text Analysis Dashboard</title>
+      <link>/templates/text_mining/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/text_mining/</guid>
+      <description>name: text_mining fullname: State Emergency Department Report description: &amp;gt;An automated state emergency department report template summarizing CCDD categories. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program. Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Interactive Text Analysis Dashboard template (text_mining) summarizes the chief complaint text and diagnosis codes as part of an initial description of the content of these fields in existing syndromes or categories.</description>
+    </item>
+    
+    <item>
+      <title>Essence CCDD Categories</title>
+      <link>/templates/essence_ccdd/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/essence_ccdd/</guid>
+      <description>name: essence_ccdd fullname: Essence CCDD Categories Trends description: &amp;gt;This template generates a trend report of Chief Complaint and Discharge Diagnosis (CCDD) Categories between the MMWR weeks containing the dates you choose. You are able to select as many of the CCDD Categories as you would like to generate this report and are able to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) filters. Original Code By: Kelly Carey.</description>
+    </item>
+    
+    <item>
+      <title>List available templates</title>
+      <link>/usage/listtemplates/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/listtemplates/</guid>
+      <description>Rnssp R Markdown templates are being designed and released on a regular basis. All available templates can be explored on the publicly accessible Rnssp RMD templates Github repository.
+Luckily, the Rnssp R package provides various utility functions to easily manage templates. One of those utility functions is the Rnssp::list_templates() function.
+First, load the Rnssp R package:
+# Load the Rnssp package library(Rnssp) then, get the most recent list of the available packages:</description>
+    </item>
+    
+    <item>
+      <title>Add a template</title>
+      <link>/usage/utilityaddtemplate/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/utilityaddtemplate/</guid>
+      <description>After loading the Rnssp R package (library(Rnssp)), the add_rmd_template() utility function can be used to add/update a template.
+Here is an example with the essence_ccdd template:
+# Add the `essence_ccdd` template add_rmd_template(template_name = &amp;#34;essence_ccdd&amp;#34;)  Never forget to ALWAYS RESTART YOUR R SESSION after adding/updating a template to your existing Rnssp R package installation.
+ Here is a live demonstration:</description>
+    </item>
+    
+    <item>
+      <title>ED ICD-10 Category Volumes</title>
+      <link>/templates/edicd10volume/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/edicd10volume/</guid>
+      <description>name: ed_icd10_volume fullname: Emergency Department ICD-10 Category Volumes description: &amp;gt;This template generates heatmaps of the top N ICD-10-CM codes by ICD-10-CM chapter, ICD-10-CM section, ICD-10-CM diagnosis code, and the corresponding clinical classifications software refined (CCSR) category. The user is able to select the geographic region of interest, time frame, data quality filters, and ESSENCE age group category. Original Code By: Kelly Carey. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon.</description>
+    </item>
+    
+    <item>
+      <title>Manually add a template</title>
+      <link>/usage/manualaddtemplate/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/manualaddtemplate/</guid>
+      <description>Alternatively, users can manually add a template to their existing Rnssp installation with the add_rmd_template() utility function.
+Users may download a template zip archive from the Rnssp RMD templates Github repository and proceed to add it manually to her/his existing Rnssp installation.
+In fact, when executed without any parameter, the add_rmd_template() utility function opens up a file explorer dialog box which allows the users to load a template zip file.</description>
+    </item>
+    
+    <item>
+      <title>Syndrome Definition Evaluation</title>
+      <link>/templates/syndromeeval/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/syndromeeval/</guid>
+      <description>name: syndrome_eval fullname: Syndrome Definition Evaluation description: &amp;gt;An automated report template that allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time. Original Script By: Sara Chronister (Maricopa County, AZ). Revamped and Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Syndrome Definition Evaluation template (syndrome_eval) allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time.</description>
+    </item>
+    
+    <item>
+      <title>Remove a template</title>
+      <link>/usage/removetemplate/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/removetemplate/</guid>
+      <description>When an Rnssp R Markdown template is no longer needed, it can be disposed of with the remove_rmd_template() utility function.
+Here is how to delete the essence_ccdd template:
+# Remove the `essence_ccdd` template remove_rmd_template(&amp;#34;essence_ccdd&amp;#34;) # or remove_rmd_template(template = &amp;#34;essence_ccdd&amp;#34;)  Never forget to ALWAYS RESTART YOUR R SESSION after removing a template from your existing Rnssp R package installation.
+ Here is a live demo:</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>contribute on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/contribute/</link>
+    <description>Recent content in contribute on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/contribute/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Credits</title>
+      <link>/credits/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/credits/</guid>
+      <description>We would like to acknowledge the following persons for their support and contribution:
+Online Documentation Design  Roseric Azondekon  Template Ideas and Development  Aaron Kite-Powell Michael Sheppard Kelly Carey Sara Chronister Roseric Azondekon The National Syndromic Surveillance Program (NSSP) and the NSSP Community of Practice  Tooling  Netlify - Continuous deployement and hosting of this documentation Hugo - The world’s fastest framework for building websites Grav - A Modern Flat-File Content Management System R - An Environment for Statistical Computing RStudio - An Integrated Development Environment for R  </description>
+    </item>
+    
+  </channel>
+</rss>

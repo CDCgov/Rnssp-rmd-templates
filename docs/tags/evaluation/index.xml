@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>evaluation on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/evaluation/</link>
+    <description>Recent content in evaluation on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/evaluation/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Syndrome Definition Evaluation</title>
+      <link>/templates/syndromeeval/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/syndromeeval/</guid>
+      <description>name: syndrome_eval fullname: Syndrome Definition Evaluation description: &amp;gt;An automated report template that allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time. Original Script By: Sara Chronister (Maricopa County, AZ). Revamped and Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Syndrome Definition Evaluation template (syndrome_eval) allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time.</description>
+    </item>
+    
+  </channel>
+</rss>

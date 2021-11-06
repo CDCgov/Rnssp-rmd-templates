@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>icd10 on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/icd10/</link>
+    <description>Recent content in icd10 on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/icd10/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ED ICD-10 Category Volumes</title>
+      <link>/templates/edicd10volume/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/edicd10volume/</guid>
+      <description>name: ed_icd10_volume fullname: Emergency Department ICD-10 Category Volumes description: &amp;gt;This template generates heatmaps of the top N ICD-10-CM codes by ICD-10-CM chapter, ICD-10-CM section, ICD-10-CM diagnosis code, and the corresponding clinical classifications software refined (CCSR) category. The user is able to select the geographic region of interest, time frame, data quality filters, and ESSENCE age group category. Original Code By: Kelly Carey. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon.</description>
+    </item>
+    
+  </channel>
+</rss>
