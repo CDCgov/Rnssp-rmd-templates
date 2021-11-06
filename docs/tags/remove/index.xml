@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>remove on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/remove/</link>
+    <description>Recent content in remove on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/remove/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Remove a template</title>
+      <link>/usage/removetemplate/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/usage/removetemplate/</guid>
+      <description>When an Rnssp R Markdown template is no longer needed, it can be disposed of with the remove_rmd_template() utility function.
+Here is how to delete the essence_ccdd template:
+# Remove the `essence_ccdd` template remove_rmd_template(&amp;#34;essence_ccdd&amp;#34;) # or remove_rmd_template(template = &amp;#34;essence_ccdd&amp;#34;)  Never forget to ALWAYS RESTART YOUR R SESSION after removing a template from your existing Rnssp R package installation.
+ Here is a live demo:</description>
+    </item>
+    
+  </channel>
+</rss>

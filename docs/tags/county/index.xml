@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>county on Documentation for Rnssp R Markdown Templates</title>
+    <link>/tags/county/</link>
+    <description>Recent content in county on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/tags/county/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>State Emergency Department</title>
+      <link>/templates/stateedreport/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/templates/stateedreport/</guid>
+      <description>name: state_ed_report fullname: Text Analysis Interactive Dashboard description: &amp;gt;An automated Text Analysis Interactive Dashboard template. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The state emergency department report template (state_ed_report) summarizes trend classification and ESSENCE alerting for the CCDD categories at the state and county level. All trends are reported as percent of daily emergency department visits.</description>
+    </item>
+    
+  </channel>
+</rss>

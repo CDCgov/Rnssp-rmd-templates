@@ -1,0 +1,24 @@
+---
+title: Knitting With Parameters
+author: Roseric Azondekon
+date: '2021-11-06'
+slug: []
+categories: []
+tags: []
+weight: 5
+---
+
+1. First, start a new R Markdown file **From Template** as demonstrated below:
+
+![](images/new_md_from_template.gif)
+
+
+2. Next, Knit the template **With Parameters** using the Knit button in your Rstudio IDE:
+
+![](images/knit_temp_with_parameters.gif)
+
+
+#### References:
+
+[Knitting with parameters](https://bookdown.org/yihui/rmarkdown/params-knit.html)
+
