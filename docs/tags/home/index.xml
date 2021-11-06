@@ -2,16 +2,16 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>home on Documentation for Rnssp R Markdown Templates</title>
-    <link>/tags/home/</link>
+    <link>https://github.com/cdcent/Rnssp-templates-docs/tags/home/</link>
     <description>Recent content in home on Documentation for Rnssp R Markdown Templates</description>
     <generator>Hugo -- gohugo.io</generator>
-    <language>en-US</language><atom:link href="/tags/home/index.xml" rel="self" type="application/rss+xml" />
+    <language>en-US</language><atom:link href="https://github.com/cdcent/Rnssp-templates-docs/tags/home/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Rnssp RMD Templates</title>
-      <link>/</link>
+      <link>https://github.com/cdcent/Rnssp-templates-docs/</link>
       <pubDate>Sat, 06 Nov 2021 00:00:00 +0000</pubDate>
       
-      <guid>/</guid>
+      <guid>https://github.com/cdcent/Rnssp-templates-docs/</guid>
       <description>Rnssp R Markdown Templates The Rnssp R Markdown Templates is a catalog of R Markdown templates developed by the developers of the Rnssp R package in collaboration with the members of the Community of Practice (CoP) of the National Syndromic Surveillance Program (NSSP).
 Our goal is to provide a wide collection of report templates accessible and easily distributable via the Rnssp R package package.
 This Online Documentation serves as a repository and support material to the CoP members of the NSSP.</description>
