@@ -13,7 +13,7 @@
       
       <guid>https://cdcgov.github.io/Rnssp-rmd-templates/credits/</guid>
       <description>We would like to acknowledge the following persons for their support and contribution:
-Documentation Development  Roseric Azondekon  Template Ideas and Development  Aaron Kite-Powell Michael Sheppard Kelly Carey Sara Chronister Roseric Azondekon The National Syndromic Surveillance Program (NSSP) and the NSSP Community of Practice  Tooling  Netlify - Continuous deployement and hosting of this documentation Hugo - The world’s fastest framework for building websites Grav - A Modern Flat-File Content Management System R - An Environment for Statistical Computing RStudio - An Integrated Development Environment for R  </description>
+Documentation Development  Roseric Azondekon  Template Ideas and Development  Aaron Kite-Powell Michael Sheppard Kelly Carey Sara Chronister Roseric Azondekon The National Syndromic Surveillance Program (NSSP) and the NSSP Community of Practice  Tooling  Netlify - Continuous deployment and hosting of this documentation Hugo - The world’s fastest framework for building websites Grav - A Modern Flat-File Content Management System R - An Environment for Statistical Computing RStudio - An Integrated Development Environment for R  </description>
     </item>
     
   </channel>
