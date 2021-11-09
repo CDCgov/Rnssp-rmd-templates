@@ -1,0 +1,9 @@
+name: Word Alerts Report
+description: >
+  The word alerts template summarizes daily chief complaints 
+  and discharge diagnosis term alerts for a selected syndrome definition. 
+  Original Code By: Michael Sheppard. 
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic and Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true

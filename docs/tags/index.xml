@@ -16,11 +16,38 @@
     </item>
     
     <item>
+      <title>alerts</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/alerts/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/alerts/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>algorithm</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/algorithm/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/algorithm/</guid>
+      <description></description>
+    </item>
+    
+    <item>
       <title>analysis</title>
       <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/analysis/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/analysis/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>CCQV</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/ccqv/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/ccqv/</guid>
       <description></description>
     </item>
     
@@ -84,6 +111,15 @@
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/dashboard/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>datamart</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/</guid>
       <description></description>
     </item>
     
@@ -408,6 +444,15 @@
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/volumes/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>word</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/word/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/tags/word/</guid>
       <description></description>
     </item>
     

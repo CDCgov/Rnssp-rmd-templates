@@ -98,5 +98,14 @@ Here is how to delete the essence_ccdd template:
  Here is a live demo:</description>
     </item>
     
+    <item>
+      <title>Word Alerts Report</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/</guid>
+      <description>name: word_alerts fullname: Word Alerts Report description: &amp;gt;The word alerts template summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Word Alerts Report template (word_alerts) summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition.</description>
+    </item>
+    
   </channel>
 </rss>

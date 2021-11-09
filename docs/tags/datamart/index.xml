@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>datamart on Documentation for Rnssp R Markdown Templates</title>
+    <link>https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/</link>
+    <description>Recent content in datamart on Documentation for Rnssp R Markdown Templates</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Word Alerts Report</title>
+      <link>https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/</guid>
+      <description>name: word_alerts fullname: Word Alerts Report description: &amp;gt;The word alerts template summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Word Alerts Report template (word_alerts) summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition.</description>
+    </item>
+    
+  </channel>
+</rss>

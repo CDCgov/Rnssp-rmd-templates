@@ -29,6 +29,8 @@
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/usage/removetemplate/</loc>
   </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/</loc>
+  </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/post/</loc>
     <lastmod>2021-11-06T00:00:00+00:00</lastmod>
   </url><url>
@@ -37,9 +39,15 @@
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/add/</loc>
   </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/alerts/</loc>
+  </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/algorithm/</loc>
+  </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/analysis/</loc>
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/categories/</loc>
+  </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/ccqv/</loc>
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/change/</loc>
   </url><url>
@@ -58,6 +66,8 @@
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/credits/</loc>
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/dashboard/</loc>
+  </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/</loc>
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/definition/</loc>
   </url><url>
@@ -132,5 +142,7 @@
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/update/</loc>
   </url><url>
     <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/volumes/</loc>
+  </url><url>
+    <loc>https://cdcgov.github.io/Rnssp-rmd-templates/tags/word/</loc>
   </url>
 </urlset>

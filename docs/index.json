@@ -25,7 +25,7 @@
 	"title": "Available Templates",
 	"tags": [],
 	"description": "",
-	"content": "Available Templates Explore and learn how to use the Rnssp R Markdown templates.\n State Emergency Department   Text Analysis Dashboard   Essence CCDD Categories   ED ICD-10 Category Volumes   Syndrome Definition Evaluation   "
+	"content": "Available Templates Explore and learn how to use the Rnssp R Markdown templates.\n State Emergency Department   Text Analysis Dashboard   Essence CCDD Categories   ED ICD-10 Category Volumes   Syndrome Definition Evaluation   Word Alerts Report   "
 },
 {
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/usage/requirements/",
@@ -91,6 +91,13 @@
 	"content": "When an Rnssp R Markdown template is no longer needed, it can be disposed of with the remove_rmd_template() utility function.\nHere is how to delete the essence_ccdd template:\n# Remove the `essence_ccdd` template remove_rmd_template(\u0026#34;essence_ccdd\u0026#34;) # or remove_rmd_template(template = \u0026#34;essence_ccdd\u0026#34;)  Never forget to ALWAYS RESTART YOUR R SESSION after removing a template from your existing Rnssp R package installation.\n Here is a live demo:\n"
 },
 {
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/templates/word_alerts/",
+	"title": "Word Alerts Report",
+	"tags": ["word", "alerts", "chief complaint", "discharge diagnosis", "algorithm", "CCQV", "datamart", "nssp", "essence", "template"],
+	"description": "",
+	"content": "name: word_alerts fullname: Word Alerts Report description: \u0026gt;The word alerts template summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition. Original Code By: Michael Sheppard. Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. National Syndromic and Surveillance Program (NSSP). Centers for Disease Control and Prevention (CDC). create_dir: true  Detailed Description The Word Alerts Report template (word_alerts) summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition.\nThe purpose of the word alert algorithm is to seek anomalous chief complaints free text terms and discharge diagnosis codes relative to a 28-day sliding baseline.\nThe current implementation of word alerts in NSSP-ESSENCE is limited to data from the past 7 days. This template provides users the capability of running the word alert algorithm on any selected date range spanning up to 90 days.\n Description of Word Alert Algorithm The ESSENCE word alert algorithm uses 28-day baselines over which unigram and bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (test date), contingency tables are formed to count the number of emergency department encounters with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department encounters without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks.\nTwo by two contingency table for ABDOMINAL HEADACHE    Block Visits with Term Visits without Term     Test Date (Last 24 Hours) A: 3 B: 7,243   Baseline (28 Days) C: 59 D: 231,649    To test for anomalous increases in term occurrence on the test date relative to the baseline, either Fisher’s Exact Test or a Chi-squared Test is applied. Fisher’s Exact Test is applied for moderate counts whereas a Chi-squared Test is applied for large counts. Terms are determined to have moderate counts if the number of visits in the baseline with the term is less than 1,000 or if the number of visits on the test date without the term is less than 1,000, i.e., min(B,C) \u0026lt; 1,000. Unigrams and bigrams are considered anomalous if the resulting p-value is less than 0.001.\n Pre-processing of Chief Complaints and Discharge Diagnoses Pre-processing of chief complaint free text includes removal of punctuation, discharge diagnosis codes, uninformative patterns, medical processing terms, and common first names. Duplicate terms in the same chief complaint and discharge diagnosis are also removed. For discharge diagnosis bigrams, pairings of codes are arranged in alphanumeric order so that permutations of the same codes are not counted separately.\n Report Interactivity This HTML report includes interactive visualizations and tables that accommodate hovering to display additional information. ICD-9 and ICD-10 code descriptions can be displayed by hovering over discharge diagnosis codes. Note that code descriptions for SNOMED codes are not currently available.\n User Inputs  AMC username and password (securely encrypted) Start and end date of query Data source: CCQV Datamart Backup (NSSP User Only!) or Facility Location (Full Details – Site-level User Only!) Site: Limit to Site (only if using full details for site-level users) Definition: currently includes all existing syndromes, subsyndromes, and CCDD categories available in NSSP-ESSENCE Document Title: Custom title for HTML output   Output When knit with parameters, this template generates a report in HTML format.\n Add this template # Add `word_alerts` to my existing Rnssp installation Rnssp::add_rmd_template(template_name = \u0026#34;word_alerts\u0026#34;)  Remove this template # Remove `word_alerts` from my existing Rnssp installation Rnssp::remove_rmd_template(template_name = \u0026#34;word_alerts\u0026#34;)  Latest Update!\nFor questions, ideas for improvement/collaboration, or attribution, please submit an issue here.\n  Download this template  "
+},
+{
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/post/",
 	"title": "Posts",
 	"tags": [],
@@ -112,6 +119,20 @@
 	"content": ""
 },
 {
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/alerts/",
+	"title": "alerts",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/algorithm/",
+	"title": "algorithm",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/analysis/",
 	"title": "analysis",
 	"tags": [],
@@ -121,6 +142,13 @@
 {
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/categories/",
 	"title": "Categories",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/ccqv/",
+	"title": "CCQV",
 	"tags": [],
 	"description": "",
 	"content": ""
@@ -137,7 +165,7 @@
 	"title": "Change Logs",
 	"tags": ["news", "update", "logs", "change"],
 	"description": "",
-	"content": "State Emergency Department template (state_ed_report)   6/8/2021   State Emergency Department template available.\n  Text Analysis Interactive Dashboard template (text_mining)   10/19/2021   The Text Mining template has been updated.\nThis version contains a custom Query field that allows users to enter their own ESSENCE query.\n    9/29/2021   The Text Mining template has been updated. This version:\n  Prematurely exits the knit when bad User Credentials are entered.\n  Prematurely exits the knit when an empty dataset is returned by the API.\n      8/9/2021   The Text Mining template has been updated. This version:\n  Asks for document title in parameter GUI\n  Includes age groups 2 - 5\n  Allows user to limit to a site or group of sites\n  Allows users to subset down to particular age groups if they wish. By default, the data pull should pull CCQV data which doesn\u0026rsquo;t contain age. If a user selects full details, then the age group filtering will apply. All possible age group options have been added.\n  Fixes a typo for a parameter name - replaced \u0026ldquo;ccdd_category_string\u0026rdquo; with \u0026ldquo;definition_string\u0026rdquo;\n  Changes the default CCDD Category to COVID-DD\n      6/19/2021   The Text Mining template has been updated. This version contains the following updates:\n  Users now have a choice to select a syndrome definition from a list of all CCDD categories, subsyndromes, and syndromes that are currently in the system. Users no longer need to manually paste in the query to populate on the Background tab. The input option allows for users to type and search for a definition type and name when knitting with parameters. As done in the combined category fields in ESSENCE, CCDD categories are proceeded by CCDD Category, subsyndromes by Subsyndrome, and syndrome by Syndrome.\n  Chief complaint correlation network graph (based on Pearson correlation). Terms are filtered with a correlation greater than 0.15. Opacity of the edges/lines represents the magnitude of correlation. Note that pairs that occur next to each other in the chief complaint are removed in an attempt to avoid identifying term pairs that one would expect to see and that show up in the top 200 bigrams. Also added is a search table below the graph so that users can search for correlations for a term of interest.\n  n-gram trend analysis for chief complaint and discharge diagnosis unigrams and bigrams. The sections of code that generate these have been modified to prevent errors when there are no significant terms identified.\n      5/21/2021   Text Mining template available.\n  Essence Chief Complaint and Discharge Diagnosis Categories template (essence_ccdd)   9/13/2021   The Essence Chief Complaint and Discharge Diagnosis Categories template has been updated. This version:\n  Contains some minor update to the GUI.\n  Allows users to generate the report for a specific site.\n      7/6/2021   The Essence Chief Complaint and Discharge Diagnosis Categories template is available.\nThis template generates a trend report of CCDD Categories between the MMWR weeks containing the dates you choose. Users are able to select as many of the CCDD Categories as they would like to generate, and are able to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) filters.\n  Emergency Department ICD-10 Category Volumes template (ed_icd10_volume)   9/28/2021   The Emergency Department ICD-10 Category Volumes template has been updated. This version:\n  Contains an Update of the medical grouping system to be chiefcomplaintsubsyndromes when a subsyndrome is selected\n  Renders properly and properly prints DDI and CoV cutpoints in the output.\n      9/13/2021   The Emergency Department ICD-10 Category Volumes template is available.\nThis template explores the top N categories by volume for the new ICD Chapter, Section, Diagnosis, and CCSR queries. It generates heat maps of the top N ICD-10-CM codes by ICD-10-CM chapter, ICD-10-CM section, ICD-10-CM diagnosis code, and the corresponding clinical classifications software refined (CCSR) category. Users are able to select the geographic region of interest, time frame, data quality filters, and ESSENCE age group category.\n  Syndrome Definition Evaluation template (syndrome_eval)   3/11/2021   The Syndrome Definition Evaluation template has been updated.\nThis critical update fixes an issue related to API URLs being ill-constructed when syndromes or subsyndromes are selected.\n    1/11/2021   The Syndrome Definition Evaluation template has been updated for performance and efficiency. It contains:\n  An update to the detect_elements() helper function solving therefore a memory limit issue preventing a successful render of the template when large datasets are pulled.\n  Some minor improvements that remove large datasets from the memory stack when they are not used.\n      9/13/2021   The Syndrome Definition Evaluation template is available.\nThis template allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time.\n  "
+	"content": "State Emergency Department template (state_ed_report)   6/8/2021   State Emergency Department template available.\n  Text Analysis Interactive Dashboard template (text_mining)   10/19/2021   The Text Mining template has been updated.\nThis version contains a custom Query field that allows users to enter their own ESSENCE query.\n    9/29/2021   The Text Mining template has been updated. This version:\n  Prematurely exits the knit when bad User Credentials are entered.\n  Prematurely exits the knit when an empty dataset is returned by the API.\n      8/9/2021   The Text Mining template has been updated. This version:\n  Asks for document title in parameter GUI\n  Includes age groups 2 - 5\n  Allows user to limit to a site or group of sites\n  Allows users to subset down to particular age groups if they wish. By default, the data pull should pull CCQV data which doesn\u0026rsquo;t contain age. If a user selects full details, then the age group filtering will apply. All possible age group options have been added.\n  Fixes a typo for a parameter name - replaced \u0026ldquo;ccdd_category_string\u0026rdquo; with \u0026ldquo;definition_string\u0026rdquo;\n  Changes the default CCDD Category to COVID-DD\n      6/19/2021   The Text Mining template has been updated. This version contains the following updates:\n  Users now have a choice to select a syndrome definition from a list of all CCDD categories, subsyndromes, and syndromes that are currently in the system. Users no longer need to manually paste in the query to populate on the Background tab. The input option allows for users to type and search for a definition type and name when knitting with parameters. As done in the combined category fields in ESSENCE, CCDD categories are proceeded by CCDD Category, subsyndromes by Subsyndrome, and syndrome by Syndrome.\n  Chief complaint correlation network graph (based on Pearson correlation). Terms are filtered with a correlation greater than 0.15. Opacity of the edges/lines represents the magnitude of correlation. Note that pairs that occur next to each other in the chief complaint are removed in an attempt to avoid identifying term pairs that one would expect to see and that show up in the top 200 bigrams. Also added is a search table below the graph so that users can search for correlations for a term of interest.\n  n-gram trend analysis for chief complaint and discharge diagnosis unigrams and bigrams. The sections of code that generate these have been modified to prevent errors when there are no significant terms identified.\n      5/21/2021   Text Mining template available.\n  Essence Chief Complaint and Discharge Diagnosis Categories template (essence_ccdd)   9/13/2021   The Essence Chief Complaint and Discharge Diagnosis Categories template has been updated. This version:\n  Contains some minor update to the GUI.\n  Allows users to generate the report for a specific site.\n      7/6/2021   The Essence Chief Complaint and Discharge Diagnosis Categories template is available.\nThis template generates a trend report of CCDD Categories between the MMWR weeks containing the dates you choose. Users are able to select as many of the CCDD Categories as they would like to generate, and are able to control for data quality using the Average Weekly DDI% and CoV(HasBeenE) filters.\n  Emergency Department ICD-10 Category Volumes template (ed_icd10_volume)   9/28/2021   The Emergency Department ICD-10 Category Volumes template has been updated. This version:\n  Contains an Update of the medical grouping system to be chiefcomplaintsubsyndromes when a subsyndrome is selected\n  Renders properly and properly prints DDI and CoV cutpoints in the output.\n      9/13/2021   The Emergency Department ICD-10 Category Volumes template is available.\nThis template explores the top N categories by volume for the new ICD Chapter, Section, Diagnosis, and CCSR queries. It generates heat maps of the top N ICD-10-CM codes by ICD-10-CM chapter, ICD-10-CM section, ICD-10-CM diagnosis code, and the corresponding clinical classifications software refined (CCSR) category. Users are able to select the geographic region of interest, time frame, data quality filters, and ESSENCE age group category.\n  Syndrome Definition Evaluation template (syndrome_eval)   3/11/2021   The Syndrome Definition Evaluation template has been updated.\nThis critical update fixes an issue related to API URLs being ill-constructed when syndromes or subsyndromes are selected.\n    1/11/2021   The Syndrome Definition Evaluation template has been updated for performance and efficiency. It contains:\n  An update to the detect_elements() helper function solving therefore a memory limit issue preventing a successful render of the template when large datasets are pulled.\n  Some minor improvements that remove large datasets from the memory stack when they are not used.\n      9/13/2021   The Syndrome Definition Evaluation template is available.\nThis template allows ESSENCE users to evaluate the data details (line level) results of one, two, or three syndrome definitions at a time.\n  Word Alerts Report template (word_alerts)   11/9/2021   The Word Alerts Report template is available.\nThe Word Alerts Report template summarizes daily chief complaints and discharge diagnosis term alerts for a selected syndrome definition.\nThe purpose of the word alert algorithm is to seek anomalous chief complaints free text terms and discharge diagnosis codes relative to a 28-day sliding baseline.\nThe current implementation of word alerts in NSSP-ESSENCE is limited to data from the past 7 days. This template provides users the capability of running the word alert algorithm on any selected date range spanning up to 90 days.\n  "
 },
 {
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/chief-complaint/",
@@ -184,6 +212,13 @@
 {
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/dashboard/",
 	"title": "dashboard",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/datamart/",
+	"title": "datamart",
 	"tags": [],
 	"description": "",
 	"content": ""
@@ -443,6 +478,13 @@
 {
 	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/volumes/",
 	"title": "volumes",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://cdcgov.github.io/Rnssp-rmd-templates/tags/word/",
+	"title": "word",
 	"tags": [],
 	"description": "",
 	"content": ""
