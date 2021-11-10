@@ -104,6 +104,16 @@ This template generates a trend report of CCDD Categories between the MMWR weeks
 
 <details>
 
+<summary>11/10/2021</summary>
+The Emergency Department ICD-10 Category Volumes template has been updated. This version:
+
+* Has additional patient demographic stratifications
+* Provides facility level selection variables
+
+</details>
+
+<details>
+
 <summary>9/28/2021</summary>
 The Emergency Department ICD-10 Category Volumes template has been updated. This version:
 
