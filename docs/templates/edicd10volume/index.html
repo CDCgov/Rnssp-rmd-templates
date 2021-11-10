@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>ED ICD-10 Category Volumes :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1636578674 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1636578674 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1636578674></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1636583661 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1636583661 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1636583661></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/edicd10volume/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1636578674></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1636578674></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1636583661></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1636583661></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1636578674></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1636583661></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -257,14 +257,16 @@ ED ICD-10 Category Volumes
 <ul>
 <li>NSSP Username: NSSP ESSENCE account username</li>
 <li>NSSP Password: NSSP ESSENCE account password</li>
-<li>Start Date: Automatically modified to the start date to be the first day of the MMWR week of the selected start date.</li>
-<li>End Date: recommended to be at least 2 weeks prior to date of running the report to account for a lag in discharge diagnosis data. Automatically modified to be the last day of the MMWR week of the selected end date.</li>
-<li>Site: a participating site</li>
-<li>Age group: can be one of the age classifications in Essence</li>
-<li>Add unknown age: TRUE/FALSE option as to whether unknown age category should be considered. Default is FALSE.</li>
-<li>Top N conditions to rank: default is 10</li>
-<li>Avg Weekly Discharge Diagnosis Informative (DDI) Greater than or equal to: Threshold for facility level average weekly discharge diagnosis informative. Helps control for informativeness of the discharge diagnosis field. It is recommended to select an average weekly DDI of 75 or greater. If no value is entered the report will default to not filter facilities by this data quality metric.</li>
-<li>Coefficient of Variance (CoV HasBeenE) Less than or equal to: Threshold for the coefficient of variance (CoV) for ED visits. Helps control for total volume volatility for the selected time period. It is recommended to select a CoV of 40 or less. If no value is entered the report will default to not filter facilities by this data quality metric.</li>
+<li>Start Date: Start date</li>
+<li>End Date: End date. Recommended to be at least 2 weeks prior to date of running the report to account for a lag in discharge diagnosis data.</li>
+<li>Site: Geographic region. Can be national, a DHHS region, or participating site. Automatically modified to be national.</li>
+<li>Site Facility: A Facility Level ESSENCE API with the facility of interest selected. Overwrites site parameter to run the report for a specific facility.</li>
+<li>Facility Name: Label the report with the facility name.</li>
+<li>Stratification Variable: Can be one of the age, sex, race, or ethnicity classifications in ESSENCE.</li>
+<li>Add Unknown: TRUE/FALSE option as to whether unknown or not reported categories should be considered. Default is FALSE.</li>
+<li>Top N conditions to rank: Default is 10.</li>
+<li>Avg Weekly Discharge Diagnosis Informative (DDI) Greater than or equal to: Threshold for facility level average weekly discharge diagnosis informative. Helps control for informativeness of the discharge diagnosis field. It is recommended to select an average weekly DDI of 75 or greater. If no value is entered the report will default to not filter facilities by this data quality metric. To remove the average weekly DDI filter enter 0.</li>
+<li>Coefficient of Variance (CoV HasBeenE) Less than or equal to: Threshold for the coefficient of variance (CoV) for ED visits. Helps control for total volume volatility for the selected time period. It is recommended to select a CoV of 40 or less. If no value is entered the report will default to not filter facilities by this data quality metric. To remove the CoV HasBeenE filter enter 1000000.</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -297,16 +299,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1636578674></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1636583661></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1636578674></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1636578674></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1636583661></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1636583661></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
