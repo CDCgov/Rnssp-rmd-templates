@@ -46,11 +46,11 @@ params:
 ---
 
 <style type="text/css">   
-  .main-container {
-    max-width: 1300px;
-    margin-left: auto;
-    margin-right: auto;
-  }
+.main-container {
+max-width: 1300px;
+margin-left: auto;
+margin-right: auto;
+}
 </style>
 
 
@@ -184,10 +184,10 @@ api_query_length <- api_query & length > 90
 
 To remove uninformative terms from chief complaint free text, a combination of 4 types of stop words are used:
 
-  * Medical Process Terms: Medical terms commonly found in chief complaints such as "abnormal" or "access"
-  * Stop Words: Standard English stop words 
-  * ICD-10 discharge diagnosis codes which can (and do) occur in the chief complaint 
-  * Common first names 
+* Medical Process Terms: Medical terms commonly found in chief complaints such as "abnormal" or "access"
+* Stop Words: Standard English stop words 
+* ICD-10 discharge diagnosis codes which can (and do) occur in the chief complaint 
+* Common first names 
 
 Any punctuation (apostrophes, hyphens, etc.) is removed from the list of stop words, which is then capitalized to be consistent with parsed chief complaints. The following table demonstrates the first 5 stop words for each class. 
 
@@ -217,7 +217,7 @@ stopterms <- bind_rows(
     word = toupper(word), 
     word = str_remove_all(word, pattern = "[[:punct:]]")
   )
-  
+
 stopterms %>%
   group_by(type) %>%
   slice_head(n = 5) %>%
@@ -385,44 +385,45 @@ url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataD
 
 api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE), silent = FALSE)
 
-premature_quit_essence <- unique(class(api_data) == "try-error")
+premature_quit_essence <- any(all(class(api_data) == "try-error"), 
+                              all(dim(api_data) == c(0, 0)))
+```
 
-if (premature_quit_essence) {
-  knitr::knit_exit("Render ends prematurely.
+```{r knit_quit, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_quit_essence}
+knitr::knit_exit("Render ends prematurely.
                  ESSENCE API data pull failed. Check your user credentials!")
-} else {
-  
-  
-  ccqv_data <- api_data %>%
-    clean_names() %>%
-    separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
-    mutate(
-      week = as.numeric(week),
-      year = as.numeric(year)
-    ) %>%
-    filter(!is.na(week)) %>%
-    mutate(
-      date = as.Date(date, "%m/%d/%Y"),
-      mmwr_date = MMWRweek2Date(year, week, MMWRday = NULL),
-      linenumber = row_number(),
-      month = round_date(mmwr_date, "month")
-    ) %>%
-    as.data.table()
-  
-  n_days <- length(unique(ccqv_data$date))
-  premature_quit_length <- n_days <= 30
-  
-  data_source <- "NSSP-ESSENCE"
-  
-  date_range <- paste(format(min(ccqv_data$date), "%B %d, %Y"), "to", format(max(ccqv_data$date), "%B %d, %Y"))
-  
-  dates <- ccqv_data %>% 
-    arrange(date) %>%
-    pull(date) %>%
-    unique() 
-  
-  note <- ""
-}
+```
+
+```{r site level API2, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
+ccqv_data <- api_data %>%
+  clean_names() %>%
+  separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
+  mutate(
+    week = as.numeric(week),
+    year = as.numeric(year)
+  ) %>%
+  filter(!is.na(week)) %>%
+  mutate(
+    date = as.Date(date, "%m/%d/%Y"),
+    mmwr_date = MMWRweek2Date(year, week, MMWRday = NULL),
+    linenumber = row_number(),
+    month = round_date(mmwr_date, "month")
+  ) %>%
+  as.data.table()
+
+n_days <- length(unique(ccqv_data$date))
+premature_quit_length <- n_days <= 30
+
+data_source <- "NSSP-ESSENCE"
+
+date_range <- paste(format(min(ccqv_data$date), "%B %d, %Y"), "to", format(max(ccqv_data$date), "%B %d, %Y"))
+
+dates <- ccqv_data %>% 
+  arrange(date) %>%
+  pull(date) %>%
+  unique() 
+
+note <- ""
 
 if (premature_quit_length) {
   knitr::knit_exit("Render ends prematurely.
@@ -451,7 +452,7 @@ ggplot(data = volume) +
   labs(
     title = paste("Daily Volume for", definition),
     subtitle = date_range
-    ) + 
+  ) + 
   theme(plot.title = element_text(face = "bold"))
 
 ```
@@ -1304,7 +1305,7 @@ ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
   theme(
     plot.title = element_text(face = "bold"), 
     legend.position = "none"
-    )
+  )
 
 ```
 
@@ -1670,7 +1671,7 @@ if (nrow(cc_alerts_bigram) > 0) {
           fixedrange = FALSE, 
           autoscale = TRUE
         ), 
-
+        
         legend = list(showlegend = FALSE),
         hoverlabel = list(align = "left")
       ) %>%
