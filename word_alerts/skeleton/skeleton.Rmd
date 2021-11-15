@@ -17,11 +17,12 @@ params:
     placeholder: "password"
   start_date:
     label: "Enter Start Date:"
-    value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
+    value: !r as.Date(cut(Sys.Date() - 90, "week", start.on.monday = FALSE))
     input: date
   end_date:
     label: "Enter End Date:"
-    value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01")) + 90
+    value: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 2
+    max: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 2
     input: date
   data_source:
     label: "Data Source:"
@@ -39,6 +40,9 @@ params:
     value: "Syndrome: ILI"
     input: select
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(tail(definitions, -1), syndrome)
+  has_been_E:
+    label: "Has been Emergency (only if using full details for site level user): "
+    value: true
   doc_title:
     label: "Title:"
     value: NSSP-ESSENCE Word Alerts
@@ -177,6 +181,8 @@ db_query_length <- db_query & length > 90
 
 api_query <- params$data_source == "Facility Location (Full Details - Site level User Only!)"
 api_query_length <- api_query & length > 90
+
+limit_ed <- as.numeric(params$has_been_E)
 
 ```
 
@@ -357,31 +363,24 @@ knitr::knit_exit("Expensive query! Render ends prematurely.
 
 if (definition_pattern == "CCDD Category") {
   definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
-  definition_type <- "&ccddCategory="
-  grouping_system <- "essencesyndromes"
+  definition_type <- "a_ccdd_"
 }
 
 if (definition_pattern == "Subsyndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
-  if (params$data_source == "Chief Complaint Query Validation") {
-    definition_type <- "&subsyndrome="
-  } else{
-    definition_type <- "&medicalGrouping="
-    grouping_system <- "chiefcomplaintsubsyndromes"
-  }
+  definition_type <- "c_sub_"
 }
 
 if (definition_pattern == "Syndrome") {
   definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
-  definition_type <- "&syndrome="
-  grouping_system <- "essencesyndromes"
+  definition_type <- "b_syn_"
 }
 
 site_id <- readRDS("nca_hosp.rds") %>%
   filter(site_name == params$site) %>%
   pull(site_id)
 
-url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, tolower(definition_string), "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
 
 api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE), silent = FALSE)
 
@@ -394,7 +393,7 @@ knitr::knit_exit("Render ends prematurely.
                  ESSENCE API data pull failed. Check your user credentials!")
 ```
 
-```{r site level API2, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
+```{r site level preprocess, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
 ccqv_data <- api_data %>%
   clean_names() %>%
   separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
@@ -1571,9 +1570,7 @@ if (nrow(cc_alerts_unigram) > 0) {
     tbl
   )
   
-} else {
-  cat(paste("No chief complaint unigram alerts identified on", format(test_date, "%B %d, %Y")))
-}
+} 
 
 ```
 
@@ -1834,9 +1831,7 @@ if (nrow(cc_alerts_bigram) > 0){
     tbl
   )
   
-} else {
-  cat(paste("No chief complaint bigram alerts identified on", format(test_date, "%B %d, %Y")))
-}
+} 
 
 ```
 
@@ -2106,9 +2101,7 @@ if (nrow(dd_alerts_unigram) > 0) {
     tbl
   )
   
-} else {
-  cat(paste("No discharge diagnosis unigram alerts identified on", format(test_date, "%B %d, %Y")))
-}
+} 
 
 ```
 
@@ -2402,8 +2395,6 @@ if (nrow(dd_alerts_bigram) > 0) {
     tbl
   )
   
-} else {
-  cat(paste("No discharge diagnosis bigram alerts identified on", format(test_date, "%B %d, %Y")))
-}
+} 
 
 ```
