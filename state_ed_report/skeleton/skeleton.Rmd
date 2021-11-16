@@ -12,19 +12,21 @@ params:
     label: "NSSP Username: "
     value: ""
     input: text
+    placeholder: "username"
   password:
     label: "NSSP Password: "
     value: ""
     input: password
+    placeholder: "password"
   state_abbr:
     label: "Enter State Abbreviation"
-    value: "WA"
+    value: "AL"
     input: select
     choices: !r state.abb
   ccdd_categories:
     label: "CCDD Categories"
-    value: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); head(dplyr::pull(readRDS(fl), syndrome), 2)
-    choices: !r library(magrittr); read.csv("ccdd_categories.csv") %>% dplyr::pull(ccdd_category)
+    value: !r c("CLI CC with CLI DD and Coronavirus DD v1", "CDC Pneumonia CCDD v1", "CDC COVID-Specific DD v1")
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_ed_report", "skeleton", "ccdd_cat.rds"), destfile = fl); dplyr::pull(readRDS(fl), ccdd_category)
     input: select
     multiple: yes
   start_date:
