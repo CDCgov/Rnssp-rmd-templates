@@ -559,53 +559,10 @@ The ESSENCE word alert algorithm uses 28 day baselines over which unigram or big
 
 ```{r contingency table, echo = FALSE, warning = FALSE, message = FALSE}
 
-.start <- as.IDate(dates[1])
-.end <- as.IDate(.start + 29)
-
-base <- cc_bigram_freq %>%
-  .[date >= .start & date <= .end] 
-
-total_base <- ccqv_data %>%
-  .[date >= .start & date <= .end] %>%
-  nrow() 
-
-test <- cc_bigram_freq %>%
-  .[date == .end + 3]
-
-total_test <- ccqv_data %>%
-  .[date == .end + 3] %>%
-  nrow() 
-
-base_counts <- base %>%
-  .[, .(frequency = sum(frequency)), by = feature] %>%
-  .[, cell_c := frequency] %>%
-  .[, cell_d := total_base - frequency] %>%
-  setnames(old = c("feature", "frequency"), new = c("bigram", "n_base")) 
-
-test_counts <- test %>%
-  .[frequency >= 3, ] %>%
-  .[, cell_a := frequency] %>%
-  .[, cell_b := total_test - frequency] %>%
-  setnames(old = c("feature", "frequency", "date"), new = c("bigram", "n_test", "date_test")) 
-
-combined_counts <- test_counts %>%
-  merge(base_counts, by = "bigram")
-
-example <- combined_counts %>%
-  head(1) %>%
-  select(
-    bigram, 
-    cell_a, 
-    cell_b, 
-    cell_c,
-    cell_d
-  ) %>%
-  mutate_at(.vars = c("cell_a", "cell_b", "cell_c", "cell_d"), ~format(., big.mark = ",")) 
-
 tab <- data.frame(
   group = c("Test (Last 24 Hours)", "Baseline (28 Days)"), 
-  col1 = c(paste("A:", example$cell_a), paste("C:", example$cell_c)),
-  col2 = c(paste("B:", example$cell_b), paste("D:", example$cell_d))
+  col1 = c(paste("A:", 3), paste("C:", 7,243)),
+  col2 = c(paste("B:", 59), paste("D:", 231,649))
 ) 
 
 tab %>%
@@ -616,7 +573,7 @@ tab %>%
     col2 = "Visits without Term"
   ) %>%
   autofit() %>%
-  set_caption(caption = paste("Two by two contingency table for", unique(example$bigram))) %>%
+  set_caption(caption = paste("Two by two contingency table for", "ABDOMINAL HEADACHE")) %>%
   theme_box() %>%
   color(color = "black", part = "all")
 
@@ -1189,33 +1146,84 @@ test_date <- max(ccqv_data$date) - 4
 
 ```{r CC alert counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6, fig.align = "center"}
 
-daily_cc_alerts_bigram <- res_out_ccbigram %>%
-  count(date_test) %>%
-  mutate(
-    field = "Chief Complaint",
-    type = paste(field, "Bigram")
-  )
+min_date <- start_date + 28 + 1 + 3
+max_date <- test_date
 
-daily_cc_alerts_unigram <- res_out_ccunigram %>%
-  count(date_test) %>%
-  mutate(
-    field = "Chief Complaint",
-    type = paste(field, "Unigram")
-  )
+if (nrow(res_out_ccbigram) > 0) {
+  daily_cc_alerts_bigram <- res_out_ccbigram %>%
+    count(date_test) %>%
+    tidyr::complete(date_test = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(n = 0)) %>%
+    mutate(
+      field = "Chief Complaint",
+      type = paste(field, "Bigram")
+    )
+} else {
+  daily_cc_alerts_bigram <- data.frame(
+    date_test = seq.Date(min_date, max_date, by = "day")
+  ) %>%
+    mutate(
+      n = 0, 
+      field = "Chief Complaint", 
+      type = paste(field, "Bigram")
+    )
+}
 
-daily_dd_alerts_unigram <- res_out_ddunigram %>%
-  count(date_test) %>%
-  mutate(
-    field = "Discharge Diagnosis",
-    type = paste(field, "Unigram")
-  ) 
+if (nrow(res_out_ccunigram) > 0) {
+  daily_cc_alerts_unigram <- res_out_ccunigram %>%
+    count(date_test) %>%
+    tidyr::complete(date_test = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(n = 0)) %>%
+    mutate(
+      field = "Chief Complaint",
+      type = paste(field, "Unigram")
+    )
+} else {
+  daily_cc_alerts_unigram <- data.frame(
+    date_test = seq.Date(min_date, max_date, by = "day")
+  ) %>%
+    mutate(
+      n = 0, 
+      field = "Chief Complaint", 
+      type = paste(field, "Unigram")
+    )
+}
 
-daily_dd_alerts_bigram <- res_out_ddbigram %>%
-  count(date_test) %>%
-  mutate(
-    field = "Discharge Diagnosis",
-    type = paste(field, "Bigram")
-  )
+if (nrow(res_out_ddunigram) > 0) {
+  daily_dd_alerts_unigram <- res_out_ddunigram %>%
+    count(date_test) %>%
+    tidyr::complete(date_test = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(n = 0)) %>%
+    mutate(
+      field = "Discharge Diagnosis",
+      type = paste(field, "Unigram")
+    ) 
+} else {
+  daily_dd_alerts_unigram <- data.frame(
+    date_test = seq.Date(min_date, max_date, by = "day")
+  ) %>%
+    mutate(
+      n = 0, 
+      field = "Discharge Diagnosis", 
+      type = paste(field, "Unigram")
+    )
+}
+
+if (nrow(res_out_ddbigram) > 0) {
+  daily_dd_alerts_bigram <- res_out_ddbigram %>%
+    count(date_test) %>%
+    tidyr::complete(date_test = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(n = 0)) %>%
+    mutate(
+      field = "Discharge Diagnosis",
+      type = paste(field, "Bigram")
+    )
+} else {
+  daily_dd_alerts_bigram <- data.frame(
+    date_test = seq.Date(min_date, max_date, by = "day")
+  ) %>%
+    mutate(
+      n = 0, 
+      field = "Discharge Diagnosis", 
+      type = paste(field, "Bigram")
+    )
+}
 
 date_range <- paste(format(min(res_out_ccbigram$date_test), "%B %d, %Y"), "to", format(test_date, "%B %d, %Y"))
 ceiling <- max(daily_cc_alerts_bigram$n, daily_cc_alerts_unigram$n, daily_dd_alerts_unigram$n, daily_dd_alerts_bigram$n)
@@ -1315,16 +1323,20 @@ ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
 min_date <- start_date + 28 + 1 + 3
 max_date <- test_date
 
-cc_alerts_unigram <- res_out_ccunigram %>%
-  filter(date_test == test_date) %>%
-  select(
-    unigram,
-    freq = frequency,
-    p.value, 
-    scale
-  ) %>%
-  arrange(unigram) %>%
-  mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+if (!is_empty(res_out_ccunigram)) {
+  cc_alerts_unigram <- res_out_ccunigram %>%
+    filter(date_test == test_date) %>%
+    select(
+      unigram,
+      freq = frequency,
+      p.value, 
+      scale
+    ) %>%
+    arrange(unigram) %>%
+    mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+} else {
+  cc_alerts_unigram <- data.frame() 
+}
 
 visit_denominators <- ccqv_data %>%
   as.data.frame() %>%
@@ -1578,16 +1590,20 @@ if (nrow(cc_alerts_unigram) > 0) {
 
 ```{r cc bigram slider, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 8}
 
-cc_alerts_bigram <- res_out_ccbigram %>%
-  filter(date_test == test_date) %>%
-  select(
-    bigram,
-    freq = frequency,
-    p.value, 
-    scale
-  ) %>%
-  arrange(bigram) %>%
-  mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+if (!is_empty(res_out_ccbigram)) {
+  cc_alerts_bigram <- res_out_ccbigram %>%
+    filter(date_test == test_date) %>%
+    select(
+      bigram,
+      freq = frequency,
+      p.value, 
+      scale
+    ) %>%
+    arrange(bigram) %>%
+    mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+} else {
+  cc_alerts_bigram <- data.frame() 
+}
 
 if (nrow(cc_alerts_bigram) > 0) {
   
@@ -1841,18 +1857,22 @@ if (nrow(cc_alerts_bigram) > 0){
 
 ```{r dd unigram slider, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 8}
 
-dd_alerts_unigram <- res_out_ddunigram %>%
-  filter(date_test == test_date) %>%
-  select(
-    unigram,
-    freq = frequency,
-    p.value, 
-    scale
-  ) %>%
-  arrange(unigram) %>%
-  mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+if (!is_empty(res_out_ddunigram)) {
+  dd_alerts_unigram <- res_out_ddunigram %>%
+    filter(date_test == test_date) %>%
+    select(
+      unigram,
+      freq = frequency,
+      p.value, 
+      scale
+    ) %>%
+    arrange(unigram) %>%
+    mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+} else {
+  dd_alerts_unigram <- data.frame() 
+}
 
-if (nrow(res_out_ddunigram) > 0) {
+if (nrow(dd_alerts_unigram) > 0) {
   
   unigram_dist <- res_out_ddunigram %>%
     as.data.frame() %>%
@@ -2109,18 +2129,22 @@ if (nrow(dd_alerts_unigram) > 0) {
 
 ```{r dd bigram slider, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 8}
 
-dd_alerts_bigram <- res_out_ddbigram %>%
-  filter(date_test == test_date) %>%
-  select(
-    bigram,
-    freq = frequency,
-    p.value, 
-    scale
-  ) %>%
-  arrange(bigram) %>%
-  mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+if (!is_empty(res_out_ddbigram)) {
+  dd_alerts_bigram <- res_out_ddbigram %>%
+    filter(date_test == test_date) %>%
+    select(
+      bigram,
+      freq = frequency,
+      p.value, 
+      scale
+    ) %>%
+    arrange(bigram) %>%
+    mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test")) 
+} else {
+  dd_alerts_bigram <- data.frame() 
+}
 
-if(nrow(dd_alerts_bigram) > 0) {
+if (nrow(dd_alerts_bigram) > 0) {
   
   bigram_dist <- res_out_ddbigram %>%
     as.data.frame() %>%
