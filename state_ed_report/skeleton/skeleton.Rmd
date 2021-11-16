@@ -1,7 +1,8 @@
 ---
-title: "`r params$doc_title`"
+title: "State ED Report Template"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 description: This report is a template State ED Report. 
+  Remember to change the title to match your State.
   PLEASE Knit it with Parameters!!!
 output:
   html_document:
@@ -15,19 +16,15 @@ params:
     label: "NSSP Password: "
     value: ""
     input: password
-  doc_title:
-    label: "Title: "
-    value: State ED Report Template (NSSP-ESSENCE)
-    input: text
   state_abbr:
     label: "Enter State Abbreviation"
-    value: "MS"
+    value: "WA"
     input: select
     choices: !r state.abb
   ccdd_categories:
     label: "CCDD Categories"
-    value: !r c("CLI CC with CLI DD and Coronavirus DD v1", "CDC Pneumonia CCDD v1", "CDC COVID-Specific DD v1")
-    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_ed_report", "skeleton", "ccdd_cat.rds"), destfile = fl); dplyr::pull(readRDS(fl), ccdd_category)
+    value: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); head(dplyr::pull(readRDS(fl), syndrome), 2)
+    choices: !r library(magrittr); read.csv("ccdd_categories.csv") %>% dplyr::pull(ccdd_category)
     input: select
     multiple: yes
   start_date:
@@ -36,32 +33,20 @@ params:
     input: date
   end_date:
     label: "Enter End Date: "
-    value: !r lubridate::floor_date(Sys.Date(), unit = "1 week") - 1
+    value: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 1
     input: date
   ts_type: 
     label: "Time Series Metric"
-    value: "Percentages and Counts"
+    value: "Percentages"
     input: select
     choices: [Percentages, Counts, Percentages and Counts]
-  guard_band:
-    label: "Guardband: "
-    value: 3
-    input: numeric
-    min: 1
-    max: 14
-  days_before:
-    label: "Days Before: "
-    value: 11
-    input: numeric
-    min: 7
-    max: 14
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 <style type="text/css">
   .main-container {
-    max-width: 1200px;
+    max-width: 1300px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -88,6 +73,9 @@ library(grid)
 library(gridExtra)
 library(jsonlite)
 library(data.table)
+library(sparkline)
+library(patchwork)
+
 ```
 
 ```{r set params, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
@@ -96,8 +84,13 @@ endDate <- format(params$end_date, "%d%b%Y")
 startDate <- format(params$start_date, "%d%b%Y")
 
 ncat <- length(params$ccdd_categories)
-ht_combined <- 3 * ncat
-ht_single <- 2 * ncat
+
+ht_single <- ncat + 0.67
+ht_combined <- 2 * ht_single
+
+counts_percentages <- ifelse(params$ts_type == "Percentages and Counts", TRUE, FALSE)
+counts_only <- ifelse(params$ts_type == "Counts", TRUE, FALSE)
+percentages_only <- ifelse(params$ts_type == "Percentages", TRUE, FALSE)
 
 ```
 
@@ -107,210 +100,6 @@ myProfile <- Credentials$new(
   username = params$username,
   password = params$password
 )
-
-```
-
-```{r set_model_specification, echo = FALSE, message = FALSE, warning = FALSE}
-
-metric <- params$ts_type
-
-if (params$ts_type == "Percentages") {
-  reg_family = "binomial"
-  trend <- "percent"
-  alerts <- "p.values_percent"
-} else if (params$ts_type == "Counts") {
-  reg_family = "linear"
-  trend <- "data_count"
-  alerts <- "p.values_counts"
-} else {
-  reg_family = "binomial and linear"
-}
-
-windowed_regression <- function(df, family, geography){
-  
-  dt <- df %>% 
-    as.data.table() 
-  
-  shift_index <- ifelse(geography == "state", 2, 3)
-  
-  by_cols <- if (geography == "state") {
-    c("ccdd_category")
-  } else {
-    c("county", "ccdd_category")
-  }
-  
-  if (family == "binomial") {
-    dt <- dt %>%
-      .[, non_count := all_count - data_count]
-    
-    shifted.numerator <- setnames(dt[, shift(get("data_count"), (0:daysbefore)), by = by_cols], 
-                                  old = shift_index:(daysbefore + shift_index), 
-                                  new = paste0("pos", 1:(daysbefore + 1)))
-    shifted.denominator <- setnames(dt[, shift(get("non_count"), (0:daysbefore)), by = by_cols],
-                                    old = shift_index:(daysbefore + shift_index), 
-                                    new = paste0("neg", 1:(daysbefore + 1)))
-    
-    return_stat <- function(y1, y2, x) {
-      mod <- glm(cbind(y1, y2) ~ x, family = "binomial", model = FALSE)
-      return(mod$coef[2] / sqrt(vcov(mod)[2, 2]))
-    }
-    
-    res <- cbind(dt[, .SD, .SDcols = "date"], shifted.numerator, shifted.denominator) %>%
-      melt(
-        id = c("date", by_cols),
-        measure = patterns("pos", "neg"), 
-        value.name = c("pos", "neg"), 
-        variable.name = "date_num"
-      ) %>%
-      setorderv(cols = c("date", "date_num")) %>%
-      .[, date_num := (daysbefore + 1) - as.integer(date_num)] %>%
-      .[, threshmet := sum(pos, na.rm = TRUE) >= 10, by = c(by_cols, "date")] %>%
-      .[threshmet == TRUE, .("statistic" = return_stat(pos, neg, date_num)), by = c(by_cols, "date")] %>%
-      .[, p.value := 2 * pnorm(-abs(statistic))] %>%
-      .[, status := fcase(p.value < 0.01 & statistic > 0,"Significantly Increasing", 
-                          p.value < 0.01 & statistic < 0, "Significantly Decreasing", 
-                          p.value >= 0.01 & statistic > 0, "Not Significant, Positive Slope",
-                          p.value >= 0.01 & statistic < 0, "Not Significant, Negative Slope", 
-                          is.na(statistic), "Less than 10 Encounters or not Reporting")]
-    
-    cols <- c("statistic", "p.value", "status")
-    
-    res_lagged <- res[, c("statistic", "p.value", "status") := shift(.SD, guardband, type = "lag", fill = NA), by = by_cols, .SDcols = cols]
-    
-    return(res_lagged)
-  }
-  
-  if (family == "linear") {
-    
-    shifted <- setnames(dt[, shift(get("data_count"), (0:daysbefore)), by = by_cols],
-                        old = shift_index:(daysbefore + shift_index),
-                        new = paste0("data_count", 1:(daysbefore + 1)))
-    
-    return_stat <- function(y, x) {
-      mod <- lm(y ~ x, model = FALSE)
-      return(mod$coef[2] / sqrt(vcov(mod)[2, 2]))
-    }
-    
-    res <- cbind(dt[, .SD, .SDcols = "date"], shifted) %>%
-      melt(
-        id = c("date", by_cols), 
-        measure = patterns("data_count"), 
-        value.name = c("data_count"), 
-        variable.name = "date_num"
-      ) %>%
-      setorderv(cols = c("date", "date_num")) %>%
-      .[, date_num := (daysbefore + 1) - as.integer(date_num)] %>%
-      .[, threshmet := sum(data_count, na.rm = TRUE) >= 10, by = c(by_cols, "date")] %>%
-      .[threshmet == TRUE, .("statistic" = return_stat(data_count, date_num)), by = c(by_cols, "date")] %>%
-      .[, p.value := 2 * pnorm(-abs(statistic))] %>%
-      .[, status := fcase(p.value < 0.01 & statistic > 0,"Significantly Increasing", 
-                          p.value < 0.01 & statistic < 0, "Significantly Decreasing", 
-                          p.value >= 0.01 & statistic > 0, "Not Significant, Positive Slope",
-                          p.value >= 0.01 & statistic < 0, "Not Significant, Negative Slope", 
-                          is.na(statistic), "Less than 10 Encounters or not Reporting")]
-    
-    cols <- c("statistic", "p.value", "status")
-    
-    res_lagged <- res[, c("statistic", "p.value", "status") := shift(.SD, guardband, type = "lag", fill = NA), by = by_cols, .SDcols = cols]
-    
-    return(res_lagged)
-  }
-  
-  if (family == "binomial and linear") {
-    # > Binomial regression on proportions
-    dt <- dt %>%
-      .[, non_count := all_count - data_count]
-    
-    shifted.numerator <- setnames(dt[, shift(get("data_count"), (0:daysbefore)), by = by_cols], 
-                                  old = shift_index:(daysbefore + shift_index), 
-                                  new = paste0("pos", 1:(daysbefore + 1)))
-    shifted.denominator <- setnames(dt[, shift(get("non_count"), (0:daysbefore)), by = by_cols],
-                                    old = shift_index:(daysbefore + shift_index), 
-                                    new = paste0("neg", 1:(daysbefore + 1)))
-    
-    return_stat <- function(y1, y2, x) {
-      mod <- glm(cbind(y1, y2) ~ x, family = "binomial", model = FALSE)
-      return(mod$coef[2] / sqrt(vcov(mod)[2, 2]))
-    }
-    
-    res_binomial <- cbind(dt[, .SD, .SDcols = "date"], shifted.numerator, shifted.denominator) %>%
-      melt(
-        id = c("date", by_cols),
-        measure = patterns("pos", "neg"), 
-        value.name = c("pos", "neg"), 
-        variable.name = "date_num"
-      ) %>%
-      setorderv(cols = c("date", "date_num")) %>%
-      .[, date_num := (daysbefore + 1) - as.integer(date_num)] %>%
-      .[, threshmet := sum(pos, na.rm = TRUE) >= 10, by = c(by_cols, "date")] %>%
-      .[threshmet == TRUE, .("statistic" = return_stat(pos, neg, date_num)), by = c(by_cols, "date")] %>%
-      .[, p.value := 2 * pnorm(-abs(statistic))] %>%
-      .[, status := fcase(p.value < 0.01 & statistic > 0,"Significantly Increasing", 
-                          p.value < 0.01 & statistic < 0, "Significantly Decreasing", 
-                          p.value >= 0.01 & statistic > 0, "Not Significant, Positive Slope",
-                          p.value >= 0.01 & statistic < 0, "Not Significant, Negative Slope", 
-                          is.na(statistic), "Less than 10 Encounters or not Reporting")] %>%
-      rename(
-        statistic_binomial = statistic, 
-        p.value_binomial = p.value,
-        status_binomial = status
-      )
-    
-    # > Linear regression on counts
-    shifted <- setnames(dt[, shift(get("data_count"), (0:daysbefore)), by = by_cols],
-                        old = shift_index:(daysbefore + shift_index),
-                        new = paste0("data_count", 1:(daysbefore + 1)))
-    
-    return_stat <- function(y, x) {
-      mod <- lm(y ~ x, model = FALSE)
-      return(mod$coef[2] / sqrt(vcov(mod)[2, 2]))
-    }
-    
-    res_linear <- cbind(dt[, .SD, .SDcols = "date"], shifted) %>%
-      melt(
-        id = c("date", by_cols), 
-        measure = patterns("data_count"), 
-        value.name = c("data_count"), 
-        variable.name = "date_num"
-      ) %>%
-      setorderv(cols = c("date", "date_num")) %>%
-      .[, date_num := (daysbefore + 1) - as.integer(date_num)] %>%
-      .[, threshmet := sum(data_count, na.rm = TRUE) >= 10, by = c(by_cols, "date")] %>%
-      .[threshmet == TRUE, .("statistic" = return_stat(data_count, date_num)), by = c(by_cols, "date")] %>%
-      .[, p.value := 2 * pnorm(-abs(statistic))] %>%
-      .[, status := fcase(p.value < 0.01 & statistic > 0,"Significantly Increasing", 
-                          p.value < 0.01 & statistic < 0, "Significantly Decreasing", 
-                          p.value >= 0.01 & statistic > 0, "Not Significant, Positive Slope",
-                          p.value >= 0.01 & statistic < 0, "Not Significant, Negative Slope", 
-                          is.na(statistic), "Less than 10 Encounters or not Reporting")] %>%
-      rename(
-        statistic_linear = statistic, 
-        p.value_linear = p.value, 
-        status_linear = status
-      )
-    
-    # > Combine results for binomial and linear regression 
-    if (geography == "state") {
-      res <- res_binomial %>%
-        merge(res_linear, by = c("ccdd_category", "date")) 
-      
-      cols <- c("statistic_binomial", "p.value_binomial", "status_binomial", "statistic_linear", "p.value_linear", "status_linear")
-      
-      res_lagged <- res[, c("statistic_binomial", "p.value_binomial", "status_binomial", "statistic_linear", "p.value_linear", "status_linear") := shift(.SD, guardband, type = "lag", fill = NA), by = by_cols, .SDcols = cols]
-      
-    }
-    if (geography == "county") {
-      res <- res_binomial %>%
-        merge(res_linear, by = c("county", "ccdd_category", "date"))
-      
-      cols <- c("statistic_binomial", "p.value_binomial", "status_binomial", "statistic_linear", "p.value_linear", "status_linear")
-      
-      res_lagged <- res[, c("statistic_binomial", "p.value_binomial", "status_binomial", "statistic_linear", "p.value_linear", "status_linear") := shift(.SD, guardband, type = "lag", fill = NA), by = by_cols, .SDcols = cols]
-      
-    }
-  }
-  return(res_lagged)
-}
 
 ```
 
@@ -354,20 +143,16 @@ state_name <- state_sf %>%
 
 ```{r state data pull, echo = FALSE, warning = FALSE, message = FALSE}
 
-guardband <- params$guard_band
-daysbefore <- params$days_before
-
-date_marker <- params$end_date - guardband - daysbefore
+metric <- params$ts_type
 
 category_list <- paste0("ccddCategory=", str_replace_all(paste(tolower(params$ccdd_categories), collapse = "&ccddCategory="), " ", "%20"))
 
 geography <- state_sf %>% 
   st_set_geometry(NULL) %>% 
   filter(STATEFP == state_fips) %>% 
-  select(STUSPS) %>% 
-  pull() %>% 
-  as.character() %>% 
-  tolower()
+  select(STUSPS) %>% pull %>% 
+  as.character %>% 
+  tolower
 
 url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=", endDate, "&geography=", geography, "&percentParam=ccddCategory&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=TimeSeries&", category_list, "&geographySystem=hospitalstate&detector=probrepswitch&timeResolution=daily&hasBeenE=1&stratVal=ccddCategory&multiStratVal=&graphOnly=true&numSeries=3&graphOptions=single&seriesPerYear=false&nonZeroComposite=false&removeZeroSeries=true&startMonth=January&stratVal=ccddCategory&multiStratVal=&graphOnly=true&numSeries=3&graphOptions=single&seriesPerYear=false&startMonth=January&nonZeroComposite=false")
 
@@ -442,19 +227,9 @@ county_data <- api_data %>%
 
 The purpose of this report is to summarize trend classification and ESSENCE alerting for the `r paste(params$ccdd_categories, collapse = ", ")` categories at the state and county level. All trends are reported as percent of daily emergency department visits.
 
-To classify all trends over time, we fit windowed regression models to moving `r params$days_before + 1` day baselines where the statistic and p-value resulting from the statistical test are used to define the last day of the baseline as significantly increasing, significantly decreasing, not significant with positive slope, or not significant with negative slope. To match the current NSSP-ESSENCE implementation of trend classification, binomial regression models are used for time series of percentages, while linear regression models are used for time series of counts. If recent data are pulled, it is best practice to use a 3 day lag to prevent lower counts associated with lags in receiving data from biasing the most recent classification. The significance threshold for p-values is set to 0.01, where trend classification is specified as follows: 
+To classify trends of percentages over time, we fit penalized least squares smoothing splines to state and county-level trends of 7-day averages. A smoothing parameter of $\omega = 0.5$ is applied to strike a balance between approximating the 7-day moving average and over smoothing. The slopes of the cubic smoothing spline are used to classify daily trajectory statuses into categories of increase, stable, or decrease. Slopes greater than a pre-defined slope cut point of 0.01 are classified as increasing, while slopes less than -0.01 are classified as decreasing. Slopes with an absolute value less than or equal to 0.01 are classified as stable. This method is best suited for classification of county-level time series with higher variability in day-to-day trends. For trends of counts, generalized additive models (Poisson family) are used to smooth daily time series. First order differences are used to approximate the first derivative. The same cut point of 0.01 is used for trend classification. 
 
-  **Significantly Increasing:** Time term in model is positive and p-value < 0.01
-  
-  **Significantly Decreasing:** Time term in model is negative and p-value < 0.01 
-  
-  **Not Significant, Positive Slope:** Time term in model is positive and p-value >= 0.01 
-  
-  **Not Significant, Negative Slope:** Time term in model is negative and p-value >= 0.01 
-  
-Note that in instances where the number of encounters for a category in the 12-day time window is less than 10, a model is not fit in order to prevent convergence errors from `glm` and `lm`. In those instances, the trend is classified as "Less than 10 Encounters or Not Reporting". 
-
-To improve identification of stratifications with recent and anomalous increases in syndromic activity, ESSENCE alerting is overlaid on the percentage trends for each county and CCDD category. These alerts correspond to ESSENCE\'s default alerting algorithm, Poisson/EWMA/Regression Switch, with alerting thresholds 0.05 (yellow) and 0.01 (red). Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table API (new to ESSENCE as of July 2020). 
+To improve identification of stratifications with recent and anomalous increases in syndromic activity, ESSENCE alerting is overlaid on the percentage trends for each county and CCDD category. These alerts correspond to ESSENCE\'s default alerting algorithm, Poisson/EWMA/Regression Switch, with alerting thresholds 0.05 (yellow) and 0.01 (red). Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table API (new to ESSENCE as of July 2020). Time series are presented for counties with at least 10 or more encounters for each CCDD category. 
 
 ### Instructions
 
@@ -465,307 +240,204 @@ This report is included in the `Rnssp` package as a template, and therefore requ
   3. CCDD Categories - currently includes all existing CCDD Categories available in ESSENCE. Users may select as many categories as they choose. The default categories are CLI CC with CLI DD and Coronavirus DD v1, CDC Pneumonia CCDD v1, and CDC COVID-Specific DD v1.
   4. Start and end date of query
   5. Time series type - percentages, counts, or percentages *and* counts (default)
-  6. Guard band - number of days the date in consideration is separated from the baseline (default is 3)
-  7. Days Before - length of baseline - 1 (default is 12 - 1 = 11)
 
-```{r state analysis, echo = FALSE, warning = FALSE, message = FALSE}
+```{r state trend analysis, echo = FALSE, warning = FALSE, message = FALSE}
 
-max_date <- max(state_data$date)
-min_date <- min(state_data$date)
-
-if (reg_family %in% c("binomial", "linear")) {
-  state_trends_analyzed <- state_data %>%
-    filter(date >= min_date + daysbefore) %>%
-    left_join(
-      state_data %>%
-        windowed_regression(family = reg_family, geography = "state") %>%
-        as.data.frame() %>%
-        arrange(date), 
-      by = c("date", "ccdd_category")
-    ) %>%
-    arrange(ccdd_category, date) %>%
-    mutate(
-      status = ifelse(is.na(status), "Less than 10 Encounters or not Reporting", status),
-      status = factor(status, levels = c("Significantly Increasing", 
-                                         "Not Significant, Positive Slope",
-                                         "Not Significant, Negative Slope",
-                                         "Significantly Decreasing", 
-                                         "Less than 10 Encounters or not Reporting"))
-    ) 
-  
+cubic_spline_poisson <- function(x, y, knot_interval = 21){
+  y[y < 0] <- NA
+  knots = floor(sum(!is.na(x)) / knot_interval)
+  tryCatch(
+    expr = return(exp(predict(mgcv::gam(y ~ s(x, bs = "cs", k = knots), model = FALSE, family = "poisson"), data.frame(x = x)))), 
+    error = function(e) return(as.double(rep(NA, length(x))))
+  )
 }
 
-if (reg_family == "binomial and linear") {
-  state_trends_analyzed <- state_data %>%
-    filter(date >= min_date + daysbefore) %>%
-    left_join(
-      state_data %>%
-        windowed_regression(family = reg_family, geography = "state") %>%
-        as.data.frame() %>%
-        arrange(date), 
-      by = c("date", "ccdd_category")
-    ) %>%
-    arrange(ccdd_category, date) %>%
-    mutate_at(.vars = c("status_binomial", "status_linear"), ~ifelse(is.na(.), "Less than 10 Encounters or not Reporting", .)) %>%
-    mutate_at(.vars = c("status_binomial", "status_linear"), ~factor(., levels = c("Significantly Increasing", 
-                                                                                   "Not Significant, Positive Slope",
-                                                                                   "Not Significant, Negative Slope",
-                                                                                   "Significantly Decreasing", 
-                                                                                   "Less than 10 Encounters or not Reporting"))) 
-  
-}
-
-state_trends_combined <- bind_rows(
-  state_trends_analyzed %>%
-    select(
-      date:percent,
-      alert = alert_count, 
-      p.value = p.value_linear,
-      status = status_linear 
-    ) %>%
-    group_by(ccdd_category) %>%
-    mutate(seven_day = zoo::rollmean(data_count, 7, align = "right", fill = NA)) %>%
-    ungroup() %>%
-    mutate(
-      time_series = data_count, 
-      trend = "counts"
+state_trends_analyzed <- state_data %>%
+  group_by(ccdd_category) %>%
+  mutate(
+    seven_day = slide(
+      .x = tibble(data_count, all_count),
+      .f = function (.x) {
+        (sum(.x$data_count) / sum(.x$all_count)) * 100
+      },
+      .before = 6,
+      .complete = FALSE
     ),
-  state_trends_analyzed %>%
-    select(
-      date:percent,
-      alert = alert_percent, 
-      p.value = p.value_binomial, 
-      status = status_binomial
+    seven_day = as.numeric(seven_day),
+    seven_day = ifelse(is.nan(seven_day), 0, seven_day),
+    seven_day_counts = zoo::rollapply(data_count, width = 7, FUN = mean, align = "right", partial = TRUE)
+  ) %>%
+  ungroup() %>%
+  nest(data = -ccdd_category) %>%
+  mutate(
+    ss = map(.x = data, .f = function (.x) {
+      
+      .ss_percent <- smooth.spline(x = as.numeric(.x$date), y = .x$seven_day, spar = 0.5)
+      .fitted_percent <- predict(.ss_percent, as.numeric(.x$date))$y
+      .deriv1_percent <- predict(.ss_percent, as.numeric(.x$date), deriv = 1)$y
+      
+      data.frame(spline_percent = .fitted_percent, deriv1_percent = .deriv1_percent)
+      
+    })
+  ) %>%
+  unnest(c(data, ss)) %>%
+  group_by(ccdd_category) %>%
+  mutate(
+    spline_counts = cubic_spline_poisson(x = as.double(date), y = data_count, knot_interval = 21),
+    deriv1_counts = (spline_counts - lag(spline_counts)) / (as.double(date) - as.double(lag(date)))
     ) %>%
-    group_by(ccdd_category) %>%
-    mutate(
-      seven_day = slide(
-        .x = tibble(data_count, all_count), 
-        .f = function(.x) {
-          (sum(.x$data_count) / sum(.x$all_count)) * 100
-        },
-        .before = 6, 
-        .complete = FALSE
-      ),
-      seven_day = as.numeric(seven_day)
-    ) %>%
-    mutate(
-      trend = "percentages",
-      time_series = percent
+  filter(!is.na(deriv1_counts)) %>%
+  mutate(
+    row = row_number(), 
+    trajectory_percent = case_when(
+      abs(deriv1_percent) < 0.01 ~ "Stable", 
+      deriv1_percent <= -0.01 ~ "Decreasing", 
+      deriv1_percent >= 0.01 ~ "Increasing"
+    ),
+    trajectory_counts = case_when(
+      abs(deriv1_counts) < 0.01 ~ "Stable", 
+      deriv1_counts <= -0.01 ~ "Decreasing", 
+      deriv1_counts >= 0.01 ~ "Increasing"
     )
-) %>%
-  filter(!is.na(seven_day))
+  ) %>%
+  ungroup() %>%
+  mutate_at(.vars = c("trajectory_percent", "trajectory_counts"), ~factor(., levels = c("Increasing", "Stable", "Decreasing")))
 
 ```
 
-```{r county analysis, echo = FALSE, warning = FALSE, message = FALSE}
+```{r county trend analysis, echo = FALSE, warning = FALSE, message = FALSE}
 
-max_date <- max(county_data$date)
-min_date <- min(county_data$date)
-
-if (reg_family %in% c("binomial", "linear")) {
-  county_trends_analyzed <- county_data %>%
-    filter(date >= min_date + daysbefore) %>%
-    left_join(
-      county_data %>%
-        windowed_regression(family = reg_family, geography = "county") %>%
-        as.data.frame() %>%
-        arrange(date), 
-      by = c("county", "date", "ccdd_category")
-    ) %>%
-    arrange(ccdd_category, county, date) %>%
-    mutate(
-      status = ifelse(is.na(status), "Less than 10 Encounters or not Reporting", status),
-      status = factor(status, levels = c("Significantly Increasing", 
-                                         "Not Significant, Positive Slope",
-                                         "Not Significant, Negative Slope",
-                                         "Significantly Decreasing", 
-                                         "Less than 10 Encounters or not Reporting"))
-    ) 
-  
-}
-
-if (reg_family == "binomial and linear") {
-  county_trends_analyzed <- county_data %>%
-    filter(date >= min_date + daysbefore) %>%
-    left_join(
-      county_data %>%
-        windowed_regression(family = reg_family, geography = "county") %>%
-        as.data.frame() %>%
-        arrange(date), 
-      by = c("county", "date", "ccdd_category")
-    ) %>%
-    arrange(ccdd_category, county, date) %>%
-    mutate_at(.vars = c("status_binomial", "status_linear"), ~ifelse(is.na(.), "Less than 10 Encounters or not Reporting", .)) %>%
-    mutate_at(.vars = c("status_binomial", "status_linear"), ~factor(., levels = c("Significantly Increasing", 
-                                                                                   "Not Significant, Positive Slope",
-                                                                                   "Not Significant, Negative Slope",
-                                                                                   "Significantly Decreasing", 
-                                                                                   "Less than 10 Encounters or not Reporting"))) 
-}
-
-county_trends_combined <- bind_rows(
-  county_trends_analyzed %>%
-    select(
-      date:percent,
-      alert = alert_count, 
-      p.value = p.value_linear,
-      status = status_linear 
-    ) %>%
-    group_by(county, ccdd_category) %>%
-    mutate(seven_day = zoo::rollmean(data_count, 7, align = "right", fill = NA)) %>%
-    ungroup() %>%
-    mutate(
-      trend = "counts",
-      time_series = data_count
-    ) %>%
-    right_join(state_counties, by = c("county" = "GEOID")),
-  county_trends_analyzed %>%
-    select(
-      date:percent,
-      alert = alert_percent, 
-      p.value = p.value_binomial, 
-      status = status_binomial
-    ) %>%
-    group_by(county, ccdd_category) %>%
-    mutate(
-      seven_day = slide(
-        .x = tibble(data_count, all_count), 
-        .f = function(.x) {
-          (sum(.x$data_count) / sum(.x$all_count)) * 100
-        },
-        .before = 6, 
-        .complete = FALSE
-      ),
-      seven_day = as.numeric(seven_day),
-      seven_day = ifelse(is.nan(seven_day), 0, seven_day)
-    ) %>%
-    mutate(
-      trend = "percentages",
-      time_series = percent
-    ) %>%
-    right_join(state_counties, by = c("county" = "GEOID"))
-) %>%
+county_trends_analyzed <- county_data %>%
+  group_by(county, ccdd_category) %>%
+  mutate(
+    seven_day = slide(
+      .x = tibble(data_count, all_count),
+      .f = function (.x) {
+        (sum(.x$data_count) / sum(.x$all_count)) * 100
+      },
+      .before = 6,
+      .complete = FALSE
+    ),
+    seven_day = as.numeric(seven_day),
+    seven_day = ifelse(is.nan(seven_day), 0, seven_day),
+    seven_day_counts = zoo::rollapply(data_count, width = 7, FUN = mean, align = "right", partial = TRUE)
+  ) %>%
   ungroup() %>%
-  filter(!is.na(seven_day))
+  nest(data = -c(county, ccdd_category)) %>%
+  mutate(
+    ss = map(.x = data, .f = function (.x) {
+      
+      .ss_percent <- smooth.spline(x = as.numeric(.x$date), y = .x$seven_day, spar = 0.5)
+      .fitted_percent <- predict(.ss_percent, as.numeric(.x$date))$y
+      .deriv1_percent <- predict(.ss_percent, as.numeric(.x$date), deriv = 1)$y
+      
+      data.frame(spline_percent = .fitted_percent, deriv1_percent = .deriv1_percent)
+      
+    })
+  ) %>%
+  unnest(c(data, ss)) %>%
+  group_by(county, ccdd_category) %>%
+    mutate(
+    spline_counts = cubic_spline_poisson(x = as.double(date), y = data_count, knot_interval = 7),
+    deriv1_counts = (spline_counts - lag(spline_counts)) / (as.double(date) - as.double(lag(date)))
+  ) %>%
+  filter(!is.na(deriv1_counts)) %>%
+  mutate(
+    total = sum(data_count), 
+    row = row_number(), 
+    trajectory_percent = case_when(
+      abs(deriv1_percent) < 0.01 & total > 0 ~ "Stable", 
+      spline_percent < 0 & deriv1_percent > 0 ~ "Stable", 
+      deriv1_percent <= -0.01 ~ "Decreasing", 
+      deriv1_percent >= 0.01 ~ "Increasing",
+      total == 0 ~ "No Data Reported"
+    ),
+    trajectory_counts = case_when(
+      abs(deriv1_counts) < 0.01 & total > 0 ~ "Stable",
+      deriv1_counts <= -0.01 ~ "Decreasing", 
+      deriv1_counts >= 0.01 ~ "Increasing", 
+      total == 0 ~ "No Data Reported"
+    )
+  ) %>%
+  mutate_at(.vars = c("trajectory_percent", "trajectory_counts"), ~factor(., levels = c("Increasing", "Stable", "Decreasing", "No Data Reported")))
 
 ```
 
 ### County Level Maps 
 
-```{r county maps, echo = FALSE, warning = FALSE, message = FALSE}
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
 
-wes.pal <- wes_palette(n = 5, name = "Darjeeling1")
-pal <- c(wes.pal[c(1, 4, 3, 2)], "#FFFFFF")
+pal <- c("#D73027", "#FEE090", "#4575B4", "#FFFFFF")
 
-county_trends_recent <- county_trends_combined %>%
+county_trends_recent <- county_trends_analyzed %>%
+  left_join(state_counties, by = c("county" = "GEOID")) %>%
   filter(date == max(date))
 
 trends_sf <- county_trends_recent %>%
   st_as_sf() %>%
+  mutate(category_label = ccdd_category) %>%
+  nest(data = -ccdd_category) %>%
   mutate(
-    nudge_x = 0, 
-    nudge_y = 0, 
-    status = factor(status, levels = c(
-      "Significantly Increasing", 
-      "Not Significant, Positive Slope",
-      "Not Significant, Negative Slope",
-      "Significantly Decreasing", 
-      "Less than 10 Encounters or not Reporting"
-    ))
-  ) %>%
-  mutate(
-    category_label = ccdd_category,
-    trend_label = trend
-  ) %>%
-  nest(data = -c(ccdd_category, trend)) %>%
-  mutate(
-    county_map = map(.x = data, .f = function(.x) {
+    percentages = map(.x = data, .f = function(.x) {
       
-      if (unique(.x$trend_label) == "counts") {
         .date <- format(max(.x$date), "%B %d, %Y")
-        .subtitle <- "Trajectory of daily emergency department encounters are classified by fitting moving linear regression models to 12-day baselines. \nDays with a p-value less than 0.01 are classified as having significant, recent change, where the sign of the time coefficient \ndetermines the direction of change."
+        .subtitle <- str_wrap("Trajectory of daily emergency department encounters are classified by fitting penalized least squares smoothing splines and using a pre-defined slope threshold of 0.01 to bin into categories of increase, stable, or decrease. A smoothing parameter of 0.5 and 7-day averages are used to reduce the daily variability common to county-level time series and to capture local changes in trend.", 150)
         
         plot <- ggplot() + 
-          geom_sf(data = .x, aes(fill = status), color = "black") + 
-          scale_fill_manual(values = pal, drop = FALSE) + 
-          labs(fill = "Trend Classification (Counts)") + 
-          geom_text_repel(
-            data = .x,
-            mapping = aes(
-              x = COORDS_X,
-              y = COORDS_Y,
-              label = NAME),
-            nudge_x = .x$nudge_x,
-            nudge_y = .x$nudge_y,
-            size = 3,
-            min.segment.length = 0,
-            point.padding = NA,
-            segment.color = "grey20"
-          ) +
-          theme_classic() +
-          labs(
-            title = paste0("Recent Trajectory in Daily Counts for ", unique(.x$category_label), ": ", .date),
-            subtitle = .subtitle
-          ) + 
-      theme(axis.line=element_blank(),axis.text.x=element_blank(),
-            axis.text.y=element_blank(),axis.ticks=element_blank(),
-            axis.title.x=element_blank(), axis.title.y=element_blank(), legend.justification="top",
-            panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
-            panel.grid.minor=element_blank(),plot.background=element_blank(),
-            plot.margin=unit(c(0, 0, 0, 0), "cm"), plot.caption = element_text(hjust = 0, lineheight=1.1),
-            plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
-            legend.key = element_rect(colour = "black"),
-            legend.box.margin=margin(t=0, r=0, b=0, l=15))
-      }
-      
-      if (unique(.x$trend_label) == "percentages") {
-        .date <- format(max(.x$date), "%B %d, %Y")
-        .subtitle <- "Trajectory of daily emergency department encounters are classified by fitting moving binomial regression models to 12-day baselines. \nDays with a p-value less than 0.01 are classified as having significant, recent change, where the sign of the time coefficient \ndetermines the direction of change."
-        
-        plot <- ggplot() + 
-          geom_sf(data = .x, aes(fill = status), color = "black") + 
+          geom_sf(data = .x, aes(fill = trajectory_percent), color = "black") + 
           scale_fill_manual(values = pal, drop = FALSE) + 
           labs(fill = "Trend Classification (Percentages)") + 
-          geom_text_repel(
-            data = .x,
-            mapping = aes(
-              x = COORDS_X,
-              y = COORDS_Y,
-              label = NAME),
-            nudge_x = .x$nudge_x,
-            nudge_y = .x$nudge_y,
-            size = 3,
-            min.segment.length = 0,
-            point.padding = NA,
-            segment.color = "grey20"
-          ) +
+          geom_text(data = .x, aes(x = COORDS_X, y = COORDS_Y, label = NAME), size = 3) + 
           theme_classic() +
           labs(
             title = paste0("Recent Trajectory in Daily Percentages for ", unique(.x$category_label), ": ", .date),
             subtitle = .subtitle
           ) + 
-      theme(axis.line=element_blank(),axis.text.x=element_blank(),
-            axis.text.y=element_blank(),axis.ticks=element_blank(),
-            axis.title.x=element_blank(), axis.title.y=element_blank(), legend.justification="top",
-            panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
-            panel.grid.minor=element_blank(),plot.background=element_blank(),
-            plot.margin=unit(c(0, 0, 0, 0), "cm"), plot.caption = element_text(hjust = 0, lineheight=1.1),
-            plot.title = element_text(hjust = 0.5, size = 12, face = "bold"),
-            legend.key = element_rect(colour = "black"),
-            legend.box.margin=margin(t=0, r=0, b=0, l=15))
-      }
+          theme_map() + 
+          theme(
+            legend.text = element_text(size = 10),
+            legend.title = element_text(size = 10, face = "bold"),
+            plot.title = element_text(size = 14, face = "bold"), 
+            plot.subtitle = element_text(size = 12),
+            legend.position = "right"
+          )
+        
+      plot
       
+    }),
+    counts = map(.x = data, .f = function(.x) {
+      
+        .date <- format(max(.x$date), "%B %d, %Y")
+        .subtitle <- str_wrap("Trajectory of daily emergency department encounters are classified by fitting generalized additive models (Poisson family) to daily counts and using a pre-defined slope threshold of 0.01 to bin into categories of increase, stable, or decrease. 7-day averages are used to reduce the daily variability common to county-level time series and to capture local changes in trend. The degree of smoothness of model terms is estimated as part of fitting.", 150)
+        
+        plot <- ggplot() + 
+          geom_sf(data = .x, aes(fill = trajectory_counts), color = "black") + 
+          scale_fill_manual(values = pal, drop = FALSE) + 
+          labs(fill = "Trend Classification (Counts)") + 
+          geom_text(data = .x, aes(x = COORDS_X, y = COORDS_Y, label = NAME), size = 3) + 
+          theme_classic() +
+          labs(
+            title = paste0("Recent Trajectory in Daily Counts for ", unique(.x$category_label), ": ", .date),
+            subtitle = .subtitle
+          ) + 
+          theme_map() + 
+          theme(
+            legend.text = element_text(size = 10),
+            legend.title = element_text(size = 10, face = "bold"),
+            plot.title = element_text(size = 14, face = "bold"), 
+            plot.subtitle = element_text(size = 12),
+            legend.position = "right"
+          )
+        
       plot
       
     })
   ) %>%
-  select(-data) %>%
-  pivot_wider(names_from = trend, values_from = county_map)
+  select(-data)
 
 ```
 
-```{r percent_countss, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
 
 if(params$ts_type == "Percentages and Counts"){
   for (i in 1:nrow(trends_sf)) {
@@ -776,7 +448,7 @@ if(params$ts_type == "Percentages and Counts"){
 
 ```
 
-```{r percent, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
 
 if(params$ts_type == "Percentages"){
   for (i in 1:nrow(trends_sf)) {
@@ -786,7 +458,7 @@ if(params$ts_type == "Percentages"){
 
 ```
 
-```{r counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 8}
 
 if(params$ts_type == "Counts"){
   for (i in 1:nrow(trends_sf)) {
@@ -798,440 +470,516 @@ if(params$ts_type == "Counts"){
 
 ### `r paste("Plots for State-level Trajectory Based on", metric)` 
 
-Trajectory of daily emergency department encounters are classified by fitting moving regression models to 12-day baselines. Binomial regression is used for visit proportions, while linear regression is used for counts. Days with a p-value less than 0.01 are classified as having significant, recent change, where the sign of the time coefficient determines the direction of change. ESSENCE anomalies and are indicated by red points and are based on the default EWMA/Regression switch algorithm. Smoothed lines represent 7-day moving averages.
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 
-```{r state level trajectory, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 13, fig.height = ht_combined, fig.align = "center"}
+pal <- c("#D73027", "#FEE090", "#4575B4", "#CCCCCC")
 
-pal <- c(wes.pal[c(1, 4, 2, 3)], "#DDDDDD")
-
-state_traj <- state_trends_combined %>%
-  group_by(ccdd_category, trend) %>%
+state_traj <- state_trends_analyzed %>%
+  group_by(ccdd_category) %>%
   mutate(
-    p.value = format(p.value, digits = 2, scientific = TRUE), 
-    trend = ifelse(trend == "counts", "Counts", "Percentages"),
-    category_label = paste0(ccdd_category, " ", trend, "\n", last(status), ": ", last(p.value))
-  ) %>%
-  ungroup() 
+    category_label_percent = paste0(ccdd_category, " Percentages \n", last(trajectory_percent)),
+    category_label_counts = paste0(ccdd_category, " Counts \n", last(trajectory_counts))
+  )
 
-date_range <- paste(format(min(state_traj$date), "%B %d, %Y"), "to", format(max(state_traj$date), "%B %d, %Y"))
+date_range <- paste(format(min(state_trends_analyzed$date), "%B %d, %Y"), "to", format(max(state_trends_analyzed$date), "%B %d, %Y"))
 
-if(params$ts_type == "Percentages and Counts"){
-  
-  ggplot(data = state_traj) + 
-    geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 0.7, alpha = 0.5) +
-    geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 0.7) +
-    geom_vline(xintercept = date_marker, linetype = "dashed") +
-    geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-    geom_point(data = subset(state_traj, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-    geom_point(data = subset(state_traj, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-    scale_x_date(date_breaks = "30 day", date_labels = "%b %d", expand = c(0, 0)) + 
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-    expand_limits(y = 0) + 
-    scale_color_manual(values = pal, name = "Trajectory", drop = FALSE) + 
-    scale_fill_manual(values = c("red", "yellow"), name = "") +
-    labs(
-      x = "Date", 
-      y = "Counts (First Column) and Percentages (Second Column)",
-      title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range), 
-      subtitle = "Trajectory of daily emergency department encounters are classified by fitting moving regression models to 12-day baselines. \nBinomial regression is used for visit proportions, while linear regression is used for counts. Days with a p-value less than \n0.01 are classified as having significant, recent change, where the sign of the time coefficient determines the direction of change. \nESSENCE anomalies and are indicated by red points and are based on the default EWMA/Regression switch algorithm. \nSmoothed lines represent 7-day moving averages"
-    ) +
-    theme_few() + 
-    theme(
-      strip.text = element_text(size = 10, face = "bold", hjust = 0), 
-      panel.background = element_rect(fill="white"),
-      axis.text.x = element_text(color = "black", size = 10),
-      axis.text.y = element_text(color = "black", size = 12),
-      plot.title = element_text(face = "bold",hjust = 0),
-      plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
-      panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
-      legend.position = "top",
-      legend.text = element_text(size = 10),
-      legend.title = element_blank(),
-      panel.spacing.x = unit(2.0, "lines")
-    ) +
-    facet_wrap(~category_label, scales = "free", ncol = 2, dir = "h") 
-  
-}
+state_percent_plot <- ggplot(data = state_trends_analyzed) + 
+  geom_line(aes(x = date, y = percent), color = "grey70", alpha = 0.5, size = 0.7) +
+  geom_line(aes(x = date, y = spline_percent), color = "#014D64", size = 1.0) + 
+  geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = trajectory_percent), size = 3) + 
+  geom_point(data = subset(state_trends_analyzed, alert_percent == "Alert"), aes(x = date, y = percent), color = "#FFC107", size = 1) +
+  geom_point(data = subset(state_trends_analyzed, alert_percent == "Warning"), aes(x = date, y = percent), color = "#DC3545", size = 1) +
+  scale_x_date(date_breaks = "60 day", date_labels = "%b %d %y", expand = c(0, 0)) + 
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4), limits = c(0, NA)) + 
+  scale_color_manual(values = pal, name = "", drop = FALSE) +
+  labs(
+    x = "Date", 
+    y = "Percent",
+    title = "Percentages"
+  ) +
+  theme_few() + 
+  theme(
+    plot.title = element_text(size = 12), 
+    strip.text = element_text(size = 10, face = "bold", hjust = 0.5), 
+    panel.background = element_rect(fill="white"),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, vjust = 0.5),
+    axis.text.y = element_text(color = "black", size = 12),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
+    legend.position = "top",
+    legend.text = element_text(size = 10),
+    legend.title = element_blank()
+  ) +
+  facet_wrap(~ccdd_category, scales = "free_x", ncol = 3, dir = "h") 
 
-```
-
-```{r state level trajectory2, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 13, fig.height = ht_single - 1}
-
-if (params$ts_type == "Percentages"){
-  
-  state_traj_percent <- state_traj %>%
-    filter(trend == "Percentages")
-  
-  ggplot(data = state_traj_percent) + 
-    geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 1.0, alpha = 0.5) +
-    geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 1.0) +
-    geom_vline(xintercept = date_marker, linetype = "dashed") +
-    geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-    geom_point(data = subset(state_traj_percent, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-    geom_point(data = subset(state_traj_percent, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-    scale_x_date(date_breaks = "15 day", date_labels = "%b %d", expand = c(0, 0)) + 
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-    expand_limits(y = 0) + 
-    scale_color_manual(values = pal, name = "Trajectory", drop = FALSE) + 
-    scale_fill_manual(values = c("red", "yellow"), name = "") +
-    labs(
-      x = "Date", 
-      y = "Percentages",
-      title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range), 
-      subtitle = "Trajectory of daily emergency department encounters are classified by fitting moving binomial regression models to 12-day baselines. \nDays with a p-value less than 0.01 are classified as having significant, recent change, where the sign of the time coefficient \ndetermines the direction of change. ESSENCE anomalies and are indicated by red points and are based on the default EWMA/Regression \nswitch algorithm. Smoothed lines represent 7-day moving averages"
-    ) +
-    theme_few() + 
-    theme(
-      strip.text = element_text(size = 10, face = "bold", hjust = 0), 
-      panel.background = element_rect(fill="white"),
-      axis.text.x = element_text(color = "black", size = 10),
-      axis.text.y = element_text(color = "black", size = 12),
-      plot.title = element_text(face = "bold",hjust = 0),
-      plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
-      panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
-      legend.position = "top",
-      legend.text = element_text(size = 10)
-    ) +
-    facet_wrap(~category_label, scales = "free", ncol = 3) 
-  
-}
+state_counts_plot <- ggplot(data = state_trends_analyzed) + 
+  geom_line(aes(x = date, y = data_count), color = "grey70", alpha = 0.5, size = 0.7) +
+  geom_line(aes(x = date, y = spline_counts), color = "#014D64", size = 1.0) + 
+  geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = trajectory_counts), size = 3) + 
+  geom_point(data = subset(state_trends_analyzed, alert_count == "Alert"), aes(x = date, y = data_count), color = "#FFC107", size = 1) +
+  geom_point(data = subset(state_trends_analyzed, alert_count == "Warning"), aes(x = date, y = data_count), color = "#DC3545", size = 1) +
+  scale_x_date(date_breaks = "60 day", date_labels = "%b %d %y", expand = c(0, 0)) + 
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 4), limits = c(0, NA)) + 
+  scale_color_manual(values = pal, name = "", drop = FALSE) +
+  labs(
+    x = "Date", 
+    y = "Count",
+    title = "Counts"
+  ) +
+  theme_few() + 
+  theme(
+    plot.title = element_text(size = 12), 
+    strip.text = element_text(size = 10, face = "bold", hjust = 0.5), 
+    panel.background = element_rect(fill="white"),
+    axis.text.x = element_text(color = "black", size = 10, angle = 45, vjust = 0.5),
+    axis.text.y = element_text(color = "black", size = 12),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
+    legend.position = "top",
+    legend.text = element_text(size = 10),
+    legend.title = element_blank()
+  ) +
+  facet_wrap(~ccdd_category, scales = "free_x", ncol = 3, dir = "h") 
 
 ```
 
-```{r state level trajectory3, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 13, fig.height = ht_single - 1}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_percentages, fig.width = 13, fig.height = ht_combined}
 
-if (params$ts_type == "Counts"){
-  
-  state_traj_count <- state_traj %>%
-    filter(trend == "Counts")
-  
-  ggplot(data = state_traj_count) + 
-    geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 1.0, alpha = 0.5) +
-    geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 1.0) +
-    geom_vline(xintercept = date_marker, linetype = "dashed") +
-    geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-    geom_point(data = subset(state_traj_count, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-    geom_point(data = subset(state_traj_count, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-    scale_x_date(date_breaks = "15 day", date_labels = "%b %d", expand = c(0, 0)) + 
-    scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-    expand_limits(y = 0) + 
-    scale_color_manual(values = pal, name = "Trajectory") + 
-    scale_fill_manual(values = c("red", "yellow"), name = "", drop = FALSE) +
-    labs(
-      x = "Date", 
-      y = "Counts",
-      title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range), 
-      subtitle = "Trajectory of daily emergency department encounters are classified by fitting moving linear regression models to 12-day baselines. \nDays with a p-value less than 0.01 are classified as having significant, recent change, where the sign of the time coefficient \ndetermines the direction of change. ESSENCE anomalies and are indicated by red points and are based on the default EWMA/Regression \nswitch algorithm. Smoothed lines represent 7-day moving averages"
-    ) +
-    theme_few() + 
-    theme(
-      strip.text = element_text(size = 10, face = "bold", hjust = 0), 
-      panel.background = element_rect(fill="white"),
-      axis.text.x = element_text(color = "black", size = 10),
-      axis.text.y = element_text(color = "black", size = 12),
-      plot.title = element_text(face = "bold",hjust = 0),
-      plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
-      panel.border = element_rect(color = "black", fill = NA, size = 0.9),
-      legend.position = "top",
-      legend.text = element_text(size = 10)
-    ) +
-    facet_wrap(~category_label, scales = "free", ncol = 3) 
-  
-}
+(state_percent_plot / state_counts_plot) + 
+  plot_annotation(
+    title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range),
+    theme = theme(plot.title = element_text(face = "bold"))
+  ) +
+  plot_layout(guides = "collect") & theme(legend.position = "top")
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = percentages_only, fig.width = 13, fig.height = ht_single}
+
+state_percent_plot + 
+  labs(title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range, "\nPercentages"))
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_only, fig.width = 13, fig.height = ht_single}
+
+state_counts_plot + 
+  labs(title = paste0(state_name, " - State-level Trajectory for Selected CCDD Categories: ", date_range, "\nCounts"))
 
 ```
 
 ### `r paste("Plots for County-level Trajectory Based on", metric)` 
 
-```{r county level trajectory, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 13, fig.height = ht_single - 2}
+```{r, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 13, fig.height = 4}
 
-cpal <- c("#005EAA", "#497D0C", "#BB4D00")
+pal <- c("#D73027", "#FEE090", "#4575B4", "#CCCCCC")
 
-geography_timeseries <- bind_rows(
-  county_trends_combined %>%
-    filter(trend == "percentages"),
-  state_trends_combined %>%
-    filter(trend == "percentages")
-) %>%
-  mutate(
-    county = ifelse(is.na(county), "State-wide", county), 
-    county_name = ifelse(is.na(county_name), "State-wide", county_name)
-  ) %>%
-  ungroup() %>%
-  fill(state, .direction = "down") %>%
+date_range <- paste(format(min(county_trends_analyzed$date), "%B %d, %Y"), "to", format(max(county_trends_analyzed$date), "%B %d, %Y"))
+
+county_traj_plots <- county_trends_analyzed %>%
   group_by(county) %>%
-  filter(!sum(data_count) == 0) %>%
-  ungroup() 
-
-ggplot(data = geography_timeseries) + 
-  geom_line(aes(x = date, y = seven_day, group = county), size = 0.7, color = "gray80") + 
-  geom_line(data = subset(geography_timeseries, county == "State-wide"), aes(x = date, y = seven_day, group = state), color = cpal[1], size = 1.0) + 
-  scale_x_date(date_breaks = "30 day", date_labels = "%b %d") +
-  scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-  expand_limits(y = 0) + 
-  facet_wrap(~ccdd_category, ncol = 3) +
-  theme_few() + 
-  labs(
-    title = "County and State-Level 7-day Moving Averages Over Time - Percent of Emergency Department Visits", 
-    subtitle = paste0("Data pulled from ", date_range, ". Gray lines represent trends for reporting counties."),
-    x = "Date", 
-    y = "7-day Moving Average - Percent of ED Visits"
-  ) +
-  theme(
-    strip.text = element_text(size = 12, face = "bold", hjust = 0), 
-    panel.background = element_rect(fill="white"),
-    axis.text.x = element_text(color = "black", size = 10),
-    axis.text.y = element_text(color = "black", size = 12),
-    plot.title = element_text(face = "bold",hjust = 0),
-    plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
-    panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
-    legend.position = "top",
-    legend.text = element_text(size = 10),
-    legend.title = element_blank()
-  )
-
-```
-
-```{r county level trajectory2, echo = FALSE, message = FALSE, warning = FALSE}
-
-county_traj <- county_trends_combined %>%
-  group_by(ccdd_category, trend, county) %>%
+  filter(sum(data_count) > 10) %>%
+  ungroup() %>%
+  nest(data = -county_name) %>%
   mutate(
-    p.value = format(p.value, digits = 2, scientific = TRUE), 
-    trend = ifelse(trend == "counts", "Counts", "Percentages"),
-    category_label = paste0(ccdd_category, " ", trend, "\n", last(status), ": ", last(p.value))
-  ) %>%
-  ungroup()
-
-date_range <- paste(format(min(county_traj$date), "%B %d, %Y"), "to", format(max(county_traj$date), "%B %d, %Y"))
-
-```
-
-```{r county level trajectory_percent_counts, echo = FALSE, message = FALSE, warning = FALSE}
-
-if(params$ts_type == "Percentages and Counts"){
-
-county_traj_plots <- county_traj %>%
-  group_by(county, trend) %>%
-  nest(data = -county) %>%
-  mutate(
-    plot = map(.x = data, .f = function(.x) {
-
-      ggplot(data = .x) + 
-        geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 0.7, alpha = 0.5) +
-        geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 0.7) +
-        geom_vline(xintercept = date_marker, linetype = "dashed") +
-        geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-        geom_point(data = subset(.x, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-        geom_point(data = subset(.x, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-        scale_x_date(date_breaks = "30 day", date_labels = "%b %d", expand = c(0, 0)) + 
-        scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-        expand_limits(y = 0) + 
-        scale_color_manual(values = pal, name = "", drop = FALSE) + 
-        scale_fill_manual(values = c("red", "yellow"), name = "") +
-        labs(
-          x = "Date", 
-          y = "Counts (First Column) and Percentages (Second Column)",
-          subtitle = paste0("County-level Trajectory for Selected CCDD Categories: ", date_range), 
-          title = paste(unique(.x$county_name), "County")
-        ) +
-        theme_few() + 
-        theme(
-          strip.text = element_text(size = 10, face = "bold", hjust = 0), 
-          panel.background = element_rect(fill="white"),
-          axis.text.x = element_text(color = "black", size = 10),
-          axis.text.y = element_text(color = "black", size = 12),
-          plot.title = element_text(face = "bold",hjust = 0),
-          plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
-          panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
-          legend.position = "top",
-          legend.text = element_text(size = 10),
-          legend.title = element_blank(),
-          panel.spacing.x = unit(2.0, "lines")
-        ) +
-        facet_wrap(~category_label, scales = "free", ncol = 2, dir = "h", drop = FALSE) 
-      
-    })
-  )
-
-}
-
-```
-
-```{r county level trajectory_percent, echo = FALSE, message = FALSE, warning = FALSE}
-
-if(params$ts_type == "Percentages"){
-
-county_traj_plots <- county_traj %>%
-  filter(trend == "Percentages") %>%
-  nest(data = -county) %>%
-  mutate(
-    plot = map(.x = data, .f = function(.x) {
+    percentages = map(.x = data, .f = function(.x) {
       
       ggplot(data = .x) + 
-        geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 0.7, alpha = 0.5) +
-        geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 0.7) +
-        geom_vline(xintercept = date_marker, linetype = "dashed") +
-        geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-        geom_point(data = subset(.x, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-        geom_point(data = subset(.x, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-        scale_x_date(date_breaks = "30 day", date_labels = "%b %d", expand = c(0, 0)) + 
-        scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-        expand_limits(y = 0) + 
+        geom_line(aes(x = date, y = percent), color = "grey70", alpha = 0.5, size = 0.7) +
+        geom_line(aes(x = date, y = spline_percent), color = "#014D64", size = 1.0) + 
+        geom_segment(aes(x = date, xend = max(date) + 1, y = 0, yend = 0, color = trajectory_percent), size = 3) + 
+        geom_point(data = subset(.x, alert_percent == "Alert"), aes(x = date, y = percent), color = "#DC3545", size = 1) +
+        geom_point(data = subset(.x, alert_percent == "Warning"), aes(x = date, y = percent), color = "#FFC107", size = 1) +
+        scale_x_date(date_breaks = "60 day", date_labels = "%b %d %y", expand = c(0, 0)) + 
+        scale_y_continuous(breaks = scales::pretty_breaks(n = 4), limits = c(0, NA)) + 
         scale_color_manual(values = pal, name = "", drop = FALSE) + 
-        scale_fill_manual(values = c("red", "yellow"), name = "") +
         labs(
           x = "Date", 
           y = "Percent",
-          subtitle = paste0("County-level Trajectory for Selected CCDD Categories, ", unique(.x$county_name), " County: ", date_range), 
-          title = paste(unique(.x$county_name), "County")
+          title = "Percentages"
         ) +
         theme_few() + 
         theme(
-          strip.text = element_text(size = 10, face = "bold", hjust = 0), 
+          plot.title = element_text(size = 12), 
+          strip.text = element_text(size = 12, face = "bold", hjust = 0.5), 
           panel.background = element_rect(fill="white"),
-          axis.text.x = element_text(color = "black", size = 10),
+          axis.text.x = element_text(color = "black", size = 10, angle = 45, vjust = 0.5),
           axis.text.y = element_text(color = "black", size = 12),
-          plot.title = element_text(face = "bold",hjust = 0),
-          plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
+          plot.subtitle = element_text(size = 12, hjust = 0, face = "italic"),
           panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
           legend.position = "top",
-          legend.text = element_text(size = 10),
+          legend.text = element_text(size = 12),
           legend.title = element_blank()
         ) +
-        facet_wrap(~category_label, scales = "free", ncol = 2, dir = "h") 
+        facet_wrap(~ccdd_category, scales = "free_x", ncol = 3, dir = "h") 
       
-    })
-  )
-
-}
-
-```
-
-```{rcounty level trajectory_count, echo = FALSE, message = FALSE, warning = FALSE}
-
-if(params$ts_type == "Counts"){
-
-county_traj_plots <- county_traj %>%
-  filter(trend == "Counts") %>%
-  nest(data = -county) %>%
-  mutate(
-    plot = map(.x = data, .f = function(.x) {
+    }),
+    counts = map(.x = data, .f = function(.x) {
       
       ggplot(data = .x) + 
-        geom_line(aes(x = date, y = time_series), stat = "identity", color = "#005EAA", size = 0.7, alpha = 0.5) +
-        geom_line(aes(x = date, y = seven_day), color = "#005EAA", size = 0.7) +
-        geom_vline(xintercept = date_marker, linetype = "dashed") +
-        geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = status), size = 3) + 
-        geom_point(data = subset(.x, alert == "Alert"), aes(x = date, y = time_series), color = "red", size = 2) +
-        geom_point(data = subset(.x, alert == "Warning"), aes(x = date, y = time_series), color = "yellow", size = 2) +
-        scale_x_date(date_breaks = "30 day", date_labels = "%b %d", expand = c(0, 0)) + 
-        scale_color_manual(values = pal, name = "Trajectory") + 
-        scale_y_continuous(breaks = scales::pretty_breaks(n = 4)) + 
-        expand_limits(y = 0) + 
-        scale_fill_manual(values = c("red", "yellow"), name = "") +
+        geom_line(aes(x = date, y = data_count), color = "grey70", alpha = 0.5, size = 0.7) +
+        geom_line(aes(x = date, y = spline_counts), color = "#014D64", size = 1.0) + 
+        geom_segment(aes(x = date, xend = max(date), y = 0, yend = 0, color = trajectory_counts), size = 3) + 
+        geom_point(data = subset(.x, alert_count == "Alert"), aes(x = date, y = data_count), color = "#DC3545", size = 1) +
+        geom_point(data = subset(.x, alert_count == "Warning"), aes(x = date, y = data_count), color = "#FFC107", size = 1) +
+        scale_x_date(date_breaks = "60 day", date_labels = "%b %d %y", expand = c(0, 0)) + 
+        scale_y_continuous(breaks = scales::pretty_breaks(n = 4), limits = c(0, NA)) + 
+        scale_color_manual(values = pal, name = "", drop = FALSE) + 
         labs(
           x = "Date", 
-          y = "Counts",
-          subtitle = paste0("County-level Trajectory for Selected CCDD Categories, ", unique(.x$county_name), " County: ", date_range), 
-          title = paste(unique(.x$county_name), "County")
-        ) + 
+          y = "Count",
+          title = "Counts"
+        ) +
         theme_few() + 
         theme(
-          strip.text = element_text(size = 10, face = "bold", hjust = 0), 
+          plot.title = element_text(size = 12), 
+          strip.text = element_text(size = 12, face = "bold", hjust = 0.5), 
           panel.background = element_rect(fill="white"),
-          axis.text.x = element_text(color = "black", size = 10),
+          axis.text.x = element_text(color = "black", size = 10, angle = 45, vjust = 0.5),
           axis.text.y = element_text(color = "black", size = 12),
-          plot.title = element_text(face = "bold",hjust = 0),
-          plot.subtitle = element_text(size = 11, hjust = 0, face = "italic"),
+          plot.subtitle = element_text(size = 12, hjust = 0, face = "italic"),
           panel.border = element_rect(color = "black", fill = NA, size = 0.9), 
           legend.position = "top",
-          legend.text = element_text(size = 10),
+          legend.text = element_text(size = 12),
           legend.title = element_blank()
         ) +
-        facet_wrap(~category_label, scales = "free", ncol = 2, dir = "h") 
+        facet_wrap(~ccdd_category, scales = "free_x", ncol = 3, dir = "h") 
       
     })
   )
 
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_percentages, fig.width = 13, fig.height = ht_combined, fig.align = "center"}
+
+for(i in 1:nrow(county_traj_plots)) {
+  plot_out <- (county_traj_plots$percentages[[i]] / county_traj_plots$counts[[i]]) + 
+    plot_annotation(
+      title = paste0(county_traj_plots$county_name[[i]], " - County-level Trajectory for Selected CCDD Categories: ", date_range),
+      theme = theme(plot.title = element_text(face = "bold"))
+    ) + 
+    plot_layout(guides = "collect") & theme(legend.position = "top")
+  
+  print(plot_out)
 }
 
 ```
 
-```{r county_traj_plots_percent_counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 13, fig.height = ht_combined, fig.align = "center"}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = percentages_only, fig.width = 13, fig.height = ht_single, fig.align = "center"}
 
-if(params$ts_type == "Percentages and Counts"){
-  for (i in 1:nrow(county_traj_plots)) {
-    grid.arrange(county_traj_plots$plot[[i]])
-  }
+for(i in 1:nrow(county_traj_plots)) {
+  grid.arrange(
+    county_traj_plots$percentages[[i]] + 
+      labs(title = paste(county_traj_plots$county_name[[i]], " - County-level Trajectory for Selected CCDD Categories: ", date_range)) + 
+      theme(plot.title = element_text(face = "bold", size = 14))
+  ) 
 }
 
 ```
 
-```{r county_traj_plots_percent, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 13, fig.height = 5, fig.align = "center"}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_only, fig.width = 13, fig.height = ht_single, fig.align = "center"}
 
-if(params$ts_type == "Percentages"){
-  for (i in 1:nrow(county_traj_plots)) {
-    grid.arrange(county_traj_plots$plot[[i]])
-  }
-}
-
-```
-
-```{r county_traj_plots_counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 13, fig.height = 5, fig.align = "center"}
-
-if(params$ts_type == "Counts"){
-  for (i in 1:nrow(county_traj_plots)) {
-    grid.arrange(county_traj_plots$counts[[i]])
-  }
+for(i in 1:nrow(county_traj_plots)) {
+  grid.arrange(
+    county_traj_plots$counts[[i]] + 
+      labs(title = paste(county_traj_plots$county_name[[i]], " - County-level Trajectory for Selected CCDD Categories: ", date_range)) + 
+      theme(plot.title = element_text(face = "bold", size = 14))
+  ) 
 }
 
 ```
 
 ### County Summary Table
 
-```{r county summary table, echo = FALSE, warning = FALSE, message = FALSE}
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = !counts_percentages}
 
-county_summary <- county_trends_combined %>%
-  filter(date == max(date)) %>%
+county_summary_percent <- county_trends_analyzed %>%
   select(
     county_name, 
     county,
     ccdd_category, 
-    trend, 
-    status, 
-    p.value,
-    alert
+    date,
+    spline_percent,
+    trajectory_percent, 
+    p.value = p.value_percent,
+    alert = alert_percent
   ) %>%
-  mutate(trend = ifelse(trend == "counts", "Counts", "Percentages")) %>%
-  filter(!grepl("not Reporting", status)) %>%
+  filter(!grepl("not Reporting", trajectory_percent)) %>%
   mutate(p.value = format(p.value, digits = 2, scientific = TRUE)) %>%
-  arrange(county_name, ccdd_category) %>%
+  arrange(county_name, ccdd_category, date) %>%
+  group_by(county_name, county, ccdd_category) %>%
+  mutate(
+    date = last(date), 
+    trajectory_percent = last(trajectory_percent), 
+    p.value = last(p.value),
+    alert = last(alert)
+  ) %>%
+  group_by(county_name, county, ccdd_category, trajectory_percent, p.value, alert) %>%
+  summarise(
+    sparkline = spk_chr(
+      spline_percent,
+      type = "line",
+      width = 120,
+      height = 30
+    )
+  ) %>%
   select(
     `County Name` = county_name, 
     `FIPS` = county, 
     `CCDD Category` = ccdd_category, 
-    `Time Series Metric` = trend, 
-    `Trend Classification` = status, 
-    `p-value` = p.value, 
-    `Temporal Anomaly` = alert
-  ) 
+    `Trend Classification (Percentages)` = trajectory_percent, 
+    `Temporal Alert (Percentages)` = alert,
+    `Alert p-value (Percentages)` = p.value, 
+    `Sparkline (Percentages)` = sparkline
+  )
 
-county_summary %>%
+county_summary_counts <- county_trends_analyzed %>%
+  select(
+    county_name, 
+    county,
+    ccdd_category, 
+    date,
+    spline_counts,
+    trajectory_counts, 
+    p.value = p.value_counts,
+    alert = alert_count
+  ) %>%
+  filter(!grepl("not Reporting", trajectory_counts)) %>%
+  mutate(p.value = format(p.value, digits = 2, scientific = TRUE)) %>%
+  arrange(county_name, ccdd_category, date) %>%
+  group_by(county_name, county, ccdd_category) %>%
+  mutate(
+    date = last(date), 
+    trajectory_counts = last(trajectory_counts), 
+    p.value = last(p.value),
+    alert = last(alert)
+  ) %>%
+  group_by(county_name, county, ccdd_category, trajectory_counts, p.value, alert) %>%
+  summarise(
+    sparkline = spk_chr(
+      spline_counts,
+      type = "line",
+      width = 120,
+      height = 30
+    )
+  ) %>%
+  select(
+    `County Name` = county_name, 
+    `FIPS` = county, 
+    `CCDD Category` = ccdd_category, 
+    `Trend Classification (Counts)` = trajectory_counts, 
+    `Temporal Alert (Counts)` = alert,
+    `Alert p-value (Counts)` = p.value, 
+    `Sparkline (Counts)` = sparkline
+  )
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_percentages}
+
+county_summary_percent <- county_trends_analyzed %>%
+  select(
+    county_name, 
+    county,
+    ccdd_category, 
+    date,
+    spline_percent,
+    trajectory_percent, 
+    p.value = p.value_percent,
+    alert = alert_percent
+  ) %>%
+  filter(!grepl("not Reporting", trajectory_percent)) %>%
+  mutate(p.value = format(p.value, digits = 2, scientific = TRUE)) %>%
+  arrange(county_name, ccdd_category, date) %>%
+  group_by(county_name, county, ccdd_category) %>%
+  mutate(
+    date = last(date), 
+    trajectory_percent = last(trajectory_percent), 
+    p.value = last(p.value),
+    alert = last(alert)
+  ) %>%
+  group_by(county_name, county, ccdd_category, trajectory_percent, p.value, alert) %>%
+  summarise(
+    sparkline = spk_chr(
+      spline_percent,
+      type = "line",
+      width = 90,
+      height = 30
+    )
+  ) %>%
+  select(
+    `County Name` = county_name, 
+    `FIPS` = county, 
+    `CCDD Category` = ccdd_category, 
+    `Trend Classification (Percentages)` = trajectory_percent, 
+    `Temporal Alert (Percentages)` = alert,
+    `Alert p-value (Percentages)` = p.value, 
+    `Sparkline (Percentages)` = sparkline
+  )
+
+county_summary_counts <- county_trends_analyzed %>%
+  select(
+    county_name, 
+    county,
+    ccdd_category, 
+    date,
+    spline_counts,
+    trajectory_counts, 
+    p.value = p.value_counts,
+    alert = alert_count
+  ) %>%
+  filter(!grepl("not Reporting", trajectory_counts)) %>%
+  mutate(p.value = format(p.value, digits = 2, scientific = TRUE)) %>%
+  arrange(county_name, ccdd_category, date) %>%
+  group_by(county_name, county, ccdd_category) %>%
+  mutate(
+    date = last(date), 
+    trajectory_counts = last(trajectory_counts), 
+    p.value = last(p.value),
+    alert = last(alert)
+  ) %>%
+  group_by(county_name, county, ccdd_category, trajectory_counts, p.value, alert) %>%
+  summarise(
+    sparkline = spk_chr(
+      spline_counts,
+      type = "line",
+      width = 90,
+      height = 30
+    )
+  ) %>%
+  select(
+    `County Name` = county_name, 
+    `FIPS` = county, 
+    `CCDD Category` = ccdd_category, 
+    `Trend Classification (Counts)` = trajectory_counts, 
+    `Temporal Alert (Counts)` = alert,
+    `Alert p-value (Counts)` = p.value, 
+    `Sparkline (Counts)` = sparkline
+  )
+
+county_summary_combined <- county_summary_percent %>%
+  inner_join(county_summary_counts, by = c("County Name", "FIPS", "CCDD Category"))
+
+county_summary_combined %>%
   datatable(class = "cell-border stripe",
             style = "bootstrap", 
+            rownames = FALSE, 
             filter = "top", 
+            escape = FALSE, 
+            extensions = "Buttons",
+            options = list(
+              autoWidth = TRUE, 
+              dom = "Bfrtip",
+              buttons = c("csv", "excel", "pdf"),
+              scrollY = 700,
+              pageLength = nrow(county_summary_combined)
+            )) %>%
+  formatStyle(
+    c("Trend Classification (Percentages)", "Trend Classification (Counts)"), 
+    target = "cell",
+    color = styleEqual(c("Increasing", "Decreasing"), c("white", "white")),
+    backgroundColor = styleEqual(c("Increasing", "Decreasing"), c(pal[[1]], pal[[3]]))
+  ) %>%
+  formatStyle(
+    c("Temporal Alert (Percentages)", "Temporal Alert (Counts)"),
+    target = "cell", 
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>% 
+  formatStyle(
+    "Alert p-value (Percentages)", "Temporal Alert (Percentages)",
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>%
+  formatStyle(
+    "Alert p-value (Counts)", "Temporal Alert (Counts)",
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>%
+  spk_add_deps()
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = percentages_only}
+
+county_summary_percent %>%
+  datatable(class = "cell-border stripe",
+            style = "bootstrap",
+            rownames = FALSE, 
+            filter = "top", 
+            escape = FALSE, 
             extensions = "Buttons",
             options = list(
               dom = "Bfrtip",
               buttons = c("csv", "excel", "pdf"),
-              scrollY = 400,
-              pageLength = 50)
+              scrollY = 700,
+              scrollX = TRUE,
+              pageLength = nrow(county_summary_percent)
+            )) %>%
+  formatStyle(
+    "Trend Classification (Percentages)",
+    target = "cell",
+    color = styleEqual(c("Increasing", "Decreasing"), c("white", "white")),
+    backgroundColor = styleEqual(c("Increasing", "Decreasing"), c(pal[[1]], pal[[3]]))
+  ) %>%
+  spk_add_deps() %>%
+  formatStyle(
+    "Trend Classification (Percentages)", 
+    target = "cell",
+    color = styleEqual(c("Increasing", "Decreasing"), c("white", "white")),
+    backgroundColor = styleEqual(c("Increasing", "Decreasing"), c(pal[[1]], pal[[3]]))
   ) %>%
   formatStyle(
-    "Trend Classification",
-    target = "row", 
-    backgroundColor = styleEqual(c("Significantly Increasing", "Significantly Decreasing"), c(pal[[1]], pal[[3]]))
-  )
+    "Temporal Alert (Percentages)", 
+    target = "cell", 
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>% 
+  formatStyle(
+    "Alert p-value (Percentages)", "Temporal Alert (Percentages)",
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) 
+
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, eval = counts_only}
+
+county_summary_counts %>%
+  datatable(class = "cell-border stripe",
+            style = "bootstrap", 
+            rownames = FALSE, 
+            filter = "top", 
+            escape = FALSE, 
+            extensions = "Buttons",
+            options = list(
+              dom = "Bfrtip",
+              buttons = c("csv", "excel", "pdf"),
+              scrollY = 700,
+              pageLength = nrow(county_summary_counts)
+            )) %>%
+  formatStyle(
+    "Trend Classification (Counts)",
+    target = "cell",
+    color = styleEqual(c("Increasing", "Decreasing"), c("white", "white")),
+    backgroundColor = styleEqual(c("Increasing", "Decreasing"), c(pal[[1]], pal[[3]]))
+  ) %>%
+  spk_add_deps() %>%
+  formatStyle(
+    "Trend Classification (Counts)", 
+    target = "cell",
+    color = styleEqual(c("Increasing", "Decreasing"), c("white", "white")),
+    backgroundColor = styleEqual(c("Increasing", "Decreasing"), c(pal[[1]], pal[[3]]))
+  ) %>%
+  formatStyle(
+    "Temporal Alert (Counts)",
+    target = "cell", 
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>% 
+  formatStyle(
+    "Alert p-value (Counts)", "Temporal Alert (Counts)",
+    color = styleEqual(c("Alert", "Warning"), c("white", "black")), 
+    backgroundColor = styleEqual(c("Alert", "Warning"), c(pal[[1]], pal[[2]]))
+  ) %>%
+  spk_add_deps()
 
 ```
