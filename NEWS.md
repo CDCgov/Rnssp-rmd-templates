@@ -171,6 +171,21 @@ This template allows ESSENCE users to evaluate the data details (line level) res
 
 ## Word Alerts Report template (`word_alerts`)
 
+<details>
+
+<summary>11/15/2021</summary>
+The Word Alerts Report template has been updated. This version:
+
+* Updated the API for site-level full data details to use the Syndrome Subsyndrome CCDD Combined Category field to simplify the code.
+
+* Added a new parameter, has_been_E, so that data can be limited to ED data if specified. This only applies to ESSENCE API pulls as CCQV backup table does not have a has_been_E field.
+
+* Removed duplicate cat() statements when no alerts are found.
+
+* Default date range is now the most recent 90 days. Default start and end dates are calculated using base R.
+
+</details>
+
 <details open>
 
 <summary>11/9/2021</summary>
