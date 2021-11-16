@@ -35,7 +35,7 @@ params:
     input: text
     placeholder: "Facility Level ESSENCE API URL"
   site_facility_label:
-    label: "Enter Facility Name"
+    label: "Enter Facility Name(s) (Label)"
     value: ""
     input: text
     placeholder: "Hospital Name"
@@ -88,7 +88,7 @@ userProfile <- Credentials$new(
 if (str_contains(params$site_facility, pattern = "&datasource=va_hosp", ignore.case = TRUE, logic = "not")==TRUE &
   params$site_facility != "") {
   knitr::knit_exit("Render ends prematurely.
-                   It looks like you are trying to run this report for a single facility. Please make sure your facility query is a Facility Location query in ESSENCE.
+                   It looks like you are trying to run this report for a single facility or select facilities. Please make sure your facility query is a Facility Location query in ESSENCE.
                    If you are not trying to run this report for a single facility, please make sure the Enter Facility Name field is blank.")
 }
 ```
@@ -98,7 +98,7 @@ if (str_contains(params$site_facility, pattern = "&datasource=va_hosp", ignore.c
 if (str_contains(params$site_facility, pattern = "&datasource=va_hosp", ignore.case = TRUE)==TRUE &
   str_contains(params$site_facility, pattern = "&geography=", ignore.case = TRUE)==FALSE) {
   knitr::knit_exit("Render ends prematurely.
-                   It looks like you are trying to run this report for a single facility. Please make sure your ESSENCE API URL has a facility selected.
+                   It looks like you are trying to run this report for a single facility or select facilities. Please make sure your ESSENCE API URL has a facility selected.
                    You can check the API URL for the facility information by looking for the following pattern: &geography=")
 }
 ```
@@ -108,7 +108,7 @@ if (str_contains(params$site_facility, pattern = "&datasource=va_hosp", ignore.c
 if (str_contains(params$site_facility, pattern = "&datasource=va_hosp", ignore.case = TRUE)==TRUE &
   str_contains(params$site_facility, pattern = "&geography=region", ignore.case = TRUE)==TRUE) {
   knitr::knit_exit("Render ends prematurely.
-                   It looks like you are trying to run this report for a single facility. Please make sure your ESSENCE API URL has a facility selected.
+                   It looks like you are trying to run this report for a single facility or select facilities. Please make sure your ESSENCE API URL has a facility selected.
                    You can check the API URL for the facility information by looking for the following pattern: &geography=")
 }
 ```
