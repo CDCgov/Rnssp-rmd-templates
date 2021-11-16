@@ -29,6 +29,11 @@ params:
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_ed_report", "skeleton", "ccdd_cat.rds"), destfile = fl); dplyr::pull(readRDS(fl), ccdd_category)
     input: select
     multiple: yes
+  ts_type: 
+    label: "Time Series Metric"
+    value: "Percentages"
+    input: select
+    choices: [Percentages, Counts, Percentages and Counts]
   start_date:
     label: "Enter Start Date: "
     value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
@@ -37,11 +42,6 @@ params:
     label: "Enter End Date: "
     value: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 1
     input: date
-  ts_type: 
-    label: "Time Series Metric"
-    value: "Percentages"
-    input: select
-    choices: [Percentages, Counts, Percentages and Counts]
 editor_options:
   chunk_output_type: inline
 ---
