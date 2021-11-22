@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>State Emergency Department :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637608010 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637608010 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637608010></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637612747 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637612747 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637612747></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/stateedreport/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637608010></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637608010></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637612747></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637612747></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637608010></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637612747></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -246,17 +246,12 @@ State Emergency Department
 <span style=color:#f92672>create_dir</span>: <span style=color:#66d9ef>true</span>
 </code></pre></div><hr>
 <h2 id=detailed-description>Detailed Description</h2>
-<p>The state emergency department report template (<code>state_ed_report</code>) summarizes trend classification and ESSENCE alerting for the CCDD categories at the state and county level. All trends are reported as percent of daily emergency department visits.</p>
-<p>To classify all trends over time, this template fits windowed regression models to moving day baselines where the statistic and p-value resulting from the statistical test are used to define the last day of the baseline as significantly increasing, significantly decreasing, not significant with positive slope, or not significant with negative slope.</p>
+<p>The state emergency department report template (<code>state_ed_report</code>) summarizes trend classification and ESSENCE alerting for the CCDD categories at the state and county level. Users can select percentages, counts, or percentages and counts for state and county-level time series. By default, trends are reported as a percent of daily emergency department visits.</p>
+<p>To classify trends over time, this template fits penalized least squares smoothing splines to state and county-level time series of 7-day averages. For time series of counts, Poisson generalized additive models are used instead. The slopes of the smoothed data are used to classify daily trajectory statuses into categories of increase, stable, or decrease. Slopes greater than a pre-defined slope cut point of 0.01 are classified as increase, while slopes less than -0.01 are classified as decreasing. Slopes with an absolute value less than or equal to 0.01 are classified as stable. This method is best suited for classification of county-level time series with higher variability in day-to-day trends.</p>
 <p>To match the current NSSP-ESSENCE implementation of trend classification, binomial regression models are used for time series of percentages, while linear regression models are used for time series of counts.</p>
-<p>If recent data are pulled, it is best practice to use a 3 day lag to prevent lower counts associated with lags in receiving data from biasing the most recent classification. The significance threshold for p-values is set to 0.01, where trend classification is specified as follows:</p>
-<p><strong>Significantly Increasing:</strong> Time term in model is positive and p-value &lt; 0.01</p>
-<p><strong>Significantly Decreasing:</strong> Time term in model is negative and p-value &lt; 0.01</p>
-<p><strong>Not Significant, Positive Slope:</strong> Time term in model is positive and p-value >= 0.01</p>
-<p><strong>Not Significant, Negative Slope:</strong> Time term in model is negative and p-value >= 0.01</p>
-<p>Note that in instances where the number of encounters for a category in the 12-day time window is less than 10, a model is not fit in order to prevent convergence errors from <code>glm</code> and <code>lm</code>. In those instances, the trend is classified as <strong>Less than 10 Encounters or Not Reporting</strong>.</p>
+<p>If recent data are pulled, it is best practice to use a 3 day lag to prevent lower counts associated with lags in receiving data from biasing the most recent classification.</p>
 <p>To improve identification of stratifications with recent and anomalous increases in syndromic activity, ESSENCE alerting is overlaid on the percentage trends for each county and CCDD category. These alerts correspond to ESSENCE's default alerting algorithm, Poisson/EWMA/Regression Switch, with alerting thresholds 0.05 (yellow) and 0.01 (red).</p>
-<p>Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table API (new to ESSENCE as of July 2020).</p>
+<p>Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table API.</p>
 <hr>
 <h2 id=user-inputs>User Inputs</h2>
 <ul>
@@ -264,9 +259,7 @@ State Emergency Department
 <li>State (data are pulled by hospital state from the Facility Location (Full Details) data source)</li>
 <li>CCDD Categories - currently includes all existing CCDD Categories available in ESSENCE. Users may select as many categories as they choose. The default categories are CLI CC with CLI DD and Coronavirus DD v1, CDC Pneumonia CCDD v1, and CDC COVID-Specific DD v1.</li>
 <li>Start and end date of query</li>
-<li>Time series type - percentages, counts, or percentages <em>and</em> counts (default)</li>
-<li>Guard band - number of days the date in consideration is separated from the baseline (default is 3)</li>
-<li>Days Before - length of baseline - 1 (default is 12 - 1 = 11)</li>
+<li>Time series type - percentages (default), counts, or percentages <em>and</em> counts</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -299,16 +292,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637608010></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637612747></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1637608010></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637608010></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1637612747></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637612747></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
