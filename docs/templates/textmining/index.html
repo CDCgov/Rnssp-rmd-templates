@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>Text Analysis Dashboard :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637625306 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637625306 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637625306></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637625320 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637625320 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637625320></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/textmining/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637625306></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637625306></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637625320></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637625320></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637625306></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637625320></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -244,18 +244,18 @@ Text Analysis Dashboard
 <span style=color:#f92672>create_dir</span>: <span style=color:#66d9ef>true</span>
 </code></pre></div><hr>
 <h2 id=detailed-description>Detailed Description</h2>
-<p>The Interactive Text Analysis Dashboard template (<code>text_mining</code>) summarizes the chief complaint text and diagnosis codes as part of an initial description of the content of these fields in <em>existing</em> syndromes or categories.</p>
-<p>The data source used in this template is the Chief Complaint Query Validation (CCQV) data source in NSSP-ESSENCE, which includes the chief complaint and discharge diagnosis fields, and does not include facility location, patient location, or other demographic information. This data source was created with the Syndromic Community of Practice (CoP) so that users can test and create new syndrome categories using a large corpus of chief complaint and diagnosis code data that includes more variation than would be present in any one site. Some sites have opted out of contributing their data to the Query Validation data source, including Arizona, Idaho, Illinois, Marion County, Indiana, Massachusetts, North Dakota, and Ohio.</p>
-<p>The visualizations in this template include total weekly volume of encounters, the 200 most frequent n-gram frequencies of chief complaint terms and discharge diagnosis codes, term co-occurrence network graphs for the ChiefComplaintParsed and CCDD fields, a chief complaint term correlation network graph, and n-grams with significant increases or decreases in occurrence over time. Potential clusters or groupings of terms are visualized by node color and can be selected from the &ldquo;Select by group&rdquo; drop down menu.</p>
-<p>All interactive widgets were produced with the <a href=https://plotly.com/r/>plotly</a> and <a href=https://cran.r-project.org/web/packages/visNetwork/vignettes/Introduction-to-visNetwork.html>visNetwork</a> packages which provide hovering functionality such as displaying data point values, ICD-10 code descriptions, and co-occurrence frequencies.</p>
+<p>The Interactive Text Analysis Dashboard template (<code>text_mining</code>) summarizes the chief complaint text and discharge diagnosis codes as part of an initial description of the content of these fields. Drop-down menus allow users to select from <em>existing</em> ESSENCE syndrome definitions, including CCDD categories, syndromes, and subsyndromes. Users can also input a custom query of the CCDD field or the API URL for complex queries that search multiple fields.</p>
+<p>By default, this template uses the Chief Complaint Query Validation (CCQV) data source in NSSP-ESSENCE, which includes the chief complaint and discharge diagnosis fields and does not include facility location, patient location, or other demographic information. This data source was created in collaboration with the NSSP Community of Practice (CoP). Users can test and create new syndrome categories using a large corpus of chief complaint and diagnosis code data that has more variation than would be present in any one site. Some sites have opted out and do not contribute data to the Query Validation data source, including Arizona; Idaho; Illinois; Marion County, Indiana; Massachusetts; North Dakota; and Ohio. To accomodate site-level users, the full data details (facility location) data source can be selected so that data are pulled at the individual state-level. <strong>Note: The API URL for the full details data source limits to CCQV fields only.</strong></p>
+<p>The visualizations in this template include total weekly volume of encounters, the 200 most frequent n-gram frequencies of chief complaint terms and discharge diagnosis codes, term co-occurrence network graphs for the ChiefComplaintParsed and CCDD fields, a chief complaint term correlation network graph, and n-grams with significant increases or decreases in occurrence over time. Potential clusters or groupings of terms are visualized by node color in term co-occurrence network graphs and can be selected from the &ldquo;Select by group&rdquo; drop-down menu. Clusters are determined by the Louvain algorithm, an unsupervised method to detect communities in networks by maximizing modularity.</p>
+<p>Interactive widgets were produced with the <a href=https://plotly.com/r/>plotly</a> and <a href=https://cran.r-project.org/web/packages/visNetwork/vignettes/Introduction-to-visNetwork.html>visNetwork</a> packages. These packages provide hovering functionality such as displaying data point values, ICD-10 code descriptions, and co-occurrence frequencies.</p>
 <hr>
 <h2 id=user-inputs>User Inputs</h2>
 <ul>
-<li>AMC username and password (securely encrypted)</li>
-<li>Start and end date of query</li>
+<li>Access and Management Center (AMC) username and password (securely encrypted)</li>
+<li>Query start and end dates</li>
 <li>Has been Emergency: TRUE/FALSE option for limiting to emergency department visits</li>
-<li>Data source: options include the Chief Complaint Query Validation (CCQV) data source or Facility Location (Full Details)</li>
-<li>Syndrome definition: CCDD Category, Subsyndrome, or Syndrome.</li>
+<li>Data source: options include the Chief Complaint Query Validation (CCQV) data source or Facility Location [Full Details]</li>
+<li>Syndrome definition: CCDD category, subsyndrome, or syndrome.</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -288,16 +288,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637625306></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637625320></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1637625306></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637625306></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1637625320></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637625320></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
