@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>State Emergency Department :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637617335 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637617335 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637617335></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1637619197 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1637619197 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1637619197></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/stateedreport/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637617335></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637617335></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1637619197></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1637619197></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637617335></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1637619197></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -247,18 +247,19 @@ State Emergency Department
 </code></pre></div><hr>
 <h2 id=detailed-description>Detailed Description</h2>
 <p>The state emergency department report template (<code>state_ed_report</code>) summarizes trend classification and ESSENCE alerting for the CCDD categories at the state and county level. Users can select percentages, counts, or percentages and counts for state and county-level time series. By default, trends are reported as a percent of daily emergency department visits.</p>
-<p>To classify trends over time, this template applies penalized least squares smoothing splines to time series of percentages and Poisson generalized additive models to time series of counts. The slopes of the smoothed data are used to classify daily trajectory statuses into categories of increase, stable, or decrease. Slopes greater than a pre-defined slope cut point of 0.01 are classified as increase, while slopes less than -0.01 are classified as decreasing. Slopes with an absolute value less than or equal to 0.01 are classified as stable. This method is best suited for classification of county-level time series with higher variability in day-to-day trends.</p>
-<p>If you&rsquo;re pulling current data, use a 3-day lag. This best practice prevents lower counts associated with lags in receiving data from biasing the most recent classification.</p>
-<p>To identify stratifications with recent and anomalous increases in syndromic activity, ESSENCE alerting is overlaid on the time series for each county and CCDD category. These alerts correspond to ESSENCE's default alerting algorithm, Poisson/EWMA/Regression Switch, with alerting thresholds 0.05 (yellow) and 0.01 (red).</p>
-<p>Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table application programming interface (API).</p>
+<p>To classify trends over time, this template fits penalized least squares smoothing splines to state and county-level time series of 7-day averages. For time series of counts, Poisson generalized additive models are used instead. The slopes of the smoothed data are used to classify daily trajectory statuses into categories of increase, stable, or decrease. Slopes greater than a pre-defined slope cut point of 0.01 are classified as increase, while slopes less than -0.01 are classified as decreasing. Slopes with an absolute value less than or equal to 0.01 are classified as stable. This method is best suited for classification of county-level time series with higher variability in day-to-day trends.</p>
+<p>To match the current NSSP-ESSENCE implementation of trend classification, binomial regression models are used for time series of percentages, while linear regression models are used for time series of counts.</p>
+<p>If recent data are pulled, it is best practice to use a 3 day lag to prevent lower counts associated with lags in receiving data from biasing the most recent classification.</p>
+<p>To improve identification of stratifications with recent and anomalous increases in syndromic activity, ESSENCE alerting is overlaid on the percentage trends for each county and CCDD category. These alerts correspond to ESSENCE's default alerting algorithm, Poisson/EWMA/Regression Switch, with alerting thresholds 0.05 (yellow) and 0.01 (red).</p>
+<p>Daily stratified alerting indicators and statistics are pulled along with the percentages, numerators, and denominators from the time series data table API.</p>
 <hr>
 <h2 id=user-inputs>User Inputs</h2>
 <ul>
-<li>Access and Magagement Center (AMC) username and password (securely encrypted)</li>
-<li>State (data are pulled by hospital state from the Facility Location [Full Details] data source</li>
-<li>CCDD Categories — currently includes all CCDD categories available in ESSENCE. Users may select as many categories as they want. The default categories are CLI CC with CLI DD and Coronavirus DD v1, CDC Pneumonia CCDD v1, and CDC COVID-Specific DD v1.</li>
-<li>Query start and end dates</li>
-<li>Time series type — percentages (default), counts, or percentages <em>and</em> counts</li>
+<li>AMC username and password (securely encrypted)</li>
+<li>State (data are pulled by hospital state from the Facility Location (Full Details) data source)</li>
+<li>CCDD Categories - currently includes all existing CCDD Categories available in ESSENCE. Users may select as many categories as they choose. The default categories are CLI CC with CLI DD and Coronavirus DD v1, CDC Pneumonia CCDD v1, and CDC COVID-Specific DD v1.</li>
+<li>Start and end date of query</li>
+<li>Time series type - percentages (default), counts, or percentages <em>and</em> counts</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -291,16 +292,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637617335></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1637619197></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1637617335></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637617335></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1637619197></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1637619197></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
