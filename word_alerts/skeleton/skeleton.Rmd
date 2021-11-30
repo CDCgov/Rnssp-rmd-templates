@@ -386,11 +386,14 @@ api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE), silent = FALSE)
 
 premature_quit_essence <- any(all(class(api_data) == "try-error"), 
                               all(dim(api_data) == c(0, 0)))
-```
+                              
+if (premature_quit_essence) {
+  
+  knitr::knit_exit("Render ends prematurely. 
+                   ESSENCE API data pull failed. Check your user credentials!")
+  
+}
 
-```{r knit_quit, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_quit_essence}
-knitr::knit_exit("Render ends prematurely.
-                 ESSENCE API data pull failed. Check your user credentials!")
 ```
 
 ```{r site level preprocess, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
