@@ -1367,9 +1367,10 @@ if (nrow(cc_alerts_unigram) > 0) {
       prop = frequency / n,
       size = 4 * log(frequency + 1), 
       date_label = format(date, "%b %d %Y"),
-      date_label = fct_reorder(date_label, date),
-      date_label = as.character(date_label)
+      date_label = fct_reorder(date_label, date)
+      # date_label = as.character(date_label)
     ) %>%
+    arrange(date) %>%
     nest(data = -date) %>%
     mutate(
       coords = map(.x = data, .f = function (.x) {
@@ -1378,11 +1379,11 @@ if (nrow(cc_alerts_unigram) > 0) {
       })
     ) %>%
     unnest(cols = c(data, coords)) %>%
-    mutate(id = as.character(row_number()))
+    mutate(id = as.character(row_number())) 
   
   if(length(unique(unigram_dist$date)) > 1) {
     
-    unigram_dist %>%
+   unigram_dist %>%
       plot_ly(
         x = ~x,
         y = ~y,
@@ -1628,8 +1629,7 @@ if (nrow(cc_alerts_bigram) > 0) {
       prop = frequency / n,
       size = 4 * log(frequency + 1), 
       date_label = format(date, "%b %d %Y"),
-      date_label = fct_reorder(date_label, date),
-      date_label = as.character(date_label)
+      date_label = fct_reorder(date_label, date)
     ) %>%
     nest(data = -date) %>%
     mutate(
@@ -1895,8 +1895,7 @@ if (nrow(dd_alerts_unigram) > 0) {
       prop = frequency / n,
       size = 4 * log(frequency + 1), 
       date_label = format(date, "%b %d %Y"),
-      date_label = fct_reorder(date_label, date),
-      date_label = as.character(date_label)
+      date_label = fct_reorder(date_label, date)
     ) %>%
     nest(data = -date) %>%
     mutate(
@@ -2167,8 +2166,7 @@ if (nrow(dd_alerts_bigram) > 0) {
       prop = frequency / n,
       size = 4 * log(frequency + 1), 
       date_label = format(date, "%b %d %Y"),
-      date_label = fct_reorder(date_label, date),
-      date_label = as.character(date_label)
+      date_label = fct_reorder(date_label, date)
     ) %>%
     nest(data = -date) %>%
     mutate(
