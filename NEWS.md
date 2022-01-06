@@ -155,7 +155,16 @@ This template explores the top N categories by volume for the new ICD Chapter, S
 
 <details>
 
-<summary>3/11/2021</summary>
+<summary>1/6/2022</summary>
+The Syndrome Definition Evaluation template has been updated.
+
+This update adds a functionality to perform the data pull by chunks of one day.
+
+</details>
+
+<details>
+
+<summary>11/3/2021</summary>
 The Syndrome Definition Evaluation template has been updated.
 
 This critical update fixes an issue related to API URLs being ill-constructed when syndromes or subsyndromes are selected.
@@ -164,7 +173,7 @@ This critical update fixes an issue related to API URLs being ill-constructed wh
 
 <details>
 
-<summary>1/11/2021</summary>
+<summary>11/1/2021</summary>
 The Syndrome Definition Evaluation template has been updated for performance and efficiency. It contains:
 
 * An update to the `detect_elements()` helper function solving therefore a memory limit issue preventing a successful render of the template when large datasets are pulled.
