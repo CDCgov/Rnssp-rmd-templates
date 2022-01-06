@@ -28,6 +28,9 @@ params:
   has_been_E: 
     label: "Has Been Emergency:"
     value: true
+  chunk_pull: 
+    label: "Chunk data pull (per day)?"
+    value: true
   definition: 
     label: "CCDD Category (Select up to 3):" 
     value: "CCDD Category: CDC All Drug v1"
@@ -108,7 +111,7 @@ if (params$site != "All") {
 
 ```{r def1_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
 
-if (as.character(str_match(params$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "CCDD Category") {
+if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome")) == "CCDD Category") {
   definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "ccdd category: "), " ", "%20")
   definition_type <- "&ccddCategory="
   grouping_system <- "essencesyndromes"
@@ -158,7 +161,7 @@ def1_structure_print <- readRDS("syndef.rds") %>%
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
         unlist() %>%
-        extract(2)
+        extract2(2)
     } else {
       .
     }
@@ -220,7 +223,7 @@ def2_structure_print <- readRDS("syndef.rds") %>%
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
         unlist() %>%
-        extract(2)
+        extract2(2)
     } else {
       .
     }
@@ -246,7 +249,7 @@ if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyn
 }
 
 if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "syndrome: "), " ", "%20")
+  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "syndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
   grouping_system <- "essencesyndromes"
 }
@@ -283,7 +286,7 @@ def3_structure_print <- readRDS("syndef.rds") %>%
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
         unlist() %>%
-        extract(2)
+        extract2(2)
     } else {
       .
     }
@@ -294,11 +297,17 @@ def3_url <- url3
 
 <!-- Data Pulls -->
 ```{r def1_full_extract, echo=FALSE, message=FALSE, warning=FALSE}
-
-def1_full <- try(
-  myProfile$get_api_data(def1_url, fromCSV = TRUE),
-  silent = TRUE
-)
+if(params$chunk_pull){
+  def1_full <- try(
+    return_longterm_query(def1_url, profile = myProfile, params$start_date, params$end_date, by = 1),
+    silent = TRUE
+  )
+} else {
+  def1_full <- try(
+    myProfile$get_api_data(def1_url, fromCSV = TRUE),
+    silent = TRUE
+  )
+}
 
 premature_quit <- any(all(class(def1_full) == "try-error"), all(dim(def1_full) == c(0, 0)))
 
@@ -320,8 +329,12 @@ def1_total_pretty <- format(def1_total, big.mark = ",", scientific = FALSE)
 ```
 
 ```{r def2_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
+if(params$chunk_pull){
+  def2_full <- return_longterm_query(def2_url, profile = myProfile, params$start_date, params$end_date, by = 1)
+} else {
+  def2_full <- myProfile$get_api_data(def2_url, fromCSV = TRUE)
+}
 
-def2_full <- myProfile$get_api_data(def2_url, fromCSV = TRUE)
 
 def2 <- def2_full %>%
   mutate(def2 = 1) %>%
@@ -333,7 +346,11 @@ def2_total_pretty <- format(def2_total, big.mark = ",", scientific = FALSE)
 
 ```{r def3_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
 
-def3_full <- myProfile$get_api_data(def3_url, fromCSV = TRUE)
+if(params$chunk_pull){
+  def3_full <- return_longterm_query(def3_url, profile = myProfile, params$start_date, params$end_date, by = 1)
+} else {
+  def3_full <- myProfile$get_api_data(def3_url, fromCSV = TRUE)
+}
 
 def3 <- def3_full %>%
   mutate(def3 = 1) %>%
@@ -489,7 +506,7 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 #### ", def1_short, "
 
 **Total Visits Identified:**  ",
-    def1_total_pretty, "
+def1_total_pretty, "
 
 **Query description:**
 <!-- Provide Your description down below   -->
@@ -497,7 +514,7 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 
 <details>
   <summary>**Full query:**  </summary>",
-    def1_structure_print, "
+def1_structure_print, "
 </details>
 
 "
@@ -520,7 +537,7 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 #### ", def1_short, "
 
 **Total Visits Identified:**  ",
-    def1_total_pretty, "
+def1_total_pretty, "
 
 **Query description:**
 <!-- Provide Your description down below   -->
@@ -528,7 +545,7 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 
 <details>
   <summary>**Full query:**  </summary>",
-    def1_structure_print, "
+def1_structure_print, "
 </details>
 
 "
@@ -539,16 +556,16 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 ```{r def1_table, echo=FALSE, message=FALSE, warning=FALSE, eval=TRUE}
 
 DT::datatable(def1_elements_detected_table,
-  rownames = FALSE,
-  extensions = "Buttons",
-  options = list(
-    dom = "Bfrtip",
-    buttons = c("copy", "csv"),
-    scrollY = 400,
-    pageLength = 50
-  ),
-  filter = "top",
-  escape = FALSE
+              rownames = FALSE,
+              extensions = "Buttons",
+              options = list(
+                dom = "Bfrtip",
+                buttons = c("copy", "csv"),
+                scrollY = 400,
+                pageLength = 50
+              ),
+              filter = "top",
+              escape = FALSE
 )
 ```
 
@@ -560,7 +577,7 @@ cat(
 #### ", def2_short, "
 
 **Total Visits Identified:**  ",
-    def2_total_pretty, "
+def2_total_pretty, "
 
 **Query description:**
 <!-- Provide Your description down below   -->
@@ -568,7 +585,7 @@ cat(
 
 <details>
   <summary>**Full query:**  </summary>",
-    def2_structure_print, "
+def2_structure_print, "
 </details>
 
 "
@@ -579,16 +596,16 @@ cat(
 ```{r def2_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
 
 DT::datatable(def2_elements_detected_table,
-  rownames = FALSE,
-  extensions = "Buttons",
-  options = list(
-    dom = "Bfrtip",
-    buttons = c("copy", "csv"),
-    scrollY = 400,
-    pageLength = 50
-  ),
-  filter = "top",
-  escape = FALSE
+              rownames = FALSE,
+              extensions = "Buttons",
+              options = list(
+                dom = "Bfrtip",
+                buttons = c("copy", "csv"),
+                scrollY = 400,
+                pageLength = 50
+              ),
+              filter = "top",
+              escape = FALSE
 )
 ```
 
@@ -601,7 +618,7 @@ cat(
 #### ", def3_short, "
 
 **Total Visits Identified:**  ",
-    def3_total_pretty, "
+def3_total_pretty, "
 
 **Query description:**
 <!-- Provide Your description down below   -->
@@ -609,7 +626,7 @@ cat(
 
 <details>
   <summary>**Full query:**  </summary>",
-    def3_structure_print, "
+def3_structure_print, "
 </details>
 
 "
@@ -620,16 +637,16 @@ cat(
 ```{r def3_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
 
 DT::datatable(def3_elements_detected_table,
-  rownames = FALSE,
-  extensions = "Buttons",
-  options = list(
-    dom = "Bfrtip",
-    buttons = c("copy", "csv"),
-    scrollY = 400,
-    pageLength = 50
-  ),
-  filter = "top",
-  escape = FALSE
+              rownames = FALSE,
+              extensions = "Buttons",
+              options = list(
+                dom = "Bfrtip",
+                buttons = c("copy", "csv"),
+                scrollY = 400,
+                pageLength = 50
+              ),
+              filter = "top",
+              escape = FALSE
 )
 ```
 
@@ -1202,7 +1219,7 @@ if (length(params$definition) == 2) {
     my_file[my_file$def1 == 1, ],
     my_file[my_file$def2 == 1, ]
   )
-
+  
   def_sets_names <- c(def1_short, def2_short)
 }
 
@@ -1212,7 +1229,7 @@ if (length(params$definition) > 2) {
     my_file[my_file$def2 == 1, ],
     my_file[my_file$def3 == 1, ]
   )
-
+  
   def_sets_names <- c(def1_short, def2_short, def3_short)
 }
 
@@ -1222,9 +1239,9 @@ word_count <- list()
 for (i in 1:length(def_sets)) {
   for (j in 1:length(select_fields)) {
     data <- as.data.frame(def_sets[i])
-
+    
     field <- select_fields[j]
-
+    
     word_count[[j]] <- data %>%
       dplyr::select(all_of(field)) %>%
       unnest_tokens(word, !!field) %>%
@@ -1240,12 +1257,12 @@ for (i in 1:length(def_sets)) {
           field = field
         )
     }
-
+    
     names(word_count)[[j]] <- select_fields[j]
   }
-
+  
   top_words[[i]] <- plyr::ldply(word_count, data.frame)
-
+  
   names(top_words)[[i]] <- def_sets_names[i]
 }
 
