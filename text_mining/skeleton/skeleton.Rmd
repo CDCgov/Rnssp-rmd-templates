@@ -645,7 +645,8 @@ ccngram %>%
     text = ~ paste(
       word,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Single Term Frequencies of Chief Complaint Parsed",
@@ -687,7 +688,8 @@ ddngram %>%
     text = ~ paste(
       word, ": ", description,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Single Term Frequencies of Discharge Diagnosis",
@@ -736,7 +738,8 @@ cc_bigram_top200 %>%
     text = ~ paste(
       bigram,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Bigram Frequencies of Chief Complaint Parsed",
@@ -792,7 +795,8 @@ ddngram %>%
       code1, ": ", description1,
       "<br>", code2, ": ", description2,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Bigram Frequencies of Discharge Diagnosis",
@@ -839,7 +843,8 @@ ccngram %>%
     text = ~ paste(
       trigram,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Trigram Frequencies of Chief Complaint Parsed",
@@ -897,7 +902,8 @@ ddngram %>%
       "<br>", code2, ": ", description2,
       "<br>", code3, ": ", description3,
       "<br> Frequency: ", n
-    )
+    ),
+    textposition = "none"
   ) %>%
   layout(
     title = "Top 200 Trigram Frequencies of Discharge Diagnosis",
