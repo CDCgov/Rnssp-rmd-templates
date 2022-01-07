@@ -249,7 +249,7 @@ if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyn
 }
 
 if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "syndrome: "), " ", "%20")
+  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "syndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
   grouping_system <- "essencesyndromes"
 }
