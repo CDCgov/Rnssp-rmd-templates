@@ -30,16 +30,46 @@ params:
     value: true
   chunk_pull: 
     label: "Chunk data pull (per day)?"
-    value: true
+    value: false
   definition: 
     label: "CCDD Category (Select up to 3):" 
     value: "CCDD Category: CDC All Drug v1"
     input: select
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "syndrome_eval", "skeleton", "syndef.rds"), destfile = fl); dplyr::pull(readRDS(fl), syndrome)
     multiple: yes
+  custom_query1: 
+    label: "Custom Query1 (Will Overwrite first CCDD definition):"
+    value: ""
+    input: text
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+  custom_query_label1:
+    label: "Enter label for Free Text Query1"
+    value: ""
+    input: text
+    placeholder: "Influenza"
+  custom_query2: 
+    label: "Custom Query2 (Will Overwrite second CCDD definition):"
+    value: ""
+    input: text
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+  custom_query_label2:
+    label: "Enter label for Free Text Query2"
+    value: ""
+    input: text
+    placeholder: "Influenza"
+  custom_query3: 
+    label: "Custom Query3 (Will Overwrite third CCDD definition):"
+    value: ""
+    input: text
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+  custom_query_label3:
+    label: "Enter label for Free Text Query3"
+    value: ""
+    input: text
+    placeholder: "Influenza"
   doc_title:
     label: "Title:"
-    value: Syndrome Definition Evaluation Template (NSSP-ESSENCE)
+    value: Syndrome Definition Evaluation
     input: text
   data_export: 
     label: "Export Data (Caution: This may significantly prolong knit time!)"
@@ -62,6 +92,46 @@ library(tidytext)
 library(splitstackshape)
 library(UpSetR)
 ```
+
+```{r free_text_checks, echo=FALSE, message=FALSE, warning=FALSE}
+params2 <- params
+custom_query_label <- params$definition
+custom_query <- params$definition
+
+if(nchar(params$custom_query_label1) > 0){
+  custom_query_label[1] <- params$custom_query_label1
+}
+
+if(nchar(params$custom_query_label2) > 0){
+  custom_query_label[2] <- params$custom_query_label2
+}
+
+if(nchar(params$custom_query_label3) > 0){
+  custom_query_label[3] <- params$custom_query_label3
+}
+
+if(nchar(params$custom_query1) > 0){
+  params2$definition[1] <- custom_query_label[1] %>% 
+    paste0("Custom Query: ", .)
+  custom_query[1] <- params$custom_query1
+}
+
+if(nchar(params$custom_query2) > 0){
+  params2$definition[2] <- custom_query_label[2] %>% 
+    paste0("Custom Query: ", .)
+  custom_query[2] <- params$custom_query2
+}
+
+if(nchar(params$custom_query3) > 0){
+  params2$definition[3] <- custom_query_label[3] %>% 
+    paste0("Custom Query: ", .)
+  custom_query[3] <- params$custom_query3
+}
+
+params2$definition <- params2$definition[!is.na(params2$definition)]
+custom_query <- custom_query[!is.na(custom_query)]
+```
+
 
 ```{r create_export_dir, echo=FALSE, message=FALSE, warning=FALSE}
 outdir <- "Output"
@@ -111,21 +181,30 @@ if (params$site != "All") {
 
 ```{r def1_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
 
-if (as.character(str_match(params$definition, pattern = "CCDD Category|Subsyndrome|Syndrome")) == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "ccdd category: "), " ", "%20")
+if (as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "CCDD Category") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[1]), "ccdd category: "), " ", "%20")
   definition_type <- "&ccddCategory="
   grouping_system <- "essencesyndromes"
 }
 
-if (as.character(str_match(params$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "subsyndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Subsyndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[1]), "subsyndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
-if (as.character(str_match(params$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[1]), "syndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Syndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[1]), "syndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
+  grouping_system <- "essencesyndromes"
+}
+
+if (as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query") {
+  definition_string <- str_replace_all(custom_query[1], "\\^", "%5E") %>%
+    str_replace_all(" ", "%20") %>%
+    str_replace_all("\\[", "%5B") %>%
+    str_replace_all("\\]", "%5D")
+  definition_type <- "&ccddFreeText="
   grouping_system <- "essencesyndromes"
 }
 
@@ -138,11 +217,17 @@ if (params$site != "All") {
 
 
 ```{r def1_setup, echo=FALSE, message=FALSE, warning=FALSE}
-def1_name <- params$definition[1]
+def1_name <- params2$definition[1]
 def1_short <- unlist(str_split(def1_name, ": "))[2]
-def1_structure <- readRDS("syndef.rds") %>%
-  filter(syndrome == def1_name) %>%
-  pull(query_logic) %>%
+def1_structure <- {
+  if(as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[1]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def1_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -154,9 +239,15 @@ def1_structure <- readRDS("syndef.rds") %>%
   } %>%
   clean_query_essence()
 
-def1_structure_print <- readRDS("syndef.rds") %>%
-  filter(syndrome == def1_name) %>%
-  pull(query_logic) %>%
+def1_structure_print <- {
+  if(as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[1]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def1_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -172,39 +263,54 @@ def1_url <- url
 
 <!-- Second Syndrome Definition -->
 
-```{r def2_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide', eval=length(params$definition) >= 2}
+```{r def2_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide', eval=length(params2$definition) >= 2}
 
-if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "ccdd category: "), " ", "%20")
+if (as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "CCDD Category") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[2]), "ccdd category: "), " ", "%20")
   definition_type <- "&ccddCategory="
   grouping_system <- "essencesyndromes"
 }
 
-if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "subsyndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Subsyndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[2]), "subsyndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
-if (as.character(str_match(params$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[2]), "syndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Syndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[2]), "syndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
+  grouping_system <- "essencesyndromes"
+}
+
+if (as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query") {
+  definition_string <- str_replace_all(custom_query[2], "\\^", "%5E") %>%
+    str_replace_all(" ", "%20") %>%
+    str_replace_all("\\[", "%5B") %>%
+    str_replace_all("\\]", "%5D")
+  definition_type <- "&ccddFreeText="
   grouping_system <- "essencesyndromes"
 }
 
 url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 
-if (params$site != "All") {
+if (params2$site != "All") {
   url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 }
 ```
 
-```{r def2_setup, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
-def2_name <- params$definition[2]
+```{r def2_setup, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
+def2_name <- params2$definition[2]
 def2_short <- unlist(str_split(def2_name, ": "))[2]
-def2_structure <- readRDS("syndef.rds") %>%
-  filter(syndrome == def2_name) %>%
-  pull(query_logic) %>%
+def2_structure <- {
+  if(as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[2]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def2_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -216,9 +322,15 @@ def2_structure <- readRDS("syndef.rds") %>%
   } %>%
   clean_query_essence()
 
-def2_structure_print <- readRDS("syndef.rds") %>%
-  filter(syndrome == def2_name) %>%
-  pull(query_logic) %>%
+def2_structure_print <- {
+  if(as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[2]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def2_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -234,40 +346,55 @@ def2_url <- url2
 
 <!-- Third Syndrome Definition -->
 
-```{r def3_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide', eval=length(params$definition) > 2}
+```{r def3_url, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide', eval=length(params2$definition) > 2}
 
-if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "ccdd category: "), " ", "%20")
+if (as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "CCDD Category") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[3]), "ccdd category: "), " ", "%20")
   definition_type <- "&ccddCategory="
   grouping_system <- "essencesyndromes"
 }
 
-if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "subsyndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Subsyndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[3]), "subsyndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
   grouping_system <- "chiefcomplaintsubsyndromes"
 }
 
-if (as.character(str_match(params$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome")) == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(params$definition[3]), "syndrome: "), " ", "%20")
+if (as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Syndrome") {
+  definition_string <- str_replace_all(str_remove_all(tolower(params2$definition[3]), "syndrome: "), " ", "%20")
   definition_type <- "&medicalGrouping="
+  grouping_system <- "essencesyndromes"
+}
+
+if (as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query") {
+  definition_string <- str_replace_all(custom_query[3], "\\^", "%5E") %>%
+    str_replace_all(" ", "%20") %>%
+    str_replace_all("\\[", "%5B") %>%
+    str_replace_all("\\]", "%5D")
+  definition_type <- "&ccddFreeText="
   grouping_system <- "essencesyndromes"
 }
 
 url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 
-if (params$site != "All") {
+if (params2$site != "All") {
   url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 }
 ```
 
-```{r def3_setup, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r def3_setup, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
-def3_name <- params$definition[3]
+def3_name <- params2$definition[3]
 def3_short <- unlist(str_split(def3_name, ": "))[2]
-def3_structure <- readRDS("syndef.rds") %>%
-  filter(syndrome == def3_name) %>%
-  pull(query_logic) %>%
+def3_structure <- {
+  if(as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[3]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def3_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -279,9 +406,15 @@ def3_structure <- readRDS("syndef.rds") %>%
   } %>%
   clean_query_essence()
 
-def3_structure_print <- readRDS("syndef.rds") %>%
-  filter(syndrome == def3_name) %>%
-  pull(query_logic) %>%
+def3_structure_print <- {
+  if(as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsyndrome|Syndrome|Custom Query")) == "Custom Query"){
+    custom_query[3]
+  } else {
+    readRDS("syndef.rds") %>%
+      filter(syndrome == def3_name) %>%
+      pull(query_logic)
+  }
+} %>%
   {
     if (definition_type == "&ccddCategory=") {
       str_split(., ":") %>%
@@ -328,7 +461,7 @@ def1_total <- nrow(def1)
 def1_total_pretty <- format(def1_total, big.mark = ",", scientific = FALSE)
 ```
 
-```{r def2_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
+```{r def2_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
 if(params$chunk_pull){
   def2_full <- return_longterm_query(def2_url, profile = myProfile, params$start_date, params$end_date, by = 1)
 } else {
@@ -344,7 +477,7 @@ def2_total <- nrow(def2)
 def2_total_pretty <- format(def2_total, big.mark = ",", scientific = FALSE)
 ```
 
-```{r def3_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r def3_extract, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 if(params$chunk_pull){
   def3_full <- return_longterm_query(def3_url, profile = myProfile, params$start_date, params$end_date, by = 1)
@@ -412,10 +545,7 @@ def1_elements_detected_table <- def1_elements_detected %>%
 ```
 
 
-
-
-
-```{r def2_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params$definition) >= 2}
+```{r def2_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params2$definition) >= 2}
 
 def2_elements <- def2_structure$`Syndrome Element`
 
@@ -445,7 +575,7 @@ def2_elements_detected_table <- def2_elements_detected %>%
 
 
 
-```{r def3_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params$definition) > 2}
+```{r def3_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params2$definition) > 2}
 
 def3_elements <- def3_structure$`Syndrome Element`
 
@@ -474,11 +604,11 @@ def3_elements_detected_table <- def3_elements_detected %>%
 ```{r definition_info, echo=FALSE, message=FALSE, warning=FALSE}
 def_info <- def1_short
 
-if (length(params$definition) == 2) {
+if (length(params2$definition) == 2) {
   def_info <- paste(def1_short, "and", def2_short)
 }
 
-if (length(params$definition) > 2) {
+if (length(params2$definition) > 2) {
   def_info <- paste0(def1_short, ", ", def2_short, " and ", def3_short)
 }
 ```
@@ -493,7 +623,7 @@ author: `r query_start` to `r query_end`
 
 <!-- Custom Conditional Title -->
 <!-- One Syndrome Definintion Title -->
-```{r title_oneDef, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) == 1}
+```{r title_oneDef, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) == 1}
 cat(
   paste0(
     "
@@ -524,7 +654,7 @@ def1_structure_print, "
 
 
 <!-- Individual Info for two and three syndrome definitions -->
-```{r two_def_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) >= 2}
+```{r two_def_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) >= 2}
 cat(
   paste0(
     "
@@ -569,7 +699,7 @@ DT::datatable(def1_elements_detected_table,
 )
 ```
 
-```{r def2_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) >= 2}
+```{r def2_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) >= 2}
 cat(
   paste0(
     "
@@ -593,7 +723,7 @@ def2_structure_print, "
 )
 ```
 
-```{r def2_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
+```{r def2_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
 
 DT::datatable(def2_elements_detected_table,
               rownames = FALSE,
@@ -610,7 +740,7 @@ DT::datatable(def2_elements_detected_table,
 ```
 
 
-```{r def3_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 2}
+```{r def3_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 2}
 cat(
   paste0(
     "
@@ -634,7 +764,7 @@ def3_structure_print, "
 )
 ```
 
-```{r def3_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r def3_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 DT::datatable(def3_elements_detected_table,
               rownames = FALSE,
@@ -653,7 +783,7 @@ DT::datatable(def3_elements_detected_table,
 
 <!-- Visits over time -->
 <!-- One syndrome Definition -->
-```{r oneDef_visits_over_time, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) == 1}
+```{r oneDef_visits_over_time, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) == 1}
 cat("
 
 #### Visits over time
@@ -681,7 +811,7 @@ time_series_def1 <- def1 %>%
   replace_na(list(Visits = 0))
 ```
 
-```{r time_series_def2, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) >= 2}
+```{r time_series_def2, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
 time_series_def2 <- def2 %>%
   dplyr::count(Date, name = "Visits") %>%
   filter(Date <= query_end) %>%
@@ -691,7 +821,7 @@ time_series_def2 <- def2 %>%
   replace_na(list(Visits = 0))
 ```
 
-```{r time_series_def3, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r time_series_def3, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 time_series_def3 <- def3 %>%
   dplyr::count(Date, name = "Visits") %>%
   filter(Date <= query_end) %>%
@@ -701,7 +831,7 @@ time_series_def3 <- def3 %>%
   replace_na(list(Visits = 0))
 ```
 
-```{r time_series, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 1}
+```{r time_series, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 1}
 plot_ly() %>%
   add_lines(
     data = time_series_def1,
@@ -718,7 +848,7 @@ plot_ly() %>%
 ```
 
 <!-- Two and Three Syndrome Definitions -->
-```{r same_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r same_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 ***
@@ -733,7 +863,7 @@ Use the slider at the bottom of the figures to adjust the start and end dates vi
 ")
 ```
 
-```{r time_series_twoDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 2}
+```{r time_series_twoDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 2}
 plot_ly() %>%
   add_lines(
     data = time_series_def1,
@@ -754,7 +884,7 @@ plot_ly() %>%
   )
 ```
 
-```{r time_series_threeDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r time_series_threeDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 plot_ly() %>%
   add_lines(
     data = time_series_def1,
@@ -780,14 +910,14 @@ plot_ly() %>%
   )
 ```
 
-```{r independent_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r independent_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 ##### Independent Scales
 ")
 ```
 
-```{r ind_scale_twoDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 2}
+```{r ind_scale_twoDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 2}
 ts_plot_def1 <- plot_ly() %>%
   add_lines(
     data = time_series_def1,
@@ -821,7 +951,7 @@ ts_plot_def2 <- plot_ly() %>%
 subplot(ts_plot_def1, ts_plot_def2, nrows = 2, shareX = TRUE, margin = 0.05)
 ```
 
-```{r ind_scale_threeDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r ind_scale_threeDef, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 ts_plot_def1 <- plot_ly() %>%
   add_lines(
     data = time_series_def1,
@@ -869,7 +999,7 @@ subplot(ts_plot_def1, ts_plot_def2, ts_plot_def3, nrows = 3, shareX = TRUE, marg
 ```
 
 
-```{r two_defs_prep, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 2}
+```{r two_defs_prep, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 2}
 
 join_vars <- c("Date", "EssenceID", select_fields)
 
@@ -904,7 +1034,7 @@ two_defs_total <- nrow(two_defs_table)
 two_defs_total_pretty <- format(two_defs_total, big.mark = ",", scientific = FALSE)
 ```
 
-```{r three_defs_prep, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r three_defs_prep, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 join_vars <- c("Date", "EssenceID", select_fields)
 
@@ -955,7 +1085,7 @@ three_defs_total_pretty <- format(three_defs_total, big.mark = ",", scientific =
 ```
 
 
-```{r all_twodef_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) == 2}
+```{r all_twodef_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) == 2}
 cat(
   paste0("
 
@@ -966,7 +1096,7 @@ cat(
 )
 ```
 
-```{r all_threedef_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 2}
+```{r all_threedef_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 2}
 cat(
   paste0("
 
@@ -977,7 +1107,7 @@ cat(
 )
 ```
 
-```{r twodef_summary, echo=FALSE, message=FALSE, warning=FALSE, fig.height=2, eval=length(params$definition) == 2}
+```{r twodef_summary, echo=FALSE, message=FALSE, warning=FALSE, fig.height=2, eval=length(params2$definition) == 2}
 
 def1_results <- data.frame(Def = def1_name, Count = sum(two_defs_table$def1)) %>%
   mutate(
@@ -1010,7 +1140,7 @@ ggplot(data = all_def_results, aes(x = Percent, y = reorder(Def, Percent))) +
 ```
 
 
-```{r threedef_summary, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params$definition) > 2}
+```{r threedef_summary, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params2$definition) > 2}
 
 def1_results <- data.frame(Def = def1_name, Count = sum(three_defs_table$def1)) %>%
   mutate(
@@ -1049,14 +1179,14 @@ ggplot(data = all_def_results, aes(x = Percent, y = reorder(Def, Percent))) +
 ```
 
 
-```{r percent_all_def_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r percent_all_def_visits, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 #### Number and percent of all identified visits captured by each observed combination of definitions: {.tabset}
 ")
 ```
 
-```{r two_def_comparison, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 2}
+```{r two_def_comparison, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 2}
 
 two_defs_combinations <- data.frame(
   Definitions =
@@ -1080,7 +1210,7 @@ two_defs_summary <- two_defs_table %>%
 reactable(two_defs_summary)
 ```
 
-```{r three_def_comparison, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r three_def_comparison, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 three_defs_combinations <- data.frame(
   Definitions =
@@ -1108,14 +1238,14 @@ three_defs_summary <- three_defs_table %>%
 reactable(three_defs_summary)
 ```
 
-```{r overlap_not_to_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r overlap_not_to_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 ##### Overlap plot, not to scale
 ")
 ```
 
-```{r two_def_venn, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params$definition) == 2}
+```{r two_def_venn, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params2$definition) == 2}
 
 Def1_vs_Def2 %>%
   select(all_of(def1_short), all_of(def2_short)) %>%
@@ -1123,7 +1253,7 @@ Def1_vs_Def2 %>%
   plot()
 ```
 
-```{r three_def_venn, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r three_def_venn, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 Def1_vs_Def2_vs_Def3 %>%
   select(all_of(def1_short), all_of(def2_short), all_of(def3_short)) %>%
@@ -1131,14 +1261,14 @@ Def1_vs_Def2_vs_Def3 %>%
   plot()
 ```
 
-```{r overlap_to_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r overlap_to_scale, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 ##### Overlap plot, to scale
 ")
 ```
 
-```{r two_def_euler, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params$definition) == 2}
+```{r two_def_euler, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params2$definition) == 2}
 
 Def1_vs_Def2 %>%
   select(all_of(def1_short), all_of(def2_short)) %>%
@@ -1146,7 +1276,7 @@ Def1_vs_Def2 %>%
   plot(quantities = TRUE)
 ```
 
-```{r three_def_euler, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r three_def_euler, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 Def1_vs_Def2_vs_Def3 %>%
   select(all_of(def1_short), all_of(def2_short), all_of(def3_short)) %>%
@@ -1154,14 +1284,14 @@ Def1_vs_Def2_vs_Def3 %>%
   plot(quantities = TRUE)
 ```
 
-```{r upset_plot, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params$definition) > 1}
+```{r upset_plot, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 1}
 cat("
 
 ##### UpSet Plot
 ")
 ```
 
-```{r two_def_upset, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params$definition) == 2}
+```{r two_def_upset, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, eval=length(params2$definition) == 2}
 
 Def1_vs_Def2 %>%
   select(all_of(def1_short), all_of(def2_short)) %>%
@@ -1169,7 +1299,7 @@ Def1_vs_Def2 %>%
   upset(sets.bar.color = "#4d4dff")
 ```
 
-```{r three_def_upset, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2}
+```{r three_def_upset, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
 
 Def1_vs_Def2_vs_Def3 %>%
   select(all_of(def1_short), all_of(def2_short), all_of(def3_short)) %>%
@@ -1187,12 +1317,12 @@ Def1_vs_Def2_vs_Def3 %>%
 my_file <- def1 %>%
   mutate(Date = format(Date, "%m/%d/%Y")) 
 
-if (length(params$definition) == 2) {
+if (length(params2$definition) == 2) {
   my_file <- two_defs %>%
     mutate(Date = format(Date, "%m/%d/%Y"))
 }
 
-if (length(params$definition) > 2) {
+if (length(params2$definition) > 2) {
   my_file <- three_defs %>%
     mutate(Date = format(Date, "%m/%d/%Y"))
 }
@@ -1214,7 +1344,7 @@ def_sets <- list(my_file[my_file$def1 == 1, ])
 
 def_sets_names <- c(def1_short)
 
-if (length(params$definition) == 2) {
+if (length(params2$definition) == 2) {
   def_sets <- list(
     my_file[my_file$def1 == 1, ],
     my_file[my_file$def2 == 1, ]
@@ -1223,7 +1353,7 @@ if (length(params$definition) == 2) {
   def_sets_names <- c(def1_short, def2_short)
 }
 
-if (length(params$definition) > 2) {
+if (length(params2$definition) > 2) {
   def_sets <- list(
     my_file[my_file$def1 == 1, ],
     my_file[my_file$def2 == 1, ],
@@ -1288,7 +1418,7 @@ ggplot(data = top_words_combined) +
 <!-- Output Tables -->
 <!-- ### Output tables -->
 
-```{r onedef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 1 & params$data_export}
+```{r onedef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 1 & params$data_export}
 
 # All Visits
 write.csv(
@@ -1305,7 +1435,7 @@ write.csv(
 )
 ```
 
-```{r twodef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) == 2 & params$data_export}
+```{r twodef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) == 2 & params$data_export}
 # All Visits
 write.csv(
   file = file.path(outdir, "Two Defs All Visits.csv"),
@@ -1349,7 +1479,7 @@ write.csv(
 )
 ```
 
-```{r threedef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params$definition) > 2 & params$data_export}
+```{r threedef_export, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2 & params$data_export}
 
 # All Visits
 write.csv(
