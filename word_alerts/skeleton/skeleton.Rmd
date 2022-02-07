@@ -1856,7 +1856,7 @@ if (nrow(dd_alerts_unigram) > 0) {
         legend = list(showlegend = FALSE),
         hoverlabel = list(align = "left")
       ) %>%
-      animation_opts(frame = 2000,transition = 1000, redraw  FALSE) %>%
+      animation_opts(frame = 2000,transition = 1000, redraw = FALSE) %>%
       animation_slider(currentvalue = list(prefix = "Date ", font = list(color = "black")), pad = list(r = 50), redraw = TRUE)
   } else {
     cat(paste("Only one day of unigram alerts. Refer to table below."))
@@ -2130,7 +2130,7 @@ if (nrow(dd_alerts_bigram) > 0) {
         legend = list(showlegend = FALSE),
         hoverlabel = list(align = "left")
       ) %>%
-      animation_opts(frame = 2000 transition = 1000, redraw = FALSE %>%)
+      animation_opts(frame = 2000, transition = 1000, redraw = FALSE) %>%
       animation_slider(currentvalue = list(prefix = "Date ", font = list(color = "black")), pad = list(r = 50))
   } else {
     cat(paste("Only one day of bigram alerts. Refer to table below."))
