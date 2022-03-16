@@ -2,4 +2,8 @@
 The Rnssp R package provides various utility functions to easily manage templates. One of those utility functions is the Rnssp::list_templates() function.
 First, load the Rnssp R package:
 # Load the Rnssp package library(Rnssp) Next, get the current list of available packages:
-# List all available templates list_templates() To get a tabular and more detailed view of the available templates, run:</description></item></channel></rss>
+# List all available templates list_templates() To get a tabular and more detailed view of the available templates, run:</description></item><item><title>Manage templates with Rnssp addins</title><link>https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/</guid><description>Starting from Rnssp v. 0.1.0, RStudio users may manage Rnssp R Markdown template with Rnssp Addins.
+Launch the addin {-} In RStudio, you can use the Addins menu:
+List Available Rnssp templates {-} Users may check the list of all the currently available Rnssp R Markdown templates with the List Rnssp Templates addin:
+Or in the R console :
+Rnssp:::list_templates() Add/Update Rnssp Templates {-} A unique feature of the Rnssp package is the ability to add R Markdown templates dynamically to an existing installation of the package.</description></item></channel></rss>
