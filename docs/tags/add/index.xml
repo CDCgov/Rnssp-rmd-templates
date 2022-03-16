@@ -5,7 +5,7 @@ Here’s a demo:</description></item><item><title>Manually add a template</title
 Users may download a template zip archive from the Rnssp RMD templates Github repository and manually add it to the existing Rnssp installation.
 In fact, when executed without any parameter, the add_rmd_template() utility function opens a file explorer dialog box that allows users to load a template zip file.
 Make sure that the Rnssp package is loaded (library(Rnssp)), as shown below:</description></item><item><title>Manage templates with Rnssp addins</title><link>https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/</guid><description>Starting from Rnssp v. 0.1.0, RStudio users may manage Rnssp R Markdown template with Rnssp Addins.
-Launch the addin {-} In RStudio, you can use the Addins menu:
-List Available Rnssp templates {-} Users may check the list of all the currently available Rnssp R Markdown templates with the List Rnssp Templates addin:
+Launch the addin In RStudio, you can use the Addins menu:
+List Available Rnssp templates Users may check the list of all the currently available Rnssp R Markdown templates with the List Rnssp Templates addin:
 Or in the R console :
-Rnssp:::list_templates() Add/Update Rnssp Templates {-} A unique feature of the Rnssp package is the ability to add R Markdown templates dynamically to an existing installation of the package.</description></item></channel></rss>
+Rnssp:::list_templates() Add/Update Rnssp Templates A unique feature of the Rnssp package is the ability to add R Markdown templates dynamically to an existing installation of the package.</description></item></channel></rss>
