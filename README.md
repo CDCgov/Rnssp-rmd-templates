@@ -14,7 +14,7 @@ To use any of the templates of this repository, **please install the  [`Rnssp`](
 
  Then, from your R console, run `Rnssp::list_templates()` function to list the available templates.
  
- To download and add a specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template(template_name = <specify template>)` function as depicted in the example below (with `text_mining` template report):
+ To download and add a specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template("<specify template>")` function as depicted in the example below (with `text_mining` template report):
  
  ```r
  library("Rnssp")
@@ -23,10 +23,12 @@ To use any of the templates of this repository, **please install the  [`Rnssp`](
  list_templates(as.table = TRUE) %>% View()
 
  # Extend the Rnssp package with the Text Mining template report
- add_rmd_template(template_name = "text_mining")
+ add_rmd_template("text_mining")
  ```
 
 Alternatively, users can download .zip releases of the templates for manual integration with the Rnssp package by running the `Rnssp::add_rmd_template()` without argument.
+
+With the release of `Rnssp 0.1.0`, RStudio users can manage (add, update or remove) Rnssp R Markdown templates with the [Rnssp Addins](https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/).
 
 ## Contributing to this project
 Should you want to contribute to this project, submit a push request to this Github repository and consider submitting a request to be added as a developer to gazondekon@cdc.gov.
