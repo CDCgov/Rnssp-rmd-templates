@@ -242,6 +242,7 @@ The current implementation of word alerts in NSSP-ESSENCE is limited to data fro
 <summary>4/5/2022</summary>
 The Data Quality Filter Matrix template is available.
 
-This Data Quality Filter Matrix template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjuction with one another.
+
+This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjuction with one another.
 
 </details>
