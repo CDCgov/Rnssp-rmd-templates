@@ -232,3 +232,16 @@ The purpose of the word alert algorithm is to seek anomalous chief complaint fre
 The current implementation of word alerts in NSSP-ESSENCE is limited to data from the past 7 days. This template provides users the capability of running the word alert algorithm on any selected date range spanning up to 90 days.
 
 </details>
+
+<hr>
+
+## Data Quality Filter Matrix template (`dq_filters`)
+
+<details open>
+
+<summary>4/5/2022</summary>
+The Data Quality Filter Matrix template is available.
+
+This Data Quality Filter Matrix template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjuction with one another.
+
+</details>

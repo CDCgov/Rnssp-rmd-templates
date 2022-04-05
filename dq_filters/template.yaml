@@ -1,0 +1,6 @@
+name: Data Quality Filter Matrix
+description: >
+  This template summarizes the DDI Avg Weekly Percent (DDI) and 
+  Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually 
+  and in conjuction with one another.
+create_dir: true
