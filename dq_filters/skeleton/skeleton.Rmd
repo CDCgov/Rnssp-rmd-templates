@@ -387,7 +387,7 @@ dq_distribution_function <- function(year_to_plot) {
   avg_cov <- sprintf("%.2f", mean(data_subset$cov, na.rm = TRUE))
   
   output_title <- ggdraw() + 
-    draw_label("National Distribution of Data Quality Filters", fontface = "bold", size = 14)
+    draw_label("Distribution of Data Quality Filters", fontface = "bold", size = 14)
   
   output_subtitle <- ggdraw() + 
     draw_label(
@@ -844,7 +844,11 @@ $$
 Distributions of facility level average weekly DDI and CoV (HasBeenE) by DQ filter year. 
 
 ```{r compare_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.width=15, fig.height=6, fig.align="center"}
-ddi_distributions <- dq_volume_data %>%
+dq_data_long = dq_volume_data %>%
+  select(hospital, dq_year, ddi, cov) %>%
+  distinct()
+  
+ddi_distributions <- dq_data_long %>%
   ggplot(aes(x = dq_year, y = ddi)) +
   geom_boxplot(aes(fill = dq_year), outlier.shape = 21) +
   theme_bw() +
@@ -867,7 +871,7 @@ ddi_distributions <- dq_volume_data %>%
     labels = c("Current Year", "One Year Back", "Two Year Back", "Three Year Back", "Four Year Back")
   )
 
-cov_distributions <- dq_volume_data %>%
+cov_distributions <- dq_data_long %>%
   ggplot(aes(x = dq_year, y = cov)) +
   geom_boxplot(aes(fill = dq_year), outlier.shape = 21) +
   theme_bw() +
@@ -904,6 +908,71 @@ distribution_output <- plot_grid(distribution_title, distribution_plots, distrib
                                  ncol = 1, rel_heights = c((1 / 20), (18 / 20), (1 / 20))
 )
 distribution_output
+```
+
+```{r compare_distributions_table, echo=FALSE, warning=FALSE, message=FALSE}
+dq_summary_table = dq_data_long %>%
+  mutate(dq_year = case_when(dq_year=="currentyear" ~ "Current Year",
+                             dq_year=="oneyearback" ~ "One Year Back",
+                             dq_year=="twoyearback" ~ "Two Year Back",
+                             dq_year=="threeyearback" ~ "Three Year Back",
+                             dq_year=="fouryearback" ~ "Four Year Back",
+                             TRUE ~ NA_character_)) %>%
+  group_by(dq_year) %>%
+  summarize(ddi_minimum = min(ddi),
+            ddi_q25 = quantile(ddi, probs=0.25),
+            ddi_med = median(ddi),
+            ddi_mean = mean(ddi),
+            ddi_q75 = quantile(ddi, probs=0.75),
+            ddi_maximum = max(ddi),
+            cov_minimum = min(cov),
+            cov_q25 = quantile(cov, probs=0.25),
+            cov_med = median(cov),
+            cov_mean = mean(cov),
+            cov_q75 = quantile(cov, probs=0.75),
+            cov_maximum = max(cov)) %>%
+  mutate(across(where(is.numeric), round, 2)) %>%
+  arrange(match(dq_year, c("Current Year", "One Year Back", "Two Year Back", "Three Year Back", "Four Year Back")))
+
+sum_col_layout = htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(colspan = 1, " "),
+      th(colspan = 6, "Average Weekly Discharge Diagnosis Informative"),
+      th(colspan = 6, "Coefficient of Variation of Emergency Department Visits")
+    ),
+    tr(
+      lapply(c("DQ Year",
+               "Minimum",
+               "25th Percentile",
+               "Median",
+               "Mean",
+               "75th Percentile",
+               "Maximum",
+               "Minimum",
+               "25th Percentile",
+               "Median",
+               "Mean",
+               "75th Percentile",
+               "Maximum"), th)
+    )
+  )
+))
+
+dq_summary_table %>%
+  datatable(extensions = 'Buttons',
+            options = list(dom="Bfrtip", 
+                           buttons = list(list(extend = "csv", 
+                                               text = "Download Data to .CSV")),
+                           lengthMenu = list(c(10,25,50,-1),
+                                             c(10,25,50,"All")),
+                           columnDefs = list(list(className = "dt-center", 
+                                                  targets = c(0:12)))),
+            rownames = FALSE,
+            container = sum_col_layout,
+            filter = "top",
+            class = "cell-border stripe")
 ```
 
 ## Comparing Facility DDI and CoV {.tabset}
@@ -1019,7 +1088,9 @@ static_dq_matrix_vol_function("fouryearback")
 Table containing DDI and CoV(HasBeenE) values for all DQ filter years. 
 
 ```{r facility_table, echo=FALSE, warning=FALSE, message=FALSE}
-dq_table = facility_dq_data %>% mutate(across(where(is.numeric), round, 2))
+dq_table = facility_dq_data %>% 
+  mutate(across(where(is.numeric), round, 2)) %>%
+  arrange(hospitalName)
 
 col_layout = htmltools::withTags(table(
   class = 'display',
