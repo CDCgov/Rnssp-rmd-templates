@@ -270,3 +270,8 @@ return_longterm_query <- function(url, profile, loop_start, loop_end, by = 15) {
   return(all_data)
   
 }
+
+### Check if string is valid URL
+is_valid_url <- function(string) {
+  any(grepl("(https?|ftp)://[^\\s/$.?#].[^\\s]*", string))
+}

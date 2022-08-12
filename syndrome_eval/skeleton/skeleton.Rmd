@@ -32,7 +32,7 @@ params:
     label: "Chunk data pull (per day)?"
     value: false
   definition: 
-    label: "CCDD Category (Select up to 3):" 
+    label: "Grouping systems (Select up to 3):" 
     value: "CCDD Category: CDC All Drug v1"
     input: select
     choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "syndrome_eval", "skeleton", "syndef.rds"), destfile = fl); dplyr::pull(readRDS(fl), syndrome)
@@ -41,9 +41,9 @@ params:
     label: "Custom Query1 (Will Overwrite first CCDD definition):"
     value: ""
     input: text
-    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+    placeholder: "Free Text Query or Data Details CSV URL (overwrites previous inputs except Dates)"
   custom_query_label1:
-    label: "Enter label for Free Text Query1"
+    label: "Enter label for Custom Query1"
     value: ""
     input: text
     placeholder: "Influenza"
@@ -51,9 +51,9 @@ params:
     label: "Custom Query2 (Will Overwrite second CCDD definition):"
     value: ""
     input: text
-    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+    placeholder: "Free Text Query or Data Details CSV URL (overwrites previous inputs except Dates)"
   custom_query_label2:
-    label: "Enter label for Free Text Query2"
+    label: "Enter label for Custom Query2"
     value: ""
     input: text
     placeholder: "Influenza"
@@ -61,9 +61,9 @@ params:
     label: "Custom Query3 (Will Overwrite third CCDD definition):"
     value: ""
     input: text
-    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+    placeholder: "Free Text Query or Data Details CSV URL (overwrites previous inputs except Dates)"
   custom_query_label3:
-    label: "Enter label for Free Text Query3"
+    label: "Enter label for Custom Query3"
     value: ""
     input: text
     placeholder: "Influenza"
@@ -80,10 +80,10 @@ params:
 knitr::opts_chunk$set(echo = TRUE)
 
 # load packages
+library(Rnssp)
 library(plyr)
 library(tidyverse)
 library(tidyselect)
-library(Rnssp)
 library(plotly)
 library(eulerr)
 library(reactable)
@@ -92,6 +92,7 @@ library(tidytext)
 library(splitstackshape)
 library(UpSetR)
 ```
+
 
 ```{r free_text_checks, echo=FALSE, message=FALSE, warning=FALSE}
 params2 <- params
@@ -213,6 +214,12 @@ url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDe
 if (params$site != "All") {
   url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 }
+
+if(is_valid_url(params2$custom_query1)){
+  url <- paste0(params2$custom_query1, "&field=", fields) %>% 
+    change_dates(query_start, query_end)
+}
+
 ```
 
 
@@ -297,6 +304,11 @@ url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataD
 if (params2$site != "All") {
   url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
 }
+
+if(is_valid_url(params2$custom_query2)){
+  url2 <- paste0(params2$custom_query2, "&field=", fields) %>% 
+    change_dates(query_start, query_end)
+}
 ```
 
 ```{r def2_setup, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
@@ -379,6 +391,11 @@ url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataD
 
 if (params2$site != "All") {
   url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+}
+
+if(is_valid_url(params2$custom_query3)){
+  url3 <- paste0(params2$custom_query3, "&field=", fields) %>% 
+    change_dates(query_start, query_end)
 }
 ```
 
@@ -572,9 +589,6 @@ def2_elements_detected_table <- def2_elements_detected %>%
 ```
 
 
-
-
-
 ```{r def3_elements, echo=FALSE, message=FALSE, warning=FALSE, results='hide', eval=length(params2$definition) > 2}
 
 def3_elements <- def3_structure$`Syndrome Element`
@@ -624,9 +638,9 @@ author: `r query_start` to `r query_end`
 <!-- Custom Conditional Title -->
 <!-- One Syndrome Definintion Title -->
 ```{r title_oneDef, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) == 1}
-cat(
-  paste0(
-    "
+# cat(
+paste0(
+  "
 
 ***
 ### Individual Definition Information
@@ -636,10 +650,17 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 #### ", def1_short, "
 
 **Total Visits Identified:**  ",
-def1_total_pretty, "
+def1_total_pretty
+) %>% 
+  {
+    if(is_valid_url(params2$custom_query1)){
+      paste0(
+        .,
+        "
 
 **Query description:**
 <!-- Provide Your description down below   -->
+
 
 
 <details>
@@ -648,16 +669,21 @@ def1_structure_print, "
 </details>
 
 "
-  )
-)
+      )
+    } else{
+      .
+    }
+  } %>% 
+  cat()
+# )
 ```
 
 
 <!-- Individual Info for two and three syndrome definitions -->
 ```{r two_def_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) >= 2}
-cat(
-  paste0(
-    "
+# cat(
+paste0(
+  "
 
 ***
 ### Individual Definition Information  {.tabset}
@@ -667,10 +693,17 @@ Inclusion terms and codes are displayed in the table below (exclusion terms are 
 #### ", def1_short, "
 
 **Total Visits Identified:**  ",
-def1_total_pretty, "
+def1_total_pretty
+) %>% 
+  {
+    if(!is_valid_url(params2$custom_query1)){
+      paste0(
+        .,
+        "
 
 **Query description:**
 <!-- Provide Your description down below   -->
+
 
 
 <details>
@@ -679,11 +712,16 @@ def1_structure_print, "
 </details>
 
 "
-  )
-)
+      )
+    } else{
+      .
+    }
+  } %>% 
+  cat()
+# )
 ```
 
-```{r def1_table, echo=FALSE, message=FALSE, warning=FALSE, eval=TRUE}
+```{r def1_table, echo=FALSE, message=FALSE, warning=FALSE, eval=!is_valid_url(params2$custom_query1)}
 
 DT::datatable(def1_elements_detected_table,
               rownames = FALSE,
@@ -700,17 +738,23 @@ DT::datatable(def1_elements_detected_table,
 ```
 
 ```{r def2_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) >= 2}
-cat(
-  paste0(
-    "
+paste0(
+  "
 
 #### ", def2_short, "
 
 **Total Visits Identified:**  ",
-def2_total_pretty, "
+def2_total_pretty 
+) %>% 
+  {
+    if(!is_valid_url(params2$custom_query2)){
+      paste0(
+        .,
+        "
 
 **Query description:**
 <!-- Provide Your description down below   -->
+
 
 
 <details>
@@ -719,11 +763,15 @@ def2_structure_print, "
 </details>
 
 "
-  )
-)
+      )
+    } else{
+      .
+    }
+  } %>% 
+  cat()
 ```
 
-```{r def2_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) >= 2}
+```{r def2_table, echo=FALSE, message=FALSE, warning=FALSE, eval=(length(params2$definition) >= 2 & !is_valid_url(params2$custom_query2))}
 
 DT::datatable(def2_elements_detected_table,
               rownames = FALSE,
@@ -741,17 +789,23 @@ DT::datatable(def2_elements_detected_table,
 
 
 ```{r def3_name_info, echo=FALSE, message=FALSE, warning=FALSE, results='asis', eval=length(params2$definition) > 2}
-cat(
-  paste0(
-    "
+paste0(
+  "
 
 #### ", def3_short, "
 
 **Total Visits Identified:**  ",
-def3_total_pretty, "
+def3_total_pretty
+) %>% 
+  {
+    if(!is_valid_url(params2$custom_query3)){
+      paste0(
+        .,
+        "
 
 **Query description:**
 <!-- Provide Your description down below   -->
+
 
 
 <details>
@@ -760,11 +814,15 @@ def3_structure_print, "
 </details>
 
 "
-  )
-)
+      )
+    } else{
+      .
+    }
+  } %>% 
+  cat()
 ```
 
-```{r def3_table, echo=FALSE, message=FALSE, warning=FALSE, eval=length(params2$definition) > 2}
+```{r def3_table, echo=FALSE, message=FALSE, warning=FALSE, eval=(length(params2$definition) > 2 & !is_valid_url(params2$custom_query3))}
 
 DT::datatable(def3_elements_detected_table,
               rownames = FALSE,
@@ -1555,4 +1613,4 @@ write.csv(
 
 
 ___
-*The template for this report was originally created by [Sara Chronister](https://github.com/sara-chronister) (Maricopa County Department of Public Health), consolidated, and adapted to the Rnssp package by [Gbedegnon Roseric Azondekon](https://github.com/rosericazondekon). For questions, ideas for improvement/collaboration, or attribution, please submit an issue at <https://github.com/CDCgov/Rnssp-rmd-templates/issues>.*
+*The template for this report was originally created by [Sara Chronister](https://github.com/sara-chronister), consolidated, improved, and adapted to the Rnssp package by [Gbedegnon Roseric Azondekon](https://rosericazondekon.github.io). For questions, ideas for improvement/collaboration, or attribution, please submit an issue at <https://github.com/CDCgov/Rnssp-rmd-templates/issues>.*

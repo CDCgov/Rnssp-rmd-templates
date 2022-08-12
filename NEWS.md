@@ -155,6 +155,15 @@ This template explores the top N categories by volume for the new ICD Chapter, S
 
 <details>
 
+<summary>8/12/2022</summary>
+The Syndrome Definition Evaluation template has been updated.
+
+This update allows the user to input Free Text Queries or CSV type NSSP-ESSENCE DataDetails API URL as a custom query.
+
+</details>
+
+<details>
+
 <summary>1/14/2022</summary>
 The Syndrome Definition Evaluation template has been updated.
 
