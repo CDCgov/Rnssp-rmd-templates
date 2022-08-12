@@ -32,6 +32,26 @@ State Emergency Department template available.
 
 <details>
 
+<summary>8/12/2022</summary>
+The Text Mining template has been updated. 
+
+This version: 
+
+* Uses the quanteda library for pre-processing, cleansing, and tokenization of chief complaint free text and discharge diagnosis codes to optimize render time for larger data sets. 
+* Includes improvements for removal of discharge diagnosis codes from the chief complaint parsed field and free text from the discharge diagnosis field. 
+* Displays “ICD-9, SNOMED, or unknown DD code” for non-ICD-10 discharge diagnosis code descriptions rather than NA values. 
+* Uses an updated ICD-10 discharge diagnosis code description file that includes new codes published in late 2021. 
+* Uses the visNetwork package to render interactive network graphs for term correlation graphs (for chief complaint free text and discharge diagnosis codes).
+* Includes an updated description of template parameter options on the background page. 
+* No longer includes the character and token length of CC and DD fields tab. 
+* Includes improved Flexdashboard formatting and theme options.
+* Uses an up-to-date list of existing ESSENCE CCDD categories, subsyndromes, and syndromes for populating the syndrome definition drop-down list in the template GUI.
+* Combines permutations of 2 chief complaint terms or discharge diagnosis codes into a single bigram that is ordered alphabetically (alphanumerically for codes) so that bigram frequencies are combined. Note that this is not applied for chief complaint or discharge diagnosis trigrams. 
+
+</details>
+
+<details>
+
 <summary>10/19/2021</summary>
 The Text Mining template has been updated. 
 
