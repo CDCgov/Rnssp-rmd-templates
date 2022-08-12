@@ -30,6 +30,8 @@ Alternatively, users can download .zip releases of the templates for manual inte
 
 With the release of `Rnssp 0.1.0`, RStudio users can manage (add, update or remove) Rnssp R Markdown templates with the [Rnssp Addins](https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/).
 
+![](docs/usage/templatemanager/images/add_update_templates.gif)
+
 ## Contributing to this project
 Should you want to contribute to this project, submit a push request to this Github repository and consider submitting a request to be added as a developer to gazondekon@cdc.gov.
 
