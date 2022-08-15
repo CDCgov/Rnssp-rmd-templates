@@ -152,11 +152,11 @@ facility_dq_data <- facility_dq_data %>%
     twoYearBackWeeklyCOVHasBeenE,
     threeYearBackWeeklyCOVHasBeenE,
     fourYearBackWeeklyCOVHasBeenE,
-    ddinformativeAvgWeeklyPercentCurrentYear,
-    ddinformativeAvgWeeklyPercentOneYearBack,
-    ddinformativeAvgWeeklyPercentTwoYearBack,
-    ddinformativeAvgWeeklyPercentThreeYearBack,
-    ddinformativeAvgWeeklyPercentFourYearBack
+    ddInformativeAvgWeeklyPercentCurrentYear,
+    ddInformativeAvgWeeklyPercentOneYearBack,
+    ddInformativeAvgWeeklyPercentTwoYearBack,
+    ddInformativeAvgWeeklyPercentThreeYearBack,
+    ddInformativeAvgWeeklyPercentFourYearBack
   ) %>%
   rename(
     "COVHasBeenEWeeklycurrentYear" = "currentYearWeeklyCOVHasBeenE",
@@ -170,9 +170,9 @@ facility_dq_data <- facility_dq_data %>%
 # convert dq data from wide to long
 ddi_long <- facility_dq_data %>%
   pivot_longer(
-    cols = starts_with("ddinformativeAvgWeeklyPercent"),
+    cols = starts_with("ddInformativeAvgWeeklyPercent"),
     names_to = "dq_year",
-    names_prefix = "ddinformativeAvgWeeklyPercent",
+    names_prefix = "ddInformativeAvgWeeklyPercent",
     values_to = "ddi",
     values_drop_na = FALSE
   ) %>%
