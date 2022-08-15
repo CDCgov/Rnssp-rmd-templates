@@ -81,6 +81,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # load packages
 library(Rnssp)
+library(cli)
 library(plyr)
 library(tidyverse)
 library(tidyselect)
@@ -454,7 +455,7 @@ if(params$chunk_pull){
   )
 } else {
   def1_full <- try(
-    myProfile$get_api_data(def1_url, fromCSV = TRUE),
+    myProfile$get_api_data(def1_url, fromCSV = TRUE, show_col_types = FALSE),
     silent = TRUE
   )
 }
@@ -482,7 +483,7 @@ def1_total_pretty <- format(def1_total, big.mark = ",", scientific = FALSE)
 if(params$chunk_pull){
   def2_full <- return_longterm_query(def2_url, profile = myProfile, params$start_date, params$end_date, by = 1)
 } else {
-  def2_full <- myProfile$get_api_data(def2_url, fromCSV = TRUE)
+  def2_full <- myProfile$get_api_data(def2_url, fromCSV = TRUE, show_col_types = FALSE)
 }
 
 
@@ -499,7 +500,7 @@ def2_total_pretty <- format(def2_total, big.mark = ",", scientific = FALSE)
 if(params$chunk_pull){
   def3_full <- return_longterm_query(def3_url, profile = myProfile, params$start_date, params$end_date, by = 1)
 } else {
-  def3_full <- myProfile$get_api_data(def3_url, fromCSV = TRUE)
+  def3_full <- myProfile$get_api_data(def3_url, fromCSV = TRUE, show_col_types = FALSE)
 }
 
 def3 <- def3_full %>%
