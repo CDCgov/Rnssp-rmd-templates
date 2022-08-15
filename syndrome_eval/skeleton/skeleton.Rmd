@@ -985,6 +985,7 @@ ts_plot_def1 <- plot_ly() %>%
   ) %>%
   layout(
     hovermode = "compare",
+    yaxis = list(rangemode = "tozero"),
     xaxis = list(
       range = c(min(fill_dates$Date), max(fill_dates$Date)),
       rangeslider = list(type = "date", thickness = 0.1),
@@ -1000,6 +1001,7 @@ ts_plot_def2 <- plot_ly() %>%
   ) %>%
   layout(
     hovermode = "compare",
+    yaxis = list(rangemode = "tozero"),
     xaxis = list(
       range = c(query_start, query_end),
       rangeslider = list(type = "date", thickness = 0.1),
@@ -1019,6 +1021,7 @@ ts_plot_def1 <- plot_ly() %>%
   ) %>%
   layout(
     hovermode = "compare",
+    yaxis = list(rangemode = "tozero"),
     xaxis = list(
       range = c(min(fill_dates$Date), max(fill_dates$Date)),
       rangeslider = list(type = "date", thickness = 0.1)
@@ -1033,6 +1036,7 @@ ts_plot_def2 <- plot_ly() %>%
   ) %>%
   layout(
     hovermode = "compare",
+    yaxis = list(rangemode = "tozero"),
     xaxis = list(
       range = c(query_start, query_end),
       rangeslider = list(type = "date", thickness = 0.1)
@@ -1047,6 +1051,7 @@ ts_plot_def3 <- plot_ly() %>%
   ) %>%
   layout(
     hovermode = "compare",
+    yaxis = list(rangemode = "tozero"),
     xaxis = list(
       range = c(query_start, query_end),
       rangeslider = list(type = "date", thickness = 0.1)
