@@ -17,32 +17,47 @@ params:
     placeholder: "password"
   start_date:
     label: "Enter Start Date:"
-    value: !r as.Date(cut(Sys.Date() - 90, "week", start.on.monday = FALSE))
+    value: !r as.Date(Sys.Date() - 89)
     input: date
   end_date:
     label: "Enter End Date:"
-    value: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 2
-    max: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 2
+    value: !r as.Date(Sys.Date())
     input: date
+  has_been_E:
+    label: "Has been Emergency (Full Details only): "
+    value: true
   data_source:
     label: "Data Source:"
-    value: Facility Location (Full Details - Site level User Only!)
+    value: Facility Location (Full Details)
     input: select
-    choices: [CCQV Datamart Backup (NSSP User Only!), Facility Location (Full Details - Site level User Only!)]
+    choices: [CCQV Datamart Backup (NSSP User Only!), Facility Location (Full Details)]
   site:
-    label: "Limit to Site (only if using full details for site level user)"
-    value: Alabama
-    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "nca_hosp.rds"), destfile = stn); dplyr::pull(tail(readRDS(stn), -1), site_name)
+    label: "Limit to Site (Full Details only): "
+    value: "All"
     input: select
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "word_alerts", "skeleton", "nca_hosp.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
     multiple: no
-  definition:
-    label: "Syndrome Definition:"
-    value: "Syndrome: ILI"
+  age_groups: 
+    label: "Age Groups (Full Details only): "
+    value: "All Ages"
     input: select
-    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(tail(definitions, -1), syndrome)
-  has_been_E:
-    label: "Has been Emergency (only if using full details for site level user): "
-    value: true
+    choices: !r agrp <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "word_alerts", "skeleton", "essagegrps.rds"), destfile = agrp); dplyr::pull(readRDS(agrp), display_name)
+    multiple: yes
+  definition: 
+    label: "Syndrome Definition: " 
+    value: "None (Custom CCDD Query)"
+    input: select
+    choices: !r fl <- readRDS("syndef.rds"); definitions <- tibble::add_row(fl, syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
+  ccdd_query: 
+    label: "CCDD Query (Full Details only):"
+    value: ""
+    input: text
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+  complex_query: 
+    label: "Complex Query (Full Details only - will override all previous parameters):"
+    value: ""
+    input: text
+    placeholder: "ESSENCE Data Details API URL (NOTE: Please use CSV option!)"
   doc_title:
     label: "Title:"
     value: NSSP-ESSENCE Word Alerts
@@ -56,8 +71,6 @@ margin-left: auto;
 margin-right: auto;
 }
 </style>
-
-
 
 ```{r libraries, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -162,13 +175,15 @@ caption {
 
 ```{r specification, echo = FALSE, warning = FALSE, message = FALSE}
 
+source("helpers.R")
+
 end_date_api <- format(params$end_date, "%d%b%Y")
 start_date_api <- format(params$start_date, "%d%b%Y")
 
 end_date <- as.Date(params$end_date)
 start_date <- as.Date(params$start_date)
 
-length <- as.numeric(end_date - start_date)
+length <- as.numeric(end_date - start_date) + 1
 
 definition <- params$definition
 definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome"))
@@ -177,10 +192,109 @@ definition_string <- str_squish(str_remove_all(definition, "CCDD Category:|Subsy
 db_query <- params$data_source == "CCQV Datamart Backup (NSSP User Only!)"
 db_query_length <- db_query & length > 90
 
-api_query <- params$data_source == "Facility Location (Full Details - Site level User Only!)"
+api_query <- params$data_source == "Facility Location (Full Details)"
 api_query_length <- api_query & length > 90
 
+if (nchar(params$complex_query) > 0) {
+  url <- params$complex_query
+
+  end_date_api <- regmatches(url, regexpr("endDate=.+?&", url)) %>%
+    str_extract("[0-9]{1,2}[a-zA-Z]{3}[0-9]{2,4}") %>%
+    as.Date(format = "%d%b%Y")
+
+  start_date_api <- regmatches(url, regexpr("startDate=.+?&", url)) %>%
+    str_extract("[0-9]{1,2}[a-zA-Z]{3}[0-9]{2,4}") %>%
+    as.Date(format = "%d%b%Y")
+
+  end_date <- end_date_api
+  start_date <- start_date_api
+
+  length <- as.numeric(end_date_api - start_date_api) + 1
+
+  api_query_length <- (nchar(params$complex_query) > 0) & length > 90
+}
+
 limit_ed <- as.numeric(params$has_been_E)
+
+premature_quit <- params$definition == "None (Custom CCDD Query)" &
+  (params$ccdd_query == "" | is.null(params$ccdd_query) | grepl("^\\s*$", params$ccdd_query)) & params$complex_query == ""
+```
+
+```{r knit_exit_condition, echo = FALSE, message = FALSE, include = FALSE, warning = FALSE, eval = premature_quit}
+knitr::knit_exit("Render ends prematurely.
+                 You choose a Custom CCDD Query definition without supplying a Free Text Query!")
+```
+
+```{r check datamart connection, echo = FALSE, warning = FALSE, message = FALSE, eval = (!db_query_length) & db_query}
+con <- try(dbConnect(odbc::odbc(), dsn = "Prod_NSSP_Web"), silent = TRUE)
+
+if (class(con) == "try-error") {
+  knitr::knit_exit("Render ends prematurely.
+                 You do not have access to Prod_NSSP_Web or the connection failed. If you do have access, close all of your active sessions, sign out of RStudio, and sign back in to try again.")
+} else {
+  dbDisconnect(con)
+}
+```
+
+```{r knit exit db length, echo = FALSE, message = FALSE, include = FALSE, warning = FALSE, eval = db_query_length}
+
+knitr::knit_exit("Expensive database query! Render ends prematurely.
+                   The Rnssp word alerts template only supports datamart pulls spanning 90 days or less.")
+```
+
+```{r knit exit api length, echo = FALSE, message = FALSE, include = FALSE, warning = FALSE, eval = api_query_length}
+
+knitr::knit_exit("Expensive query! Render ends prematurely.
+                   The Rnssp word alerts template only supports API data pulls spanning 90 days or less.")
+```
+
+### **Selected Parameters**
+
+```{r parameter tab, echo = FALSE, warning = FALSE, message = FALSE, ft.align = "left"}
+
+source_used <- params$data_source
+ccqv_param_reset <- source_used == "CCQV Datamart Backup (NSSP User Only!)"
+complex_query_reset <- nchar(params$complex_query) > 0
+
+param_df <- tibble(
+  `Start Date` = params$start_date,
+  `End Date` = params$end_date,
+  `Has been Emergency` = params$has_been_E,
+  `Data Source` = params$data_source,
+  `Site` = params$site,
+  `Age Group` = paste(params$age_groups, collapse = ", "),
+  `Syndrome` = params$definition,
+  `CCDD Query` = params$ccdd_query,
+  `Complex Query` = params$complex_query
+) %>%
+  mutate(
+    `Start Date` = format(`Start Date`, "%B %d, %Y"),
+    `End Date` = format(`End Date`, "%B %d, %Y"),
+    `Has been Emergency` = ifelse(`Has been Emergency`, "Yes", "No")
+  ) %>%
+  mutate(
+    `Has been Emergency` = ifelse(ccqv_param_reset, "Not available in CCQV backup", `Has been Emergency`),
+    `Site` = ifelse(ccqv_param_reset, "All CCQV Sites", `Site`),
+    `Age Group` = ifelse(ccqv_param_reset, "All Ages", `Age Group`),
+    `CCDD Query` = ifelse(ccqv_param_reset, NA, `CCDD Query`),
+    `Complex Query` = ifelse(ccqv_param_reset, NA, `Complex Query`)
+  ) %>%
+  mutate(
+    `Has been Emergency` = ifelse(complex_query_reset, NA, `Has been Emergency`),
+    `Site` = ifelse(complex_query_reset, NA, `Site`),
+    `Age Group` = ifelse(complex_query_reset, NA, `Age Group`),
+    `Syndrome` = ifelse(complex_query_reset, NA, `Syndrome`),
+    `CCDD Query` = ifelse(complex_query_reset, NA, `CCDD Query`)
+  ) %>%
+  pivot_longer(everything(), names_to = "Parameter", values_to = "Value")
+
+param_df %>%
+  flextable() %>%
+  width(width = 5) %>%
+  theme_box() %>%
+  bg(bg = "#006BB8", part = "header") %>%
+  color(color = "white", part = "header") %>%
+  set_caption(caption = "User-selected Parameters")
 ```
 
 ### **Stop word removal**
@@ -192,7 +306,7 @@ To remove uninformative terms from chief complaint free text, a combination of 4
 * ICD-10 discharge diagnosis codes which can (and do) occur in the chief complaint 
 * Common first names 
 
-Any punctuation (apostrophes, hyphens, etc.) is removed from the list of stop words, which is then capitalized to be consistent with parsed chief complaints. The following table demonstrates the first 5 stop words for each class. 
+Any punctuation (apostrophes, hyphens, etc.) is removed from the list of stop words, which is then capitalized to be consistent with parsed chief complaints. Please see the [report appendix](#report-appendix) at the end of this template for example stop words within each class.
 
 ```{r stop words, echo = FALSE, warning = FALSE, message = FALSE, rows.print = 25}
 
@@ -220,42 +334,7 @@ stopterms <- bind_rows(
     word = toupper(word),
     word = str_remove_all(word, pattern = "[[:punct:]]")
   )
-
-stopterms %>%
-  group_by(type) %>%
-  slice_head(n = 5) %>%
-  regulartable() %>%
-  theme_booktabs() %>%
-  set_header_labels(
-    word = "Stop Word",
-    type = "Type"
-  ) %>%
-  vline(part = "all", j = 1, border = officer::fp_border(color = "black", width = 1)) %>%
-  border_outer(part = "all", border = officer::fp_border(color = "black", width = 1)) %>%
-  hline(i = 5, border = officer::fp_border(color = "black", width = 1)) %>%
-  hline(i = 10, border = officer::fp_border(color = "black", width = 1)) %>%
-  hline(i = 15, border = officer::fp_border(color = "black", width = 1)) %>%
-  hline(i = 20, border = officer::fp_border(color = "black", width = 1)) %>%
-  width(width = 4)
 ```
-
-```{r check datamart connection, echo = FALSE, warning = FALSE, message = FALSE, eval = (!db_query_length) & db_query}
-con <- try(dbConnect(odbc::odbc(), dsn = "Prod_NSSP_Web"), silent = TRUE)
-
-if (class(con) == "try-error") {
-  knitr::knit_exit("Render ends prematurely.
-                 You do not have access to Prod_NSSP_Web or the connection failed. If you do have access, close all of your active sessions, sign out of RStudio, and sign back in to try again.")
-} else {
-  dbDisconnect(con)
-}
-```
-
-```{r knit exit db length, echo = FALSE, message = FALSE, include = FALSE, warning = FALSE, eval = db_query_length}
-
-knitr::knit_exit("Expensive database query! Render ends prematurely.
-                   The Rnssp word alerts template only supports datamart pulls spanning 90 days or less.")
-```
-
 
 ```{r cache ER base CCQV pull, echo = FALSE, warning = FALSE, message = FALSE, eval = (!db_query_length) & db_query}
 
@@ -343,36 +422,87 @@ myProfile <- Credentials$new(
 )
 ```
 
-```{r knit exit api length, echo = FALSE, message = FALSE, include = FALSE, warning = FALSE, eval = api_query_length}
-
-knitr::knit_exit("Expensive query! Render ends prematurely.
-                   The Rnssp word alerts template only supports API data pulls spanning 90 days or less.")
-```
-
 ```{r site level API, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
 
-if (definition_pattern == "CCDD Category") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
-  definition_type <- "a_ccdd_"
+if (nchar(params$complex_query) > 0) {
+  url <- params$complex_query
+
+  if (!grepl("&field=", url)) {
+    url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+  }
+
+  definition <- "None (Complex Query)"
+} else {
+  definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
+
+  if (definition_pattern == "CCDD Category") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
+    definition_type <- "a_ccdd_"
+  }
+
+  if (definition_pattern == "Subsyndrome") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
+    definition_type <- "c_sub_"
+  }
+
+  if (definition_pattern == "Syndrome") {
+    definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
+    definition_type <- "b_syn_"
+  }
+
+  if (definition_pattern == "None (Custom CCDD Query)") {
+    definition_string <- str_replace_all(params$ccdd_query, "\\^", "%5E") %>%
+      str_replace_all(" ", "%20") %>%
+      str_replace_all("\\[", "%5B") %>%
+      str_replace_all("\\]", "%5D")
+    definition_type <- "&ccddFreeText="
+    grouping_system <- "essencesyndromes"
+  }
+
+  if (params$site != "All") {
+    site_id <- readRDS("nca_hosp.rds") %>%
+      filter(site_name == params$site) %>%
+      pull(site_id)
+  }
+
+  if (params$age_groups == "All Ages") {
+    if (params$site == "All") {
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+    } else {
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+    }
+  } else {
+    age_group_string <- params$age_groups %>%
+      str_replace_all(": ", "=") %>%
+      str_replace_all(" ", "") %>%
+      paste(collapse = "&age") %>%
+      str_remove_all("AgeGroup|Reporting") %>%
+      str_replace_all("Distribute", "distribute") %>%
+      str_replace_all("School", "school") %>%
+      paste0("age", .)
+
+    if (grepl("age\\d{1}", age_group_string)) {
+      age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
+    }
+
+    if (params$site == "All") {
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+    } else {
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+    }
+  }
 }
 
-if (definition_pattern == "Subsyndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
-  definition_type <- "c_sub_"
-}
-
-if (definition_pattern == "Syndrome") {
-  definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
-  definition_type <- "b_syn_"
-}
-
-site_id <- readRDS("nca_hosp.rds") %>%
-  filter(site_name == params$site) %>%
-  pull(site_id)
-
-url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&combinedCategory=", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
-
-api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE), silent = FALSE)
+api_data <- try(
+  return_longterm_query(
+    url,
+    profile = myProfile,
+    loop_start = start_date,
+    loop_end = end_date,
+    by = 1
+  ),
+  silent = FALSE
+)
 
 premature_quit_essence <- any(
   all(class(api_data) == "try-error"),
@@ -386,6 +516,7 @@ if (premature_quit_essence) {
 ```
 
 ```{r site level preprocess, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
+
 ccqv_data <- api_data %>%
   clean_names() %>%
   separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
@@ -407,7 +538,7 @@ premature_quit_length <- n_days <= 30
 
 data_source <- "NSSP-ESSENCE"
 
-date_range <- paste(format(min(ccqv_data$date), "%B %d, %Y"), "to", format(max(ccqv_data$date), "%B %d, %Y"))
+date_range <- paste(format(start_date, "%B %d, %Y"), "to", format(end_date, "%B %d, %Y"))
 
 dates <- ccqv_data %>%
   arrange(date) %>%
@@ -424,26 +555,29 @@ if (premature_quit_length) {
 
 ### **Further Processing and Cleansing of Chief Complaint Parsed Field**
 
-In total, `r format(nrow(ccqv_data), big.mark = ",")` CCQV records identified by the `r definition` syndrome are pulled from `r data_source` with a date range of `r date_range`. `r note` The following uses the `quanteda` library to efficiently remove stop words from `stopterms` and other common English stop words pulled from the `stopwords()` function, tokenize into the corpus of chief complaint parsed text into bigrams, convert to a document feature matrix (`dfm` object), and extract daily bigram frequencies for each feature. Like `data.table`, the `quanteda` library allows users to specify the number of threads used. NSSP's instance of RStudio Workbench has 48 total cores available, of which half are used below. `quanteda` is compatible with the `magrittr` pipe, allowing for implicit creation of the daily feature frequency data frame, `cc_bigram_freq`. 
+In total, `r format(nrow(ccqv_data), big.mark = ",")` ED encounters identified by the Rash syndrome are pulled from `r data_source` with a date range of `r date_range`. `r note` The following uses the `quanteda` library to efficiently remove stop words from `stopterms` and other common English stop words pulled from the `stopwords()` function, tokenize into the corpus of chief complaint parsed text into bigrams, convert to a document feature matrix (`dfm` object), and extract daily bigram frequencies for each feature. Like `data.table`, the `quanteda` library allows users to specify the number of threads used. NSSP's instance of RStudio Workbench has 48 total cores available, of which half are used below. `quanteda` is compatible with the `magrittr` pipe, allowing for implicit creation of the daily feature frequency data frame, `cc_bigram_freq`. 
 
 ```{r volume, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 9, fig.height = 5, fig.align = "center"}
 
 volume <- ccqv_data %>%
-  count(date)
+  count(date) %>%
+  complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
+  arrange(date)
 
 ggplot(data = volume) +
   geom_line(aes(x = date, y = n), size = 1.0, color = "#005EAA") +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(
     x = "Date",
-    y = "Daily Volume"
+    y = "Daily Encounters"
   ) +
   theme_bw() +
   labs(
-    title = paste("Daily Volume for", definition),
+    title = paste("Daily ED Encounters for", definition),
     subtitle = date_range
   ) +
-  theme(plot.title = element_text(face = "bold"))
+  theme(plot.title = element_text(face = "bold")) +
+  scale_x_date(date_breaks = "15 day", date_labels = "%b %d\n%Y")
 ```
 
 ```{r quanteda corpus CC, echo = FALSE, warning = FALSE, message = FALSE}
@@ -545,14 +679,14 @@ dd_bigram_freq <- dd_corpus %>%
 
 ### **Description of Word Alert Algorithm** 
 
-The ESSENCE word alert algorithm uses 28 day baselines over which unigram or bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (last 24 hours), contingency tables are formed to count the number of emergency department visits with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department visits without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks. 
+The ESSENCE word alert algorithm uses 28 day baselines over which unigram or bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (last 24 hours), contingency tables are formed to count the number of emergency department visits with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department visits without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks. **Note:** *The two-by-two table below is a fixed example and is not based on the data pulled for the selected syndrome in this template.*
 
 ```{r contingency table, echo = FALSE, warning = FALSE, message = FALSE}
 
 tab <- data.frame(
   group = c("Test (Last 24 Hours)", "Baseline (28 Days)"),
-  col1 = c(paste("A:", 3), paste("C:", 7, 243)),
-  col2 = c(paste("B:", 59), paste("D:", 231, 649))
+  col1 = c(paste("A:", 136), paste("C:", format(2851, big.mark = ","))),
+  col2 = c(paste("B:", format(5111, big.mark = ",")), paste("D:", format(149477, big.mark = ",")))
 )
 
 tab %>%
@@ -563,7 +697,7 @@ tab %>%
     col2 = "Visits without Term"
   ) %>%
   autofit() %>%
-  set_caption(caption = paste("Two by two contingency table for", "ABDOMINAL HEADACHE")) %>%
+  set_caption(caption = paste("Two by two contingency table for chief complaint bigram", "RASH SKIN")) %>%
   theme_box() %>%
   color(color = "black", part = "all")
 ```
@@ -575,13 +709,13 @@ To test for anomalous increases in term occurrence on the test date relative to 
 ```{r process blocks CC, echo = FALSE, warning = FALSE, message = FALSE, output = FALSE}
 
 dates <- seq.Date(from = as.Date(min(ccqv_data$date)), to = as.Date(max(ccqv_data$date)), by = "1 day")
-iter_dates <- head(dates, length(dates) - 30 - 3)
+iter_dates <- head(dates, length(dates) - 30)
 blocks <- as.list(iter_dates)
 
 itr_blocks <- blocks %>%
   map(.f = function(.x) {
     .start <- as.IDate(.x)
-    .end <- as.IDate(.x + 28 + 1)
+    .end <- as.IDate(.x + 28 - 1)
 
     base <- cc_unigram_freq %>%
       .[date >= .start & date <= .end]
@@ -700,7 +834,7 @@ res_out_ccunigram <- itr_blocks %>%
 itr_blocks <- blocks %>%
   map(.f = function(.x) {
     .start <- as.IDate(.x)
-    .end <- as.IDate(.x + 28 + 1)
+    .end <- as.IDate(.x + 28 - 1)
 
     base <- cc_bigram_freq %>%
       .[date >= .start & date <= .end]
@@ -816,19 +950,19 @@ itr_blocks <- blocks %>%
 res_out_ccbigram <- itr_blocks %>%
   rbindlist()
 
-test_date <- max(ccqv_data$date) - 4
+test_date <- max(ccqv_data$date)
 ```
 
 ```{r process blocks DD, echo = FALSE, warning = FALSE, message = FALSE, output = FALSE}
 
 dates <- seq.Date(from = as.Date(min(ccqv_data$date)), to = as.Date(max(ccqv_data$date)), by = "1 day")
-iter_dates <- head(dates, length(dates) - 30 - 3)
+iter_dates <- head(dates, length(dates) - 30)
 blocks <- as.list(iter_dates)
 
 itr_blocks <- blocks %>%
   map(.f = function(.x) {
     .start <- as.IDate(.x)
-    .end <- as.IDate(.x + 28 + 1)
+    .end <- as.IDate(.x + 28 - 1)
 
     base <- dd_unigram_freq %>%
       .[date >= .start & date <= .end]
@@ -947,7 +1081,7 @@ res_out_ddunigram <- itr_blocks %>%
 itr_blocks <- blocks %>%
   map(.f = function(.x) {
     .start <- as.IDate(.x)
-    .end <- as.IDate(.x + 28 + 1)
+    .end <- as.IDate(.x + 28 - 1)
 
     base <- dd_bigram_freq %>%
       .[date >= .start & date <= .end]
@@ -1064,10 +1198,10 @@ itr_blocks <- blocks %>%
 res_out_ddbigram <- itr_blocks %>%
   rbindlist()
 
-test_date <- max(ccqv_data$date) - 4
+test_date <- max(ccqv_data$date)
 ```
 
-```{r CC alert counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6, fig.align = "center"}
+```{r CC alert counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 6, fig.align = "center"}
 
 min_date <- start_date + 28 + 1 + 3
 max_date <- test_date
@@ -1148,59 +1282,107 @@ if (nrow(res_out_ddbigram) > 0) {
     )
 }
 
-date_range <- paste(format(min(res_out_ccbigram$date_test), "%B %d, %Y"), "to", format(test_date, "%B %d, %Y"))
+date_range <- paste(format(min_date, "%B %d, %Y"), "to", format(test_date, "%B %d, %Y"))
 ceiling <- max(daily_cc_alerts_bigram$n, daily_cc_alerts_unigram$n, daily_dd_alerts_unigram$n, daily_dd_alerts_bigram$n)
 
 plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
-  geom_line(aes(x = date_test, y = n), color = "#26418F", size = 1.0) +
-  scale_y_continuous(name = "CC Unigram Alerts", limits = c(0, ceiling + 5)) +
+  geom_col(aes(x = date_test, y = n), color = "black", fill = "#26418F") +
+  scale_y_continuous(
+    name = "CC Unigram Alerts",
+    limits = c(0, ceiling + 5),
+    breaks = scales::pretty_breaks(),
+    expand = c(0, 0)
+  ) +
   scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
-    title = "CC Unigram"
+    title = "Chief Complaint Unigram Alerts"
   ) +
   theme(
-    plot.title = element_text(face = "bold")
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"),
+    axis.ticks.length = unit(.25, "cm"),
+    plot.margin = unit(c(0.5, 1, 0.5, 1), "cm")
   )
 
 plotcc_bigram <- ggplot(data = daily_cc_alerts_bigram) +
-  geom_line(aes(x = date_test, y = n), color = "#26418F", size = 1.0) +
-  scale_y_continuous(name = "CC Bigram Alerts", limits = c(0, ceiling + 5)) +
+  geom_col(aes(x = date_test, y = n), color = "black", fill = "#26418F") +
+  scale_y_continuous(
+    name = "CC Bigram Alerts",
+    limits = c(0, ceiling + 5),
+    breaks = scales::pretty_breaks(),
+    expand = c(0, 0)
+  ) +
   scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
-    title = "CC Bigram"
+    title = "Chief Complaint Bigram Alerts"
   ) +
   theme(
-    plot.title = element_text(face = "bold")
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"),
+    axis.ticks.length = unit(.25, "cm"),
+    plot.margin = unit(c(0.5, 1, 0.5, 1), "cm")
   )
 
 plotdd_unigram <- ggplot(data = daily_dd_alerts_unigram) +
-  geom_line(aes(x = date_test, y = n), color = "#497D0C", size = 1.0) +
-  scale_y_continuous(name = "DD Unigram Alerts", limits = c(0, ceiling + 5)) +
+  geom_col(aes(x = date_test, y = n), color = "black", fill = "#497D0C") +
+  scale_y_continuous(
+    name = "DD Unigram Alerts",
+    limits = c(0, ceiling + 5),
+    breaks = scales::pretty_breaks(),
+    expand = c(0, 0)
+  ) +
   scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
-    title = "DD Unigram"
+    title = "Discharge Diagnosis Unigram Alerts"
   ) +
   theme(
-    plot.title = element_text(face = "bold")
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"),
+    axis.ticks.length = unit(.25, "cm"),
+    plot.margin = unit(c(0.5, 1, 0.5, 1), "cm")
   )
 
 plotdd_bigram <- ggplot(data = daily_dd_alerts_bigram) +
-  geom_line(aes(x = date_test, y = n), color = "#497D0C", size = 1.0) +
-  scale_y_continuous(name = "DD Bigram Alerts", limits = c(0, ceiling + 5)) +
+  geom_col(aes(x = date_test, y = n), color = "black", fill = "#497D0C") +
+  scale_y_continuous(
+    name = "DD Bigram Alerts",
+    limits = c(0, ceiling + 5),
+    breaks = scales::pretty_breaks(),
+    expand = c(0, 0)
+  ) +
   scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
-    title = "DD Bigram"
+    title = "Discharge Diagnosis Bigram Alerts"
   ) +
   theme(
-    plot.title = element_text(face = "bold")
+    plot.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    strip.background = element_blank(),
+    panel.border = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"),
+    axis.ticks.length = unit(.25, "cm"),
+    plot.margin = unit(c(0.5, 1, 0.5, 1), "cm")
   )
 
 plots_combined <- (plotcc_unigram | plotdd_unigram) / (plotcc_bigram | plotdd_bigram)
@@ -1222,13 +1404,14 @@ daily_alerts_combined <- daily_cc_alerts_unigram %>%
 pal <- c("#26418F", "#26418F", "#497D0C", "#497D0C")
 
 ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
-  geom_boxplot(outlier.color = "black", outlier.size = 2) +
+  stat_boxplot(geom = "errorbar", width = 0.5) +
+  geom_boxplot(outlier.color = "black", outlier.size = 2, outlier.shape = 21, outlier.fill = "white") +
   theme_bw() +
   scale_fill_manual(values = pal, name = "Field") +
   labs(
     x = "Field",
-    y = "n-grem Alerts",
-    title = "Distribution of n-gram Alerts by Field",
+    y = "Daily Alert Counts",
+    title = "Distribution of Unigram and Bigram Alerts by Field",
     subtitle = date_range
   ) +
   theme(
@@ -1246,14 +1429,14 @@ max_date <- test_date
 
 if (!is_empty(res_out_ccunigram)) {
   cc_alerts_unigram <- res_out_ccunigram %>%
-    filter(date_test == test_date) %>%
     select(
+      date_test,
       unigram,
       freq = frequency,
       p.value,
       scale
     ) %>%
-    arrange(unigram) %>%
+    arrange(date_test, unigram) %>%
     mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"))
 } else {
   cc_alerts_unigram <- data.frame()
@@ -1262,7 +1445,7 @@ if (!is_empty(res_out_ccunigram)) {
 visit_denominators <- ccqv_data %>%
   as.data.frame() %>%
   count(date) %>%
-  filter(date >= min(res_out_ccunigram$date) & date <= test_date) %>%
+  filter(date >= min(res_out_ccunigram$date)) %>%
   mutate(date = as.Date(date))
 
 if (nrow(cc_alerts_unigram) > 0) {
@@ -1347,58 +1530,70 @@ if (nrow(cc_alerts_unigram) > 0) {
     cat(paste("Only one day of unigram alerts. Refer to table below."))
   }
 } else {
-  cat(paste("No chief complaint unigram alerts identified on", format(test_date, "%B %d, %Y")))
+  cat(paste("No chief complaint unigram alerts identified for", date_range))
 }
 ```
 
 ```{r cc unigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(cc_alerts_unigram) > 0) {
-  cc_trends_unigram <- cc_unigram_freq %>%
+  min_date <- start_date + 28 + 1 + 3
+  max_date <- test_date
+
+  visit_denominators <- ccqv_data %>%
     as.data.frame() %>%
-    filter(feature %in% cc_alerts_unigram$unigram) %>%
+    count(date) %>%
+    mutate(date = as.Date(date)) %>%
+    complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
+    arrange(date)
+
+  cc_trends_unigram <- cc_alerts_unigram %>%
+    arrange(date_test, unigram) %>%
+    inner_join(cc_unigram_freq, by = c("unigram" = "feature")) %>%
     select(-group) %>%
-    tidyr::complete(feature, date = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(frequency = 0)) %>%
-    filter(date >= min_date & date <= test_date) %>%
+    arrange(date_test, date) %>%
+    group_by(unigram_id = unigram) %>%
+    tidyr::complete(unigram, date = as.IDate(seq.Date(start_date, end_date, by = "day")), fill = list(frequency = 0)) %>%
+    arrange(unigram, date) %>%
     mutate(
-      test = test_date,
-      date = as.Date(date)
+      historical_alert = ifelse(date == date_test & !is.na(date_test), TRUE, FALSE),
+      p.value_current = last(na.omit(p.value)),
+      p.value_current = format(p.value_current, digits = 2, scientific = TRUE),
+      p.value = case_when(
+        date < min_date ~ "0.5",
+        date == date_test ~ format(p.value, digits = 2, scientific = TRUE),
+        TRUE ~ ">0.001"
+      ),
+      date_test = last(na.omit(date_test)),
+      freq = last(na.omit(freq)),
+      scale = last(na.omit(scale)),
+      detector = last(na.omit(detector))
     ) %>%
-    left_join(visit_denominators, by = "date") %>%
-    mutate(prop = frequency / n) %>%
-    mutate(date = as.IDate(date)) %>%
-    left_join(
-      res_out_ccunigram %>%
-        .[, c("unigram", "date_test", "p.value", "significant", "scale")],
-      by = c("feature" = "unigram", "date" = "date_test")
-    ) %>%
+    ungroup() %>%
+    mutate(date = as.Date(date)) %>%
+    inner_join(visit_denominators, by = "date") %>%
     mutate(
-      p.value = ifelse(is.na(p.value), 0.5, p.value),
-      significant = ifelse(is.na(significant), FALSE, significant)
-    ) %>%
-    group_by(feature) %>%
-    mutate(
-      freq = last(frequency),
-      p.value_current = last(p.value),
-      scale = last(scale)
-    ) %>%
-    ungroup()
+      prop = frequency / n,
+      prop = ifelse(is.nan(prop), 0, prop)
+    )
 
   ccunigram_table <- cc_trends_unigram %>%
     select(
-      feature,
+      feature = unigram,
+      date_test,
       date,
       prop,
       p.value,
       p.value_current,
-      scale
+      scale,
+      historical_alert
     ) %>%
-    nest(data = c(date, prop, p.value)) %>%
+    nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA,
-      p.value_current = as.numeric(format(p.value_current, digits = 2, scientific = TRUE))
-    )
+      sparkline = NA
+    ) %>%
+    arrange(date_test, feature)
 
   tbl <- ccunigram_table %>%
     reactable(
@@ -1406,7 +1601,7 @@ if (nrow(cc_alerts_unigram) > 0) {
       borderless = FALSE,
       defaultColDef = colDef(
         sortNALast = TRUE,
-        minWidth = 30,
+        minWidth = 50,
         class = JS("function(rowInfo, colInfo, state) {
         // Highlight sorted columns
         for (var i = 0; i < state.sorted.length; i++) {
@@ -1422,7 +1617,6 @@ if (nrow(cc_alerts_unigram) > 0) {
         data = colDef(show = FALSE),
         sparkline = colDef(
           name = "Unigram Trend with Word Alerts",
-          align = "left",
           cell = function(value, index) {
             .dat <- ccunigram_table$data[[index]]
 
@@ -1442,7 +1636,7 @@ if (nrow(cc_alerts_unigram) > 0) {
                 )
               ) %>%
               add_markers(
-                data = subset(.dat, p.value < 0.001),
+                data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
                 marker = list(color = "red"),
@@ -1457,7 +1651,7 @@ if (nrow(cc_alerts_unigram) > 0) {
               layout(
                 xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
                 yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 225,
+                width = 250,
                 height = 100,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
@@ -1465,12 +1659,15 @@ if (nrow(cc_alerts_unigram) > 0) {
               ) %>%
               config(displayModeBar = FALSE)
 
-            div(.fig, style = "height:100px; width:100px")
+            div(.fig, style = "height:100px;")
           },
-          class = "border-left"
+          width = 250
         ),
         feature = colDef(
           name = "Unigram"
+        ),
+        date_test = colDef(
+          name = "Test Date"
         ),
         p.value_current = colDef(
           name = "p-value",
@@ -1493,7 +1690,7 @@ if (nrow(cc_alerts_unigram) > 0) {
 
   div(
     class = "term-table",
-    div(class = "term-table-title", paste("All Chief Complaint Unigram Alerts for", format(test_date, "%B %d, %Y"))),
+    div(class = "term-table-title", paste("All Chief Complaint Unigram Alerts for", date_range)),
     tbl
   )
 }
@@ -1505,14 +1702,14 @@ if (nrow(cc_alerts_unigram) > 0) {
 
 if (!is_empty(res_out_ccbigram)) {
   cc_alerts_bigram <- res_out_ccbigram %>%
-    filter(date_test == test_date) %>%
     select(
+      date_test,
       bigram,
       freq = frequency,
       p.value,
       scale
     ) %>%
-    arrange(bigram) %>%
+    arrange(date_test, bigram) %>%
     mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"))
 } else {
   cc_alerts_bigram <- data.frame()
@@ -1603,58 +1800,70 @@ if (nrow(cc_alerts_bigram) > 0) {
     cat(paste("Only one day of bigram alerts. Refer to table below."))
   }
 } else {
-  cat(paste("No chief complaint bigram alerts identified on", format(test_date, "%B %d, %Y")))
+  cat(paste("No chief complaint bigram alerts identified for", date_range))
 }
 ```
 
 ```{r cc bigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(cc_alerts_bigram) > 0) {
-  cc_trends_bigram <- cc_bigram_freq %>%
+  min_date <- start_date + 28 + 1 + 3
+  max_date <- test_date
+
+  visit_denominators <- ccqv_data %>%
     as.data.frame() %>%
-    filter(feature %in% cc_alerts_bigram$bigram) %>%
+    count(date) %>%
+    mutate(date = as.Date(date)) %>%
+    complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
+    arrange(date)
+
+  cc_trends_bigram <- cc_alerts_bigram %>%
+    arrange(date_test, bigram) %>%
+    inner_join(cc_bigram_freq, by = c("bigram" = "feature")) %>%
     select(-group) %>%
-    tidyr::complete(feature, date = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(frequency = 0)) %>%
-    filter(date >= min_date & date <= test_date) %>%
+    arrange(date_test, date) %>%
+    group_by(bigram_id = bigram) %>%
+    tidyr::complete(bigram, date = as.IDate(seq.Date(start_date, end_date, by = "day")), fill = list(frequency = 0)) %>%
+    arrange(bigram, date) %>%
     mutate(
-      test = test_date,
-      date = as.Date(date)
+      historical_alert = ifelse(date == date_test & !is.na(date_test), TRUE, FALSE),
+      p.value_current = last(na.omit(p.value)),
+      p.value_current = format(p.value_current, digits = 2, scientific = TRUE),
+      p.value = case_when(
+        date < min_date ~ "0.5",
+        date == date_test ~ format(p.value, digits = 2, scientific = TRUE),
+        TRUE ~ ">0.001"
+      ),
+      date_test = last(na.omit(date_test)),
+      freq = last(na.omit(freq)),
+      scale = last(na.omit(scale)),
+      detector = last(na.omit(detector))
     ) %>%
-    left_join(visit_denominators, by = "date") %>%
-    mutate(prop = frequency / n) %>%
-    mutate(date = as.IDate(date)) %>%
-    left_join(
-      res_out_ccbigram %>%
-        .[, c("bigram", "date_test", "p.value", "significant", "scale")],
-      by = c("feature" = "bigram", "date" = "date_test")
-    ) %>%
+    ungroup() %>%
+    mutate(date = as.Date(date)) %>%
+    inner_join(visit_denominators, by = "date") %>%
     mutate(
-      p.value = ifelse(is.na(p.value), 0.5, p.value),
-      significant = ifelse(is.na(significant), FALSE, significant)
-    ) %>%
-    group_by(feature) %>%
-    mutate(
-      freq = last(frequency),
-      p.value_current = last(p.value),
-      scale = last(scale)
-    ) %>%
-    ungroup()
+      prop = frequency / n,
+      prop = ifelse(is.nan(prop), 0, prop)
+    )
 
   ccbigram_table <- cc_trends_bigram %>%
     select(
-      feature,
+      feature = bigram,
+      date_test,
       date,
       prop,
       p.value,
       p.value_current,
-      scale
+      scale,
+      historical_alert
     ) %>%
-    nest(data = c(date, prop, p.value)) %>%
+    nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA,
-      p.value_current = as.numeric(format(p.value_current, digits = 2, scientific = TRUE))
-    )
+      sparkline = NA
+    ) %>%
+    arrange(date_test, feature)
 
   tbl <- ccbigram_table %>%
     reactable(
@@ -1662,7 +1871,7 @@ if (nrow(cc_alerts_bigram) > 0) {
       borderless = FALSE,
       defaultColDef = colDef(
         sortNALast = TRUE,
-        minWidth = 30,
+        minWidth = 50,
         class = JS("function(rowInfo, colInfo, state) {
         // Highlight sorted columns
         for (var i = 0; i < state.sorted.length; i++) {
@@ -1674,6 +1883,9 @@ if (nrow(cc_alerts_bigram) > 0) {
         headerClass = "term-table-header"
       ),
       columns = list(
+        bigram = colDef(
+          width = 100
+        ),
         prop = colDef(show = FALSE),
         data = colDef(show = FALSE),
         sparkline = colDef(
@@ -1698,7 +1910,7 @@ if (nrow(cc_alerts_bigram) > 0) {
                 )
               ) %>%
               add_markers(
-                data = subset(.dat, p.value < 0.001),
+                data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
                 marker = list(color = "red"),
@@ -1713,7 +1925,7 @@ if (nrow(cc_alerts_bigram) > 0) {
               layout(
                 xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
                 yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 225,
+                width = 250,
                 height = 100,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
@@ -1721,12 +1933,15 @@ if (nrow(cc_alerts_bigram) > 0) {
               ) %>%
               config(displayModeBar = FALSE)
 
-            div(.fig, style = "height:100px; width:100px")
+            div(.fig, style = "height:100px;")
           },
-          class = "border-left"
+          width = 250
         ),
         feature = colDef(
           name = "bigram"
+        ),
+        date_test = colDef(
+          name = "Test Date"
         ),
         p.value_current = colDef(
           name = "p-value",
@@ -1749,7 +1964,7 @@ if (nrow(cc_alerts_bigram) > 0) {
 
   div(
     class = "term-table",
-    div(class = "term-table-title", paste("All Chief Complaint Bigram Alerts for", format(test_date, "%B %d, %Y"))),
+    div(class = "term-table-title", paste("All Chief Complaint Bigram Alerts for", date_range)),
     tbl
   )
 }
@@ -1763,14 +1978,14 @@ if (nrow(cc_alerts_bigram) > 0) {
 
 if (!is_empty(res_out_ddunigram)) {
   dd_alerts_unigram <- res_out_ddunigram %>%
-    filter(date_test == test_date) %>%
     select(
+      date_test,
       unigram,
       freq = frequency,
       p.value,
       scale
     ) %>%
-    arrange(unigram) %>%
+    arrange(date_test, unigram) %>%
     mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"))
 } else {
   dd_alerts_unigram <- data.frame()
@@ -1856,68 +2071,80 @@ if (nrow(dd_alerts_unigram) > 0) {
         legend = list(showlegend = FALSE),
         hoverlabel = list(align = "left")
       ) %>%
-      animation_opts(frame = 2000,transition = 1000, redraw = FALSE) %>%
+      animation_opts(frame = 2000, transition = 1000, redraw = FALSE) %>%
       animation_slider(currentvalue = list(prefix = "Date ", font = list(color = "black")), pad = list(r = 50), redraw = TRUE)
   } else {
     cat(paste("Only one day of unigram alerts. Refer to table below."))
   }
 } else {
-  cat(paste("No discharge diagnosis unigram alerts identified on", format(test_date, "%B %d, %Y")))
+  cat(paste("No discharge diagnosis unigram alerts identified for", date_range))
 }
 ```
 
 ```{r dd unigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(dd_alerts_unigram) > 0) {
-  dd_trends_unigram <- dd_unigram_freq %>%
+  min_date <- start_date + 28 + 1 + 3
+  max_date <- test_date
+
+  visit_denominators <- ccqv_data %>%
     as.data.frame() %>%
-    filter(feature %in% dd_alerts_unigram$unigram) %>%
+    count(date) %>%
+    mutate(date = as.Date(date)) %>%
+    complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
+    arrange(date)
+
+  dd_trends_unigram <- dd_alerts_unigram %>%
+    arrange(date_test, unigram) %>%
+    inner_join(dd_unigram_freq, by = c("unigram" = "feature")) %>%
     select(-group) %>%
-    tidyr::complete(feature, date = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(frequency = 0)) %>%
-    filter(date >= min_date & date <= test_date) %>%
+    arrange(date_test, date) %>%
+    group_by(unigram_id = unigram) %>%
+    tidyr::complete(unigram, date = as.IDate(seq.Date(start_date, end_date, by = "day"), fill = list(frequency = 0))) %>%
+    arrange(unigram, date) %>%
     mutate(
-      test = test_date,
-      date = as.Date(date)
+      historical_alert = ifelse(date == date_test & !is.na(date_test), TRUE, FALSE),
+      p.value_current = last(na.omit(p.value)),
+      p.value_current = format(p.value_current, digits = 2, scientific = TRUE),
+      p.value = case_when(
+        date < min_date ~ "0.5",
+        date == date_test ~ format(p.value, digits = 2, scientific = TRUE),
+        TRUE ~ ">0.001"
+      ),
+      date_test = last(na.omit(date_test)),
+      freq = last(na.omit(freq)),
+      scale = last(na.omit(scale)),
+      detector = last(na.omit(detector))
     ) %>%
-    left_join(visit_denominators, by = "date") %>%
-    mutate(prop = frequency / n) %>%
-    mutate(date = as.IDate(date)) %>%
-    left_join(
-      res_out_ddunigram %>%
-        .[, c("unigram", "date_test", "p.value", "significant", "scale")],
-      by = c("feature" = "unigram", "date" = "date_test")
-    ) %>%
+    ungroup() %>%
+    mutate(date = as.Date(date)) %>%
+    inner_join(visit_denominators, by = "date") %>%
     mutate(
-      p.value = ifelse(is.na(p.value), 0.5, p.value),
-      significant = ifelse(is.na(significant), FALSE, significant)
-    ) %>%
-    group_by(feature) %>%
-    mutate(
-      freq = last(frequency),
-      p.value_current = last(p.value),
-      scale = last(scale)
-    ) %>%
-    ungroup()
+      prop = frequency / n,
+      prop = ifelse(is.nan(prop), 0, prop)
+    )
 
   ddunigram_table <- dd_trends_unigram %>%
     select(
-      feature,
+      feature = unigram,
+      date_test,
       date,
       prop,
       p.value,
       p.value_current,
-      scale
+      scale,
+      historical_alert
     ) %>%
-    nest(data = c(date, prop, p.value)) %>%
+    nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA,
-      p.value_current = as.numeric(format(p.value_current, digits = 2, scientific = TRUE))
+      sparkline = NA
     ) %>%
     left_join(icd_codes, by = c("feature" = "code")) %>%
     distinct(feature, .keep_all = TRUE) %>%
     mutate(description = ifelse(is.na(description), "SNOMED or Unknown Code", description)) %>%
-    relocate(description, .after = feature)
+    relocate(description, .after = feature) %>%
+    arrange(date_test, feature)
 
   tbl <- ddunigram_table %>%
     reactable(
@@ -1925,7 +2152,7 @@ if (nrow(dd_alerts_unigram) > 0) {
       borderless = FALSE,
       defaultColDef = colDef(
         sortNALast = TRUE,
-        minWidth = 30,
+        minWidth = 50,
         class = JS("function(rowInfo, colInfo, state) {
         // Highlight sorted columns
         for (var i = 0; i < state.sorted.length; i++) {
@@ -1937,8 +2164,17 @@ if (nrow(dd_alerts_unigram) > 0) {
         headerClass = "term-table-header"
       ),
       columns = list(
+        unigram = colDef(
+          width = 100
+        ),
+        test_date = colDef(
+          width = 100
+        ),
         prop = colDef(show = FALSE),
         data = colDef(show = FALSE),
+        scale = colDef(
+          width = 150
+        ),
         description = colDef(name = "Description"),
         sparkline = colDef(
           name = "Unigram Trend with Word Alerts",
@@ -1962,7 +2198,7 @@ if (nrow(dd_alerts_unigram) > 0) {
                 )
               ) %>%
               add_markers(
-                data = subset(.dat, p.value < 0.001),
+                data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
                 marker = list(color = "red"),
@@ -1977,7 +2213,7 @@ if (nrow(dd_alerts_unigram) > 0) {
               layout(
                 xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
                 yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 225,
+                width = 250,
                 height = 100,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
@@ -1985,12 +2221,15 @@ if (nrow(dd_alerts_unigram) > 0) {
               ) %>%
               config(displayModeBar = FALSE)
 
-            div(.fig, style = "height:100px; width:100px")
+            div(.fig, style = "height:100px;")
           },
-          class = "border-left"
+          width = 250
         ),
         feature = colDef(
           name = "Unigram"
+        ),
+        date_test = colDef(
+          name = "Test Date"
         ),
         p.value_current = colDef(
           name = "p-value",
@@ -2015,7 +2254,7 @@ if (nrow(dd_alerts_unigram) > 0) {
 
   div(
     class = "term-table",
-    div(class = "term-table-title", paste("All Dischrage Diagonsis Unigram Alerts for", format(test_date, "%B %d, %Y"))),
+    div(class = "term-table-title", paste("All Dischrage Diagnosis Unigram Alerts for", date_range)),
     tbl
   )
 }
@@ -2027,14 +2266,14 @@ if (nrow(dd_alerts_unigram) > 0) {
 
 if (!is_empty(res_out_ddbigram)) {
   dd_alerts_bigram <- res_out_ddbigram %>%
-    filter(date_test == test_date) %>%
     select(
+      date_test,
       bigram,
       freq = frequency,
       p.value,
       scale
     ) %>%
-    arrange(bigram) %>%
+    arrange(date_test, bigram) %>%
     mutate(detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"))
 } else {
   dd_alerts_bigram <- data.frame()
@@ -2136,57 +2375,68 @@ if (nrow(dd_alerts_bigram) > 0) {
     cat(paste("Only one day of bigram alerts. Refer to table below."))
   }
 } else {
-  cat(paste("No discharge diagnosis bigram alerts identified on", format(test_date, "%B %d, %Y")))
+  cat(paste("No discharge diagnosis bigram alerts identified for", date_range))
 }
 ```
 
 ```{r dd bigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(dd_alerts_bigram) > 0) {
-  dd_trends_bigram <- dd_bigram_freq %>%
+  min_date <- start_date + 28 + 1 + 3
+  max_date <- test_date
+
+  visit_denominators <- ccqv_data %>%
     as.data.frame() %>%
-    filter(feature %in% dd_alerts_bigram$bigram) %>%
+    count(date) %>%
+    mutate(date = as.Date(date)) %>%
+    complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
+    arrange(date)
+
+  dd_trends_bigram <- dd_alerts_bigram %>%
+    arrange(date_test, bigram) %>%
+    inner_join(dd_bigram_freq, by = c("bigram" = "feature")) %>%
     select(-group) %>%
-    tidyr::complete(feature, date = as.IDate(seq.Date(min_date, max_date, by = "day")), fill = list(frequency = 0)) %>%
-    filter(date >= min_date & date <= test_date) %>%
+    arrange(date_test, date) %>%
+    group_by(bigram_id = bigram) %>%
+    tidyr::complete(bigram, date = as.IDate(seq.Date(start_date, end_date, by = "day")), fill = list(frequency = 0)) %>%
+    arrange(bigram, date) %>%
     mutate(
-      test = test_date,
-      date = as.Date(date)
+      historical_alert = ifelse(date == date_test & !is.na(date_test), TRUE, FALSE),
+      p.value_current = last(na.omit(p.value)),
+      p.value_current = format(p.value_current, digits = 2, scientific = TRUE),
+      p.value = case_when(
+        date < min_date ~ "0.5",
+        date == date_test ~ format(p.value, digits = 2, scientific = TRUE),
+        TRUE ~ ">0.001"
+      ),
+      date_test = last(na.omit(date_test)),
+      freq = last(na.omit(freq)),
+      scale = last(na.omit(scale)),
+      detector = last(na.omit(detector))
     ) %>%
-    left_join(visit_denominators, by = "date") %>%
-    mutate(prop = frequency / n) %>%
-    mutate(date = as.IDate(date)) %>%
-    left_join(
-      res_out_ddbigram %>%
-        .[, c("bigram", "date_test", "p.value", "significant", "scale")],
-      by = c("feature" = "bigram", "date" = "date_test")
-    ) %>%
+    ungroup() %>%
+    mutate(date = as.Date(date)) %>%
+    inner_join(visit_denominators, by = "date") %>%
     mutate(
-      p.value = ifelse(is.na(p.value), 0.5, p.value),
-      significant = ifelse(is.na(significant), FALSE, significant)
-    ) %>%
-    group_by(feature) %>%
-    mutate(
-      freq = last(frequency),
-      p.value_current = last(p.value),
-      scale = last(scale)
-    ) %>%
-    ungroup()
+      prop = frequency / n,
+      prop = ifelse(is.nan(prop), 0, prop)
+    )
 
   ddbigram_table <- dd_trends_bigram %>%
     select(
-      feature,
+      feature = bigram,
+      date_test,
       date,
       prop,
       p.value,
       p.value_current,
-      scale
+      scale,
+      historical_alert
     ) %>%
-    nest(data = c(date, prop, p.value)) %>%
+    nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA,
-      p.value_current = as.numeric(format(p.value_current, digits = 2, scientific = TRUE))
+      sparkline = NA
     ) %>%
     separate(feature, c("code1", "code2"), sep = " ", remove = FALSE) %>%
     left_join(icd_codes, by = c("code1" = "code")) %>%
@@ -2195,7 +2445,8 @@ if (nrow(dd_alerts_bigram) > 0) {
     rename(description2 = description) %>%
     distinct(code1, code2, .keep_all = TRUE) %>%
     mutate_at(.vars = c("description1", "description2"), ~ ifelse(is.na(.), "SNOMED or Unknown Code", .)) %>%
-    relocate(c(description1, description2), .after = feature)
+    relocate(c(description1, description2), .after = feature) %>%
+    arrange(date_test, feature)
 
   tbl <- ddbigram_table %>%
     reactable(
@@ -2252,7 +2503,7 @@ if (nrow(dd_alerts_bigram) > 0) {
                 )
               ) %>%
               add_markers(
-                data = subset(.dat, p.value < 0.001),
+                data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
                 marker = list(color = "red"),
@@ -2282,6 +2533,9 @@ if (nrow(dd_alerts_bigram) > 0) {
         feature = colDef(
           name = "Bigram"
         ),
+        date_test = colDef(
+          name = "Test Date"
+        ),
         p.value_current = colDef(
           name = "p-value",
           format = colFormat(digits = 4),
@@ -2306,8 +2560,32 @@ if (nrow(dd_alerts_bigram) > 0) {
 
   div(
     class = "term-table",
-    div(class = "term-table-title", paste("All Dischrage Diagonsis Bigram Alerts for", format(test_date, "%B %d, %Y"))),
+    div(class = "term-table-title", paste("All Dischrage Diagnosis Bigram Alerts for", date_range)),
     tbl
   )
 }
+```
+
+## **Report Appendix**
+
+### **Example Stop Words**
+
+```{r appendix table, echo = FALSE, warning = FALSE, message = FALSE}
+
+stopterms %>%
+  group_by(type) %>%
+  slice_sample(n = 5) %>%
+  regulartable() %>%
+  theme_booktabs() %>%
+  set_header_labels(
+    word = "Stop Word",
+    type = "Type"
+  ) %>%
+  vline(part = "all", j = 1, border = officer::fp_border(color = "black", width = 1)) %>%
+  border_outer(part = "all", border = officer::fp_border(color = "black", width = 1)) %>%
+  hline(i = 5, border = officer::fp_border(color = "black", width = 1)) %>%
+  hline(i = 10, border = officer::fp_border(color = "black", width = 1)) %>%
+  hline(i = 15, border = officer::fp_border(color = "black", width = 1)) %>%
+  hline(i = 20, border = officer::fp_border(color = "black", width = 1)) %>%
+  width(width = 4)
 ```
