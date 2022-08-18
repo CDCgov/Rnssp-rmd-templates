@@ -76,6 +76,7 @@ margin-right: auto;
 
 library(tidyverse)
 library(Rnssp)
+library(cli)
 library(lubridate)
 library(janitor)
 library(MMWRweek)
