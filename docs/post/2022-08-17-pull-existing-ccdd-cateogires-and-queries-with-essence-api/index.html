@@ -8,7 +8,7 @@
 <link rel=icon href=/Rnssp-rmd-templates/images/favicon.png type=image/png>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
-<title>Rnssp RMD Templates :: Documentation for Rnssp R Markdown Templates</title>
+<title>How to Pull CCDD Category List from NSSP-ESSENCE :: Documentation for Rnssp R Markdown Templates</title>
 <link href=/Rnssp-rmd-templates/css/nucleus.css?1660830271 rel=stylesheet>
 <link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1660830271 rel=stylesheet>
 <link href=/Rnssp-rmd-templates/css/hybrid.css?1660830271 rel=stylesheet>
@@ -23,7 +23,7 @@
 <script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1660830271></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
-<body data-url=/Rnssp-rmd-templates/>
+<body data-url=/Rnssp-rmd-templates/post/2022-08-17-pull-existing-ccdd-cateogires-and-queries-with-essence-api/>
 <nav id=sidebar class=showVisitedLinks>
 <div id=header-wrapper>
 <div id=header>
@@ -139,7 +139,8 @@ Data Quality Filter Matrix
 </li>
 </ul>
 </li>
-<li data-nav-id=/Rnssp-rmd-templates/post/ title=Posts class=dd-item>
+<li data-nav-id=/Rnssp-rmd-templates/post/ title=Posts class="dd-item
+parent">
 <a href=/Rnssp-rmd-templates/post/>
 Posts
 <i class="fas fa-check read-icon"></i>
@@ -151,7 +152,7 @@ Knitting With Parameters
 <i class="fas fa-check read-icon"></i>
 </a>
 </li>
-<li data-nav-id=/Rnssp-rmd-templates/post/2022-08-17-pull-existing-ccdd-cateogires-and-queries-with-essence-api/ title="How to Pull CCDD Category List from NSSP-ESSENCE" class=dd-item>
+<li data-nav-id=/Rnssp-rmd-templates/post/2022-08-17-pull-existing-ccdd-cateogires-and-queries-with-essence-api/ title="How to Pull CCDD Category List from NSSP-ESSENCE" class="dd-item active">
 <a href=/Rnssp-rmd-templates/post/2022-08-17-pull-existing-ccdd-cateogires-and-queries-with-essence-api/>
 How to Pull CCDD Category List from NSSP-ESSENCE
 <i class="fas fa-check read-icon"></i>
@@ -199,78 +200,105 @@ How to Pull CCDD Category List from NSSP-ESSENCE
 <section id=body>
 <div id=overlay></div>
 <div class="padding highlightable">
-<div id=head-tags>
-<div class=tags>
-<a class=tag-link href=/Rnssp-rmd-templates/tags/intro>intro</a>
-<a class=tag-link href=/Rnssp-rmd-templates/tags/help>help</a>
-<a class=tag-link href=/Rnssp-rmd-templates/tags/home>home</a>
-<a class=tag-link href=/Rnssp-rmd-templates/tags/rnssp>Rnssp</a>
+<div>
+<div id=top-bar>
+<div id=top-github-link>
+<a class=github-link title="Edit this page" href=https://github.com/cdcent/Rnssp-templates-docs/edit/master/content/post/2022-08-17-pull-existing-ccdd-cateogires-and-queries-with-essence-api/index.html target=blank>
+<i class="fas fa-code-branch"></i>
+<span id=top-github-link-text>Edit this page</span>
+</a>
 </div>
+<div id=breadcrumbs itemscope itemtype=http://data-vocabulary.org/Breadcrumb>
+<span id=sidebar-toggle-span>
+<a href=# id=sidebar-toggle data-sidebar-toggle>
+<i class="fas fa-bars"></i>
+</a>
+</span>
+<span id=toc-menu><i class="fas fa-list-alt"></i></span>
+<span class=links>
+<a href=/Rnssp-rmd-templates/>Rnssp RMD Templates</a> > <a href=/Rnssp-rmd-templates/post/>Posts</a> > How to Pull CCDD Category List from NSSP-ESSENCE
+</span>
+</div>
+<div class=progress>
+<div class=wrapper>
+</div>
+</div>
+</div>
+</div>
+<div id=head-tags>
 </div>
 <div id=body-inner>
-<span id=sidebar-toggle-span>
-<a href=# id=sidebar-toggle data-sidebar-toggle><i class="fas fa-bars"></i> navigation</a>
-</span>
-<h1 id=rnssp-r-markdown-templates>Rnssp R Markdown Templates</h1>
-<p>This catalog of <a href=https://github.com/CDCgov/Rnssp-rmd-templates>Rnssp R Markdown Templates</a> has been created by the developers of the <a href=https://cdcgov.github.io/Rnssp/>Rnssp R package</a> in collaboration with the members of the <a href=https://nsspcommunityofpractice.org/>Community of Practice (CoP)</a> and the <a href=https://www.cdc.gov/nssp/index.html>National Syndromic Surveillance Program (NSSP)</a>.</p>
-<p>Our goal is to make a wide collection of report templates accessible and easily distributable via the <a href=https://cdcgov.github.io/Rnssp/>Rnssp R package</a>.</p>
-<p>This online documentation serves as a repository of support material for <a href=https://www.cdc.gov/nssp/index.html>NSSP</a> members. This documentation provides:</p>
+<h1>
+How to Pull CCDD Category List from NSSP-ESSENCE
+</h1>
+<p>This post demonstrates how users with access to NSSP-ESSENCE can pull an up-to-date list of existing ESSENCE CCDD categories and their underlying queries using an ESSENCE API URL. These data can be pulled into RStudio in JSON format and will match the CC and DD Categories table found under the “More” tab in NSSP-ESSENCE. This example can be run either in the BioSense Platform instance of RStudio Workbench or in a local desktop instance of RStudio. Users must have the <code>Rnssp</code> package installed and will need to save their Access and Management Center (AMC) credentials to a <code>myProfile</code> object to proceed.</p>
+<p>The following packages are needed to run this example:</p>
+<pre class=r><code>library(tidyverse)
+library(Rnssp)</code></pre>
+<p>If you haven’t already saved your AMC credentials to a <code>myProfile</code> object, then run the following code chunk to supply your username and password:</p>
+<pre class=r><code>
+myProfile &lt;- Credentials$new(
+  username = askme(&quot;Enter your username: &quot;),
+  password = askme()
+)
+</code></pre>
+<p>Out of convenience, you can save your <code>myProfile</code> object to either an <code>.rda</code> or <code>.rds</code> file in your home directory as follows:</p>
+<pre class=r><code>
+# .rda option
+save(myProfile, file = &quot;~/myProfile.rda&quot;) 
+
+# .rds option
+saveRDS(myProfile, &quot;~/myProfile.rds&quot;)
+</code></pre>
+<p>By saving your <code>myProfile</code> object to your home directory, only <strong>you</strong> will be able to access and load this file into your global environment. You should only need to update your credentials every 90 days after your AMC password expires. To load your credentials into your environment, you can either use the <code>load()</code> function for an <code>rda</code> file or the <code>readRDS()</code> function for an <code>rds</code> file.</p>
+<pre class=r><code>
+# .rda option
+load(&quot;~/myProfile.rda&quot;) 
+
+# .rds option
+myProfile &lt;- readRDS(&quot;~/myProfile.rds&quot;)
+</code></pre>
+<p>The API URL to pull the existing list of CCDD categories and their underlying queries will pull from <code>SyndromeDefinitionsServlet_CCDD</code> using the action <code>getCCDDTerms</code>. This will import JSON-formatted data as a list of length 1 with element “categories”. This element is a standard data frame and can be extracted from this list using the <code>pluck()</code> function from the <code>purrr</code> package, which is included in <code>tidyverse</code>.</p>
+<pre class=r><code>
+url &lt;- &quot;https://essence.syndromicsurveillance.org/nssp_essence/servlet/SyndromeDefinitionsServlet_CCDD?action=getCCDDTerms&quot;
+
+ccdd_queries &lt;- myProfile$get_api_data(url) %&gt;%
+  pluck(&quot;categories&quot;)
+
+glimpse(ccdd_queries)
+</code></pre>
+<p>The <code>ccdd_queries</code> data frame will contain the following elements:</p>
 <ul>
-<li>instructions on how to add, use, and remove a template from an existing Rnssp R package installation;</li>
-<li>detailed description of each template; and</li>
-<li>blog posts on various topics related to R Markdown templates.</li>
+<li><code>updateInfo</code>: Information on recent updates. All categories currently have a value of “No Updates”.</li>
+<li><code>termId</code>: CCDD category ID (row number)</li>
+<li><code>groupName</code>: Name of the group to which the CCDD category belongs. All categories currently have a value of “Uncategorized”</li>
+<li><code>dateCreated</code> Date the CCDD category was added to the system.</li>
+<li><code>notes</code>: Supplemental notes or details accompanying the CCDD category. All categories currently have a value of “No Notes”</li>
+<li><code>lastUpdate</code>: Date the CCDD category or accompanying metadata was last updated.</li>
+<li><code>description</code>: Summary text describing the purpose of the CCDD category and how the query was developed.</li>
+<li><code>definition</code>: The underlying query of the CCDD category and fields that are searched.</li>
+<li><code>isAdmin</code>: Boolean indicator that is TRUE for all CCDD categories</li>
+<li><code>category</code>: Name of the CCDD category</li>
+<li><code>fieldsSearched</code>: List of query fields that are searched. All categories currently have a value of “Undefined”. This information can be found in the <code>defintion</code> field described above.</li>
 </ul>
-<p>Importantly, the documentation promotes collaboration and encourages outreach.</p>
-<div class="notices note"><p>To use the Rnssp R Markdown Templates, please install the <a href=https://cdcgov.github.io/Rnssp/>Rnssp R package</a> first.</p>
-</div>
-<h2 id=contributing-to-this-documentation>Contributing to this Documentation</h2>
-<p>To contribute to this project, please submit a request to <a href=mailto:gazondekon@cdc.gov>gazondekon@cdc.gov</a>.</p>
-<h2 id=getting-help>Getting Help</h2>
-<p>If you encounter a bug using the templates, we encourage you to email the author at <a href=mailto:gazondekon@cdc.gov>gazondekon@cdc.gov</a> or file <a href=https://github.com/CDCgov/Rnssp-rmd-templates/issues>an issue</a>. Include a reproducible example.</p>
-<h2 id=public-domain-standard-notice>Public Domain Standard Notice</h2>
-<p>This repository constitutes a work of the United States Government and is not
-subject to domestic copyright protection under 17 USC ? 105. This repository is in
-the public domain within the United States, and copyright and related rights in
-the work worldwide are waived through the <a href=https://creativecommons.org/publicdomain/zero/1.0/>CC0 1.0 Universal public domain dedication</a>.
-All contributions to this repository will be released under the CC0 dedication. By
-submitting a pull request you are agreeing to comply with this waiver of
-copyright interest.</p>
-<h2 id=license-standard-notice>License Standard Notice</h2>
-<p>The repository utilizes code licensed under the terms of the Apache Software
-License and therefore is licensed under ASL v2 or later.</p>
-<p>This source code in this repository is free: you can redistribute it and/or modify it under
-the terms of the Apache Software License version 2, or (at your option) any
-later version.</p>
-<p>This source code in this repository is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY, without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the Apache Software License for more details.</p>
-<p>You should have received a copy of the Apache Software License along with this
-program. If not, see <a href=http://www.apache.org/licenses/LICENSE-2.0.html>http://www.apache.org/licenses/LICENSE-2.0.html</a></p>
-<p>The source code forked from other open-source projects will inherit its license.</p>
-<h2 id=privacy-standard-notice>Privacy Standard Notice</h2>
-<p>This repository contains only non-sensitive, publicly available data and
-information. All material and community participation is covered by the
-<a href=https://github.com/CDCgov/template/blob/master/DISCLAIMER.md>Disclaimer</a>
-and <a href=https://github.com/CDCgov/template/blob/master/code-of-conduct.md>Code of Conduct</a>.
-For more information about CDC&rsquo;s privacy policy, please visit <a href=https://www.cdc.gov/other/privacy.html>http://www.cdc.gov/other/privacy.html</a>.</p>
-<h2 id=contributing-standard-notice>Contributing Standard Notice</h2>
-<p>Everyone is encouraged to contribute to the repository by <a href=https://help.github.com/articles/fork-a-repo>forking</a>
-and submitting a pull request. (If you are new to GitHub, you might start with a
-<a href=https://help.github.com/articles/set-up-git>basic tutorial</a>.) By contributing
-to this project, you grant a world-wide, royalty-free, perpetual, irrevocable,
-non-exclusive, transferable license to all users under the terms of the
-<a href=http://www.apache.org/licenses/LICENSE-2.0.html>Apache Software License v2</a> or
-later.</p>
-<p>All comments, messages, pull requests, and other submissions received through
-CDC including this GitHub page may be subject to applicable federal law, including but not limited to the Federal Records Act, and may be archived. Learn more at <a href=http://www.cdc.gov/other/privacy.html>http://www.cdc.gov/other/privacy.html</a>.</p>
-<h2 id=records-management-standard-notice>Records Management Standard Notice</h2>
-<p>This repository is not a source of government records, but is a copy to increase
-collaboration and collaborative potential. All government records will be
-published through the <a href=http://www.cdc.gov>CDC web site</a>.</p>
+<p>Typically, only the <code>category</code> and <code>definition</code> fields will be of interest. The extraneous fields can be removed by using the <code>select()</code> function:</p>
+<pre class=r><code>
+ccdd_queries &lt;- myProfile$get_api_data(url) %&gt;%
+  pluck(&quot;categories&quot;) %&gt;%
+  select(
+    category,
+    definition
+  )
+
+head(ccdd_queries)
+</code></pre>
+<footer class=footline>
+</footer>
 </div>
 </div>
 <div id=navigation>
-<a class="nav nav-next" href=/Rnssp-rmd-templates/usage/ title=Usage style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+<a class="nav nav-prev" href=/Rnssp-rmd-templates/post/2021-11-06-knitting-with-parameters-using-the-knit-button-within-rstudio/ title="Knitting With Parameters"> <i class="fa fa-chevron-left"></i></a>
+<a class="nav nav-next" href=/Rnssp-rmd-templates/post/2021-11-06-knitting-with-parameters-using-the-knit-button-within-rstudio/ title="Knitting With Parameters" style=margin-right:0><i class="fa fa-chevron-right"></i></a>
 </div>
 </section>
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>

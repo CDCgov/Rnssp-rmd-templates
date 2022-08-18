@@ -1,0 +1,110 @@
+---
+title: How to Pull CCDD Category List from NSSP-ESSENCE
+author: Michael Sheppard
+date: '2022-08-17'
+slug: []
+categories: []
+tags: []
+weight: 10
+---
+
+This post demonstrates how users with access to NSSP-ESSENCE can pull an up-to-date list of existing ESSENCE CCDD categories and their underlying queries using an ESSENCE API URL. These data can be pulled into RStudio in JSON format and will match the CC and DD Categories table found under the "More" tab in NSSP-ESSENCE. This example can be run either in the BioSense Platform instance of RStudio Workbench or in a local desktop instance of RStudio. Users must have the `Rnssp` package installed and will need to save their Access and Management Center (AMC) credentials to a `myProfile` object to proceed. 
+
+The following packages are needed to run this example: 
+
+```{r load libraries, message = FALSE}
+
+library(tidyverse)
+library(Rnssp)
+
+```
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>",
+  collapse = TRUE,
+  cache = FALSE,
+  eval = FALSE
+)
+
+```
+
+If you haven't already saved your AMC credentials to a `myProfile` object, then run the following code chunk to supply your username and password:
+
+```{r create myProfile}
+
+myProfile <- Credentials$new(
+  username = askme("Enter your username: "),
+  password = askme()
+)
+
+```
+
+Out of convenience, you can save your `myProfile` object to either an `.rda` or `.rds` file in your home directory as follows: 
+
+```{r save credentials}
+
+# .rda option
+save(myProfile, file = "~/myProfile.rda") 
+
+# .rds option
+saveRDS(myProfile, "~/myProfile.rds")
+
+```
+
+By saving your `myProfile` object to your home directory, only **you** will be able to access and load this file into your global environment. You should only need to update your credentials every 90 days after your AMC password expires. To load your credentials into your environment, you can either use the `load()` function for an `rda` file or the `readRDS()` function for an `rds` file. 
+
+```{r load credentials}
+
+# .rda option
+load("~/myProfile.rda") 
+
+# .rds option
+myProfile <- readRDS("~/myProfile.rds")
+
+```
+
+The API URL to pull the existing list of CCDD categories and their underlying queries will pull from `SyndromeDefinitionsServlet_CCDD` using the action `getCCDDTerms`. This will import JSON-formatted data as a list of length 1 with element "categories". This element is a standard data frame and can be extracted from this list using the `pluck()` function from the `purrr` package, which is included in `tidyverse`. 
+
+```{r API pull}
+
+url <- "https://essence.syndromicsurveillance.org/nssp_essence/servlet/SyndromeDefinitionsServlet_CCDD?action=getCCDDTerms"
+
+ccdd_queries <- get_api_data(url) %>%
+  pluck("categories")
+
+glimpse(ccdd_queries)
+
+```
+
+The `ccdd_queries` data frame will contain the following elements:
+
+  * `updateInfo`: Information on recent updates. All categories currently have a value of "No Updates". 
+  * `termId`: CCDD category ID (row number)
+  * `groupName`: Name of the group to which the CCDD category belongs. All categories currently have a value of "Uncategorized"
+  * `dateCreated` Date the CCDD category was added to the system.
+  * `notes`: Supplemental notes or details accompanying the CCDD category. All categories currently have a value of "No Notes"
+  * `lastUpdate`: Date the CCDD category or accompanying metadata was last updated. 
+  * `description`: Summary text describing the purpose of the CCDD category and how the query was developed. 
+  * `definition`: The underlying query of the CCDD category and fields that are searched. 
+  * `isAdmin`: Boolean indicator that is TRUE for all CCDD categories
+  * `category`: Name of the CCDD category
+  * `fieldsSearched`: List of query fields that are searched. All categories currently have a value of "Undefined". This information can be found in the `defintion` field described above. 
+  
+Typically, only the `category` and `definition` fields will be of interest. The extraneous fields can be removed by using the `select()` function:
+
+```{r subset fields}
+
+ccdd_queries <- get_api_data(url) %>%
+  pluck("categories") %>%
+  select(
+    category,
+    definition
+  )
+
+head(ccdd_queries)
+
+```
