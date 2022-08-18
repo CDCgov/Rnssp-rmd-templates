@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>Word Alerts Report :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1660830271 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1660830271 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1660830271></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1660843170 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1660843170 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1660843170></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/wordalerts/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1660830271></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1660830271></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1660843170></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1660843170></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1660830271></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1660843170></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -228,7 +228,7 @@ How to Pull CCDD Category List from NSSP-ESSENCE
 <li><a href=#detailed-description>Detailed Description</a></li>
 <li><a href=#description-of-word-alert-algorithm>Description of Word Alert Algorithm</a>
 <ul>
-<li><a href=#two-by-two-contingency-table-for-abdominal-headache>Two-by-two contingency table for ABDOMINAL HEADACHE</a></li>
+<li><a href=#two-by-two-contingency-table-for-rash-skin>Two-by-two contingency table for RASH SKIN</a></li>
 </ul>
 </li>
 <li><a href=#pre-processing-of-chief-complaints-and-discharge-diagnoses>Pre-processing of Chief Complaints and Discharge Diagnoses</a></li>
@@ -279,7 +279,7 @@ Word Alerts Report
 <hr>
 <h2 id=description-of-word-alert-algorithm>Description of Word Alert Algorithm</h2>
 <p>The ESSENCE word alert algorithm uses 28-day baselines over which unigram and bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (test date), contingency tables are formed to count the number of emergency department encounters with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department encounters without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks.</p>
-<h3 id=two-by-two-contingency-table-for-abdominal-headache>Two-by-two contingency table for ABDOMINAL HEADACHE</h3>
+<h3 id=two-by-two-contingency-table-for-rash-skin>Two-by-two contingency table for RASH SKIN</h3>
 <table>
 <thead>
 <tr>
@@ -291,13 +291,13 @@ Word Alerts Report
 <tbody>
 <tr>
 <td>Test Date (Last 24 Hours)</td>
-<td>A: 3</td>
-<td>B: 7,243</td>
+<td>A: 136</td>
+<td>B: 5,111</td>
 </tr>
 <tr>
 <td>Baseline (28 Days)</td>
-<td>C: 59</td>
-<td>D: 231,649</td>
+<td>C: 2,851</td>
+<td>D: 149,477</td>
 </tr>
 </tbody>
 </table>
@@ -313,11 +313,14 @@ Word Alerts Report
 <ul>
 <li>Access and Management Center (AMC) username and password (securely encrypted)</li>
 <li>Query start and end dates</li>
-<li>Data source: CCQV Datamart Backup (NSSP User Only!) or Facility Location (Full Details – Site-level User Only!)</li>
-<li>Site: Limit to Site (only if using full details for site-level users)</li>
-<li>Definition: Includes all syndromes, subsyndromes, and CCDD categories available in NSSP-ESSENCE</li>
-<li>Has Been Emergency: Option to limit data where HasBeenE = Yes (only if using full details for site-level users)</li>
-<li>Document Title: Custom title for HTML output</li>
+<li>Has Been Emergency (Full Details only): Option to limit data where HasBeenE = Yes</li>
+<li>Data source: CCQV Datamart Backup (NSSP User Only!) or Facility Location (Full Details)</li>
+<li>Limit to Site (Full Details only): Limit to Site or All Sites</li>
+<li>Age Groups: Options include all existing ESSENCE age grouping systems.</li>
+<li>Syndrome Definition: CCDD Category, subsyndrome, or syndrome.</li>
+<li>CCDD Query (Full Details only): Option for custom chief complaint and discharge diagnosis free-text queries.</li>
+<li>Complex Query (Full Details only): Option to paste in API URL for complex queries searching multiple fields.</li>
+<li>Title: Custom title for HTML output.</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -350,16 +353,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1660830271></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1660843170></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1660830271></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1660830271></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1660843170></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1660843170></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
