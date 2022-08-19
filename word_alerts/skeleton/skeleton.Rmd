@@ -43,11 +43,11 @@ params:
     input: select
     choices: !r agrp <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "word_alerts", "skeleton", "essagegrps.rds"), destfile = agrp); dplyr::pull(readRDS(agrp), display_name)
     multiple: yes
-  definition: 
-    label: "Syndrome Definition: " 
+  definition:
+    label: "Syndrome Definition: "
     value: "None (Custom CCDD Query)"
     input: select
-    choices: !r fl <- readRDS("syndef.rds"); definitions <- tibble::add_row(fl, syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "word_alerts", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
     label: "CCDD Query (Full Details only):"
     value: ""
