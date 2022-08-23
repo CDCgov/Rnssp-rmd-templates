@@ -97,6 +97,7 @@ library(flexdashboard)
 library(plotly)
 library(widyr)
 library(visNetwork)
+library(igraph)
 library(ggthemes)
 library(flextable)
 library(DT)
@@ -962,7 +963,7 @@ if (nrow(check_cor) > 10) {
     pivot_longer(cols = everything(), names_to = "label", values_to = "group")
   
   cc_cor_nodes <- unique(c(cc_cor_edges$from, cc_cor_edges$to)) %>%
-    as.tibble() %>%
+    as_tibble() %>%
     rename(label = value) %>%
     mutate(
       id = label, 
@@ -1004,6 +1005,7 @@ if (nrow(check_cor) > 10) {
 
 ```{r search table, echo = FALSE, warning = FALSE, message = FALSE}
 
+if (nrow(check_cor) > 10) {
 cc_cor %>%
   select(
     `Term 1` = item1, 
@@ -1023,6 +1025,9 @@ cc_cor %>%
       columnDefs = list(list(className = "dt-left", targets = "_all"))
     )
   )
+} else {
+  cat("Not a sufficient number of terms to render table.")
+}
 
 ```
 
@@ -1127,7 +1132,7 @@ if (nrow(check_cor) > 10) {
     ) %>%
     visLayout(randomSeed = 1993)
 } else {
-  cat("Not a sufficient number of codes to render network graph")
+  cat("Not a sufficient number of codes to render network graph.")
 }
 
 ```
@@ -1135,6 +1140,8 @@ if (nrow(check_cor) > 10) {
 ### DD Term Correlation Search Table 
 
 ```{r DD search table, echo = FALSE, warning = FALSE, message = FALSE}
+
+if (nrow(check_cor) > 10) {
 
 dd_cor %>%
   filter(item1 %in% dd_cor_nodes$id) %>%
@@ -1160,6 +1167,10 @@ dd_cor %>%
       columnDefs = list(list(className = "dt-left", targets = "_all"))
     )
   )
+  
+} else {
+  cat("Not a sufficient number of codes to render table.")
+}
 
 ```
 
