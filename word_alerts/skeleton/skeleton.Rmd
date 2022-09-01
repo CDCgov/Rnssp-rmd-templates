@@ -196,25 +196,6 @@ db_query_length <- db_query & length > 90
 api_query <- params$data_source == "Facility Location (Full Details)"
 api_query_length <- api_query & length > 90
 
-if (nchar(params$complex_query) > 0) {
-  url <- params$complex_query
-
-  end_date_api <- regmatches(url, regexpr("endDate=.+?&", url)) %>%
-    str_extract("[0-9]{1,2}[a-zA-Z]{3}[0-9]{2,4}") %>%
-    as.Date(format = "%d%b%Y")
-
-  start_date_api <- regmatches(url, regexpr("startDate=.+?&", url)) %>%
-    str_extract("[0-9]{1,2}[a-zA-Z]{3}[0-9]{2,4}") %>%
-    as.Date(format = "%d%b%Y")
-
-  end_date <- end_date_api
-  start_date <- start_date_api
-
-  length <- as.numeric(end_date_api - start_date_api) + 1
-
-  api_query_length <- (nchar(params$complex_query) > 0) & length > 90
-}
-
 limit_ed <- as.numeric(params$has_been_E)
 
 premature_quit <- params$definition == "None (Custom CCDD Query)" &
@@ -285,7 +266,8 @@ param_df <- tibble(
     `Site` = ifelse(complex_query_reset, NA, `Site`),
     `Age Group` = ifelse(complex_query_reset, NA, `Age Group`),
     `Syndrome` = ifelse(complex_query_reset, NA, `Syndrome`),
-    `CCDD Query` = ifelse(complex_query_reset, NA, `CCDD Query`)
+    `CCDD Query` = ifelse(complex_query_reset, NA, `CCDD Query`),
+    `Complex Query` = ifelse(complex_query_reset, change_dates(`Complex Query`, start_date, end_date), `Complex Query`)
   ) %>%
   pivot_longer(everything(), names_to = "Parameter", values_to = "Value")
 
@@ -296,6 +278,7 @@ param_df %>%
   bg(bg = "#006BB8", part = "header") %>%
   color(color = "white", part = "header") %>%
   set_caption(caption = "User-selected Parameters")
+
 ```
 
 ### **Stop word removal**
@@ -323,6 +306,17 @@ icd_codes <- readRDS("suppdata.rds")[["icd_codes"]] %>%
 
 ignored_terms <- readRDS("suppdata.rds")[["rnssp_stop_words"]]
 
+stopterms_to_remove <- c(
+  "ABNORMAL",
+  "ACHE",
+  "ACHES",
+  "ACUTE",
+  "DIFFICULTY",
+  "DISTRESS",
+  "PAIN",
+  "PAINS"
+)
+
 stopterms <- bind_rows(
   ignored_terms,
   icd_codes %>%
@@ -334,7 +328,9 @@ stopterms <- bind_rows(
   mutate(
     word = toupper(word),
     word = str_remove_all(word, pattern = "[[:punct:]]")
-  )
+  ) %>%
+  filter(!word %in% stopterms_to_remove)
+
 ```
 
 ```{r cache ER base CCQV pull, echo = FALSE, warning = FALSE, message = FALSE, eval = (!db_query_length) & db_query}
@@ -389,12 +385,14 @@ ccqv_data <- results %>%
     chief_complaint_orig,
     chief_complaint_parsed,
     discharge_diagnosis,
+    # dd_parsed, # On hold until available in CCQV backup
     ccdd,
     week_year,
     cc_parsed_length,
     dd_length,
     category_flat
   ) %>%
+  mutate(dd_parsed = discharge_diagnosis) %>% # Temporary until DD Parsed is actually available in CCQV backup
   as.data.table() %>%
   .[nchar(chief_complaint_parsed) > 0] %>%
   .[, date := as.Date(date)]
@@ -426,10 +424,10 @@ myProfile <- Credentials$new(
 ```{r site level API, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
 
 if (nchar(params$complex_query) > 0) {
-  url <- params$complex_query
+  url <- change_dates(params$complex_query, start_date, end_date)
 
   if (!grepl("&field=", url)) {
-    url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+    url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
   }
 
   definition <- "None (Complex Query)"
@@ -471,9 +469,9 @@ if (nchar(params$complex_query) > 0) {
 
   if (params$age_groups == "All Ages") {
     if (params$site == "All") {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
     } else {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily", definition_type, definition_string, "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
     }
   } else {
     age_group_string <- params$age_groups %>%
@@ -490,9 +488,9 @@ if (nchar(params$complex_query) > 0) {
     }
 
     if (params$site == "All") {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily", definition_type, definition_string, "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
     } else {
-      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily", definition_type, definition_string, "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age")
+      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
     }
   }
 }
@@ -621,33 +619,29 @@ cc_bigram_freq <- cc_tokens %>%
 
 ### **Cleansing and Tokenization of the Discharge Diagnosis Field**
 
-Similar to chief complaints, the discharge diagnosis field can be tokenized into bigrams. Required processing of discharge diagnoses includes 
+Similar to chief complaints, the discharge diagnosis parsed field **(added in August 2022)** can be tokenized into bigrams.The ESSENCE discharge diagnosis parser includes
 
-- Replacement of semicolon separators between discharge diagnosis codes and other punctuation or uninformative patterns that may be present with a single space
-- Removal of text and code descriptions
-- Removal of "COVID19" (not detected by the regular expression used to remove text due to it's similar structure to an ICD-10 code) 
-- Removal of duplicate diagnostic codes in the same discharge diagnosis 
+- Parsing of the original discharge diagnosis into 3 separate fields for valid matches to regular expressions for ICD-9, ICD-10, or SNOMED codes (C_DiagnosisCode_ICD9_Flat, C_DiagnosisCode_ICD10_Flat, and C_DiagnosisCode_SNOMED_Flat). This step removes text and code descriptions. Keep in mind that this **does not** remove invalid diagnosis codes that still successfully match to the regular expressions used.
+- Combining these 3 fields into DDParsed
+
+Additional template-level processing of the discharge diagnosis parsed includes
+
+- Replacement of semicolon or alternative potential separators between discharge diagnosis codes with a single space
+- Removal of duplicate diagnostic codes in the same discharge diagnosis parsed
 
 Additionally, after bigram frequencies are computed, discharge diagnosis pairings are reordered in alphanumeric order so that permutations of the same codes are not counted separately. As an example, if bigrams "R05 J069" and "J069 R05" have frequencies 324 and 278, then "R05 J069" is converted to "J069 R05" so that the respective frequencies can be combined to 602. `quanteda` allows for the creation of dictionaries to represent various types of regular expressions or stop words to remove from a corpus.
 
 ```{r quanteda corpus DD, echo = FALSE, warning = FALSE, message = FALSE}
 
-pattern_replace <- "[;/,\\\\*-]|([a-zA-Z])/([\\d])|([\\d])/([a-zA-Z])|([a-zA-Z])/([a-zA-Z])|([\\d])/([\\d])"
-
-dd_stopword_dict <- dictionary(list(
-  pattern1 = "[[:cntrl:]]|<BR>|[#?!·.'+)(:=@%]",
-  pattern2 = "\\b[0-9]{1}\\b|\\b[0-9]{2}\\b|\\bNA\\b|\\|",
-  pattern3 = "\\b[A-Za-z]{2,20}\\b",
-  pattern4 = "COVID19"
-))
+pattern_replace <- "[;/,\\\\*-]"
 
 dd_corpus <- ccqv_data %>%
-  .[, discharge_diagnosis := gsub("\\.", "", discharge_diagnosis, perl = TRUE)] %>%
-  .[, discharge_diagnosis := toupper(discharge_diagnosis)] %>%
-  .[, discharge_diagnosis := gsub(pattern_replace, " ", discharge_diagnosis, perl = TRUE)] %>%
-  .[, discharge_diagnosis := vapply(lapply(str_split(discharge_diagnosis, " "), unique), paste, character(1L), collapse = " ")] %>%
+  .[, dd_parsed := toupper(dd_parsed)] %>%
+  .[dd_parsed != "NA"] %>%
+  .[, dd_parsed := gsub(pattern_replace, " ", dd_parsed)] %>%
+  .[, dd_parsed := vapply(lapply(str_split(dd_parsed, " "), unique), paste, character(1L), collapse = " ")] %>%
   corpus(
-    text_field = "discharge_diagnosis"
+    text_field = "dd_parsed"
   ) %>%
   tokens(
     what = "word",
@@ -655,8 +649,7 @@ dd_corpus <- ccqv_data %>%
     remove_symbols = TRUE,
     remove_separators = TRUE,
     verbose = FALSE
-  ) %>%
-  tokens_select(pattern = dd_stopword_dict, valuetype = "regex", selection = "remove", min_nchar = 3)
+  ) 
 
 dd_unigram_freq <- dd_corpus %>%
   tokens_ngrams(n = 1) %>%
@@ -1207,7 +1200,7 @@ test_date <- max(ccqv_data$date)
 
 ```{r CC alert counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 6, fig.align = "center"}
 
-min_date <- start_date + 28 + 1 + 3
+min_date <- start_date + 28 + 2
 max_date <- test_date
 
 if (nrow(res_out_ccbigram) > 0) {
@@ -1288,6 +1281,8 @@ if (nrow(res_out_ddbigram) > 0) {
 
 date_range <- paste(format(min_date, "%B %d, %Y"), "to", format(test_date, "%B %d, %Y"))
 ceiling <- max(daily_cc_alerts_bigram$n, daily_cc_alerts_unigram$n, daily_dd_alerts_unigram$n, daily_dd_alerts_bigram$n)
+date_breaks <- ceiling(as.integer(difftime(max_date, min_date, units = "days")) / 7)
+date_seq <- seq.Date(min_date, max_date, by = date_breaks)
 
 plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
   geom_col(aes(x = date_test, y = n), color = "black", fill = "#26418F") +
@@ -1297,7 +1292,7 @@ plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
     breaks = scales::pretty_breaks(),
     expand = c(0, 0)
   ) +
-  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  scale_x_date(breaks = date_seq, date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
@@ -1322,7 +1317,7 @@ plotcc_bigram <- ggplot(data = daily_cc_alerts_bigram) +
     breaks = scales::pretty_breaks(),
     expand = c(0, 0)
   ) +
-  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  scale_x_date(breaks = date_seq, date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
@@ -1347,7 +1342,7 @@ plotdd_unigram <- ggplot(data = daily_dd_alerts_unigram) +
     breaks = scales::pretty_breaks(),
     expand = c(0, 0)
   ) +
-  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  scale_x_date(breaks = date_seq, date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
@@ -1372,7 +1367,7 @@ plotdd_bigram <- ggplot(data = daily_dd_alerts_bigram) +
     breaks = scales::pretty_breaks(),
     expand = c(0, 0)
   ) +
-  scale_x_date(date_breaks = "1 week", date_labels = "%b %d") +
+  scale_x_date(breaks = date_seq, date_labels = "%b %d") +
   theme_bw() +
   labs(
     x = "Date",
@@ -1428,7 +1423,7 @@ ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
 
 ```{r cc unigram slider, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 8}
 
-min_date <- start_date + 28 + 1 + 3
+min_date <- start_date + 28 + 2
 max_date <- test_date
 
 if (!is_empty(res_out_ccunigram)) {
@@ -1523,7 +1518,8 @@ if (nrow(cc_alerts_unigram) > 0) {
           zeroline = FALSE,
           showline = FALSE,
           showgrid = FALSE,
-          fixedrange = FALSE
+          fixedrange = FALSE,
+          autoscale = TRUE
         ),
         legend = list(showlegend = FALSE),
         hoverlabel = list(align = "left")
@@ -1541,7 +1537,7 @@ if (nrow(cc_alerts_unigram) > 0) {
 ```{r cc unigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(cc_alerts_unigram) > 0) {
-  min_date <- start_date + 28 + 1 + 3
+  min_date <- start_date + 28 + 2
   max_date <- test_date
 
   visit_denominators <- ccqv_data %>%
@@ -1811,7 +1807,7 @@ if (nrow(cc_alerts_bigram) > 0) {
 ```{r cc bigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(cc_alerts_bigram) > 0) {
-  min_date <- start_date + 28 + 1 + 3
+  min_date <- start_date + 28 + 2
   max_date <- test_date
 
   visit_denominators <- ccqv_data %>%
@@ -2088,7 +2084,7 @@ if (nrow(dd_alerts_unigram) > 0) {
 ```{r dd unigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(dd_alerts_unigram) > 0) {
-  min_date <- start_date + 28 + 1 + 3
+  min_date <- start_date + 28 + 2
   max_date <- test_date
   
   visit_denominators <- ccqv_data %>%
@@ -2386,7 +2382,7 @@ if (nrow(dd_alerts_bigram) > 0) {
 ```{r dd bigram table, echo = FALSE, warning = FALSE, message = FALSE}
 
 if (nrow(dd_alerts_bigram) > 0) {
-  min_date <- start_date + 28 + 1 + 3
+  min_date <- start_date + 28 + 2 
   max_date <- test_date
 
   visit_denominators <- ccqv_data %>%

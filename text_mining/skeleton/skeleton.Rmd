@@ -134,6 +134,7 @@ myProfile <- Credentials$new(
 
 ```{r ESSENCE data pull, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
 
+
 if (nchar(params$complex_query) > 0) {
   
   url <- params$complex_query
@@ -154,7 +155,7 @@ if (nchar(params$complex_query) > 0) {
   }
   
   if (definition_pattern == "Subsyndrome") {
-    definition_string <- str_replace_all(str_remove_all(tolower(definition), "subsyndrome: "), " ", "")
+    definition_string <- str_remove_all(tolower(definition), "subsyndrome: ")
     if (params$data_source == "Chief Complaint Query Validation") {
       definition_type <- "&subsyndrome="
     } else{
@@ -164,9 +165,13 @@ if (nchar(params$complex_query) > 0) {
   }
   
   if (definition_pattern == "Syndrome") {
-    definition_string <- str_replace_all(str_remove_all(tolower(definition), "syndrome: "), " ", "%20")
-    definition_type <- "&syndrome="
-    grouping_system <- "essencesyndromes"
+    definition_string <- str_remove_all(tolower(definition), "syndrome: ")
+    if (params$data_source == "Chief Complaint Query Validation") {
+      definition_type <- "&syndrome="
+    } else{
+      definition_type <- "&medicalGrouping="
+      grouping_system <- "essencesyndromes"
+    }
   }
   
   if (definition_pattern == "None (Custom CCDD Query)") {
@@ -188,10 +193,10 @@ if (nchar(params$complex_query) > 0) {
     url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE)
     
   } else if (params$data_source == "Facility Location (Full Details)") {
-
+    
     if (params$age_groups == "All Ages") {
       if (params$site == "All") {
-        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system,"&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
       } else {
         url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
       }
