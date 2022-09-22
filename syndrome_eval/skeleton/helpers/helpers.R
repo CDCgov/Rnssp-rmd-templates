@@ -260,7 +260,7 @@ return_longterm_query <- function(url, profile, loop_start, loop_end, by = 15) {
     new_output <- try(profile$get_api_data(url = url_update, fromCSV = TRUE, show_col_types = FALSE) %>%
                         mutate_all(as.character), silent = TRUE)
     # store the results from the i set of start and end dates as the i element in a list
-    if(class(new_output) == "try-error"){
+    if(any(class(new_output) == "try-error")){
       cli_alert(paste0("Data pull unsuccessful - skipped: ", loop_dates$start[i], " to ", loop_dates$end[i]))
     } else {
       output_list[[i]] <- new_output
@@ -270,7 +270,7 @@ return_longterm_query <- function(url, profile, loop_start, loop_end, by = 15) {
   
   #### Result ####
   # collapse results of the list generated in the output above into a data frame
-  all_data <- plyr::ldply(output_list, bind_rows)
+  all_data <- bind_rows(output_list)
   
   return(all_data)
   
