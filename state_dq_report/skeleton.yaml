@@ -1,0 +1,8 @@
+name: State Data Quality Report
+description: >
+  An automated, site-specific data quality report template that summarizes 
+  data quality metrics, including timeliness, completeness, and validity. 
+  Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
+  Original Code By: Andrew Farrey.
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon.
+create_dir: true
