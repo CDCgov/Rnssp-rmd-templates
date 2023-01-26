@@ -1,7 +1,7 @@
 ---
 title: "`r paste(params$site)` Syndromic Surveillance Data Quality Report"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
-description: "This is a site-level data quality report that generates metrics similar to the NSSP Data Quality dashboards. It utilizes your site's Production Processed table and the ESSENCE application programming interface (API) to assess the data quality of the selected C_Patient_Class in your jurisdiction. Please knit with parameters within the NSSP RStudio Workbench. Note: this report will not work in other instances of RStudio."
+description: "This is a site-level data quality report that generates metrics similar to the NSSP Data Quality dashboards. It utilizes your site's Production Processed table and the ESSENCE API to assess the data quality of the selected C_Patient_Class in your jurisdiction. Please knit with parameters within the NSSP RStudio Workbench. This report will not work in other instances of RStudio, as it must be able to query the BioSense platform."
 output:
   html_document:
     toc: true
@@ -695,7 +695,7 @@ plotly::plot_ly(
 
 The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 24 hour grace period).
 
-Table values are colored according to their NSSP timeliness category, with green denoting less than 24 hours, blue denoting between 24 and 48 hours, and red denoting greater than 48 hours.
+Table values are colored according to their NSSP timeliness category, with green indicating less than 24 hours, blue indicating between 24 and 48 hours, and red indicating greater than 48 hours.
 
 ```{r meanlag, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -735,7 +735,7 @@ NSSP has determined chief complaint information (the patient's stated reason for
 
 The following table details the mean and median chief complaint delay per patient encounter (in hours) by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
 
-Table values are colored according to their NSSP timeliness category, with green denoting values less than 24 hours, blue denoting values between 24 and 48 hours, and red denoting values greater than 48 hours.
+Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
 ```{r CC_time, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -794,7 +794,7 @@ NSSP recommends that diagnosis codes for each patient encounter begin to arrive 
 
 The following table details the mean and median hourly diagnosis code delay per patient encounter by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
 
-Table values are colored according to their NSSP timeliness category, with green denoting values less than 24 hours, blue denoting values between 24 and 48 hours, and red denoting values greater than 48 hours.
+Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
 ```{r DD_time, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -853,7 +853,7 @@ DXlag %>%
 
 The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
 
-NSSP requires 90% completeness for these Priority 1 and Priority 2 elements across each patient encounter. In other words, at least 90% of patient encounters should have at least one message where each required element is not null to ensure useful syndromic surveillance data.
+NSSP requires **80% completeness** for these Priority 1 and Priority 2 elements across each patient encounter. In other words, at least 80% of patient encounters should have at least one message where each required element is not null to ensure useful syndromic surveillance data.
 
 Completeness is calculated as the number of patient encounters with a completed, non-null value for that message field over the total number of unique patient encounters.
 
@@ -1211,6 +1211,8 @@ plot.ccavailable <- ggplot(cc.available) +
                                    scale = 1),
     limits = c(0, 100)
   ) +
+  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
+  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
   scale_color_manual(values = c("CCAvailable = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -1250,6 +1252,8 @@ plot.ddavailable <- ggplot(dd.available) +
                                    scale = 1),
     limits = c(0, 100)
   ) +
+  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
+  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
   scale_color_manual(values = c("DDAvailable = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -1280,7 +1284,7 @@ The following table details percent completeness of the chief complaint field (C
 
 The font color of the chief complaint percent completeness and diagnosis percent completeness columns indicate how well that facility is doing in terms of uploading usable, non-null chief complaint and diagnosis code information within the NSSP-required time frame.
 
-Green indicates greater than or equal to 90% completeness (NSSP's percent completeness requirement for required patient encounter fields), orange indicates percent completeness between 60%-90%, and red indicates percent completeness below 60% for that facility and metric.
+Green indicates greater than or equal to 80% completeness (NSSP's percent completeness requirement for required patient encounter fields), orange indicates percent completeness between 60%-80%, and red indicates percent completeness below 60% for that facility and metric.
 
 The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 24 hour grace period.
 
@@ -1350,8 +1354,8 @@ ccdx.summary.table %>%
     ),
     rownames = FALSE
   ) %>%
-  formatStyle('CC.pct.complete', color = styleInterval(c(60, 90), c('red', '#f26a44', 'green'))) %>%
-  formatStyle('DX.pct.complete', color = styleInterval(c(60, 90), c('red', '#f26a44', 'green'))) %>%
+  formatStyle('CC.pct.complete', color = styleInterval(c(60, 80), c('red', '#f26a44', 'green'))) %>%
+  formatStyle('DX.pct.complete', color = styleInterval(c(60, 80), c('red', '#f26a44', 'green'))) %>%
   formatStyle(c('Facility_Name', 'Total'), color = 'black')
 ```
 
@@ -2480,6 +2484,8 @@ plot.ccinformative <- ggplot(cc.informative) +
                                    scale = 1),
     limits = c(0,100)
   ) +
+  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
+  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
   scale_color_manual(values = c("CCInformative = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -2519,6 +2525,8 @@ plot.ddinformative <- ggplot(dd.informative) +
                                    scale = 1),
     limits = c(0,100)
   ) +
+  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
+  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
   scale_color_manual(values = c("DDInformative = 1" = "Blue")) +
   theme_bw() +
   theme(
