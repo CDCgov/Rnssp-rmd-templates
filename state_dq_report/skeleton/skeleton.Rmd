@@ -326,7 +326,7 @@ This report pulls and analyzes the data quality of recent, de-identified syndrom
 
 The `r paste0(sitename)`\_PR_Processed table is a back-end SQL table syndromic surveillance data occupies before reaching production NSSP ESSENCE, the national syndromic surveillance web platform. The default dates selected include a built in "grace period" of 24 hours.[^1]
 
-[^1]: Facility counts, patient counts, and message counts may vary based on the time period included in the report and when the report was run. Patient visit counts pulled from the processed table will not precisely match visit counts pulled from ESSENCE.
+[^1]: Facility counts, patient counts, and message counts may vary based on the time period included in the report and when the report was run. Patient visit counts pulled from the processed table will not match visit counts pulled from ESSENCE precisely.
 
 ## Data Quality Elements
 
