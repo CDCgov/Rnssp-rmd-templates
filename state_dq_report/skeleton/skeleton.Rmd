@@ -691,7 +691,7 @@ plotly::plot_ly(
   )
 ```
 
-## First Message Timeliness
+## First Message Timeliness by Facility Table
 
 The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 24 hour grace period).
 
@@ -729,7 +729,7 @@ lagsummary %>% datatable(
   formatStyle('messagelagavg', color = styleInterval(c(24, 48), c('green', 'blue', 'red')))
 ```
 
-## Chief Complaint (CC) Timeliness
+## Chief Complaint (CC) Timeliness by Facility Table
 
 NSSP has determined chief complaint information (the patient's stated reason for the healthcare visit) should be received within 24 to 48 hours of each patient encounter to ensure timely and informative syndromic surveillance data. Chief complaint timeliness is an unofficial, field-specific delay value calculated by comparing by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message per patient encounter with a non-null chief complaint field (C_Chief_Complaint). This metric can help identify facilities exhibiting unusually high chief complaint submission delay times, which can adversely affect syndromic surveillance data utility.
 
@@ -788,7 +788,7 @@ CClag %>%
   formatStyle('CClagmedian', color = styleInterval(c(24, 48), c('green', 'blue', 'red')))
 ```
 
-## Diagnosis Code Timeliness
+## Diagnosis Code Timeliness by Facility Table
 
 NSSP recommends that diagnosis codes for each patient encounter begin to arrive within 24 to 48 hours of when the patient encounter occurred to help ensure timely and informative syndromic surveillance data. Diagnosis code timeliness is an unofficial, field-specific delay value calculated by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message received per patient encounter with a non-null diagnosis code field (Diagnosis_Code). This metric can help to identify facilities exhibiting unusually high diagnosis code submission delay times, which can adversely affect syndromic surveillance data utility.
 
@@ -849,7 +849,7 @@ DXlag %>%
 
 # Completeness {.tabset .tabset-fade .tabset-pills}
 
-## NSSP Priority 1 and Priority 2 Data Field Completeness
+## Overall NSSP Priority 1 and Priority 2 Data Field Completeness
 
 The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
 
@@ -1166,7 +1166,7 @@ ggplot(element2.plot, aes(x = fct_rev(Metric), y = Percent_Complete, fill = Perc
     strip.text.x = element_text(size = 12, face = "bold")) 
 ```
 
-## ESSENCE API-Derived Chief Complaint and Diagnosis Code Completeness
+## ESSENCE API-Derived Chief Complaint and Diagnosis Code Completeness (Overall)
 
 The plots below display `r paste(params$site)`'s overall chief complaint completeness and diagnosis code completeness calculated from applicable ESSENCE patient encounters for `r paste(pat.class)` visits. These values have been pulled using the CCAvailable and DDAvailable fields in the ESSENCE API.[^5]
 
@@ -2117,11 +2117,11 @@ ggplot(priority_2_plot, aes(x = fct_rev(Metric), y = Percent_Valid, fill = Perce
     strip.text.x = element_text(size = 12, face = "bold"))
 ```
 
-## Validity by Message Field by Facility (`r paste0(sitename)`\_PR_Processed Table)
+## Validity by Message Field by Facility Tables (`r paste0(sitename)`\_PR_Processed Table)
 
 The tables below display `r paste(params$site)`'s percent validity across NSSP Priority 1 and Priority 2 data quality elements by facility, for messages from all `r paste(pat.class)` patient encounters received by the `r paste0(sitename)`\_PR_Processed table between `r start_date_lab` and `r end_date_lab` (as of `r local_time_display`).
 
-Fields with 80% validity or greater are green, while fields with less than 80% validity are red, indicating that field is below the NSSP validity threshold of 80%.
+Fields with 80% validity or greater are green, while fields with less than 80% validity are red, indicating that field is below the NSSP validity threshold of 80%. The first table contains NSSP Priority 1 data elements and the second table contains NSSP Priority 2 data elements.
 
 Note: the PR_Processed table may reflect slightly different completeness and validity metrics compared to production ESSENCE data.
 
