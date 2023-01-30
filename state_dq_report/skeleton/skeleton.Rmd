@@ -1212,7 +1212,7 @@ plot.ccavailable <- ggplot(cc.available) +
     limits = c(0, 100)
   ) +
   geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
+  annotate("text", x = min(cc.available$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
   scale_color_manual(values = c("CCAvailable = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -1253,7 +1253,7 @@ plot.ddavailable <- ggplot(dd.available) +
     limits = c(0, 100)
   ) +
   geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
+  annotate("text", x = min(dd.available$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
   scale_color_manual(values = c("DDAvailable = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -2526,7 +2526,7 @@ plot.ddinformative <- ggplot(dd.informative) +
     limits = c(0,100)
   ) +
   geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
+  annotate("text", x = min(dd.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
   scale_color_manual(values = c("DDInformative = 1" = "Blue")) +
   theme_bw() +
   theme(
