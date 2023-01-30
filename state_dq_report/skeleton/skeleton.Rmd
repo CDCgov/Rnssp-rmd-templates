@@ -343,7 +343,7 @@ Click on each tab below to view the associated plot.
 
 The following plot displays the number of `r paste(pat.class)` facilities that actively submitted `r paste(pat.class)` production ESSENCE data, site-wide from `r start_date_lab` through `r end_date_lab`.
 
-These facility counts represent production ESSENCE data 
+These facility counts represent production ESSENCE data. 
 
 ```{r facility_count, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
 # Count facilities - could change to Summary API
