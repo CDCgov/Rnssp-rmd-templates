@@ -1,7 +1,7 @@
 ---
 title: "`r paste(params$site)` Syndromic Surveillance Data Quality Report"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
-description: "This is a site-level data quality report that generates metrics similar to the NSSP Data Quality dashboards. It utilizes your site's Production Processed table and the ESSENCE API to assess the data quality of the selected C_Patient_Class in your jurisdiction. Please knit with parameters within the NSSP RStudio Workbench. This report will not work in other instances of RStudio, as it must be able to query the BioSense platform."
+description: "This is a site-level data quality report that generates metrics similar to the NSSP Data Quality dashboards. It utilizes your site's Production Processed table and the ESSENCE API to assess the data quality of facilities that submit encounters matching the selected C_Patient_Class in your jurisdiction. Please knit with parameters within the NSSP RStudio Workbench. This report will not work in other instances of RStudio, as it must be able to query the BioSense platform."
 output:
   html_document:
     toc: true
