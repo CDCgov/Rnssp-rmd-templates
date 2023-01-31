@@ -1373,9 +1373,9 @@ This reports presents validity as a combination of:
 
 -   the **percentage of patient encounters** (for "required but may remain empty" (RE) and "calculated required but may remain empty" (CRE) data elements) with a valid, non-null response for that data element compared to the **total number of patient encounters** with a **C_Patient_Class of `r paste(patient_class)`**.
 
-NSSP's Validity assessment methodology has been replicated where possible from the Microsoft SQL code present in the NSSP SAS Studio Data Quality on Demand (DQOD) validity assessment programs. Please note the values presented may differ from validity metrics obtained using the NSSP Data Quality Dashboards (v1 and v2) or NSSP SAS Studio Data Quality On Demand (DQOD) programs, as they do not currently filter by patient class.
+NSSP's Validity assessment methodology has been replicated where possible from the Microsoft SQL code present in the NSSP SAS Studio Data Quality on Demand (DQOD) validity assessment programs. Please note the values presented may differ slightly from validity metrics obtained using the NSSP Data Quality Dashboards (v1 and v2) or NSSP SAS Studio Data Quality On Demand (DQOD) programs, as they do not currently filter by patient class.
 
-Message fields in the `r paste0(sitename)`\_PR_Processed table are considered valid if they follow the corresponding Validity Definition and/or contains a valid value from the appropriate Public Health Information Network Vocabulary Access and Distribution System (PHIN-VADS) code set (when applicable).
+Message fields are considered valid if they follow the corresponding Validity Definition and/or contains a valid value from the appropriate Public Health Information Network Vocabulary Access and Distribution System (PHIN-VADS) code set (when applicable).
 
 NSSP Priority 1 and Priority 2 element validity definitions are presented in the table below (including hyperlinks to relevant code sets and NSSP documentation).
 
