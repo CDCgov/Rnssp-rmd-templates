@@ -293,3 +293,15 @@ The Data Quality Filter Matrix template is available.
 This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjuction with one another.
 
 </details>
+
+## State Data Quality Report template (`state_dq_report`)
+
+<details open>
+
+<summary>1/31/2023</summary>
+The State Data Quality Report template is available.
+
+
+This template summarizes data quality metrics, including timeliness, completeness, and validity. It Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
+
+</details>
