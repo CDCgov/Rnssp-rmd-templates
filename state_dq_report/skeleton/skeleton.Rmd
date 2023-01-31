@@ -20,7 +20,7 @@ params:
     label: "Select Site Name"
     value: "Kentucky"
     input: select
-    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://github.com", "andrew-farrey", "Rnssp-rmd-templates", "raw", "master", "state_dq_report", "skeleton", "nssp_sites.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_dq_report", "skeleton", "nssp_sites.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
     multiple: no
    start_date:
     label: "Start Date: "
@@ -46,11 +46,11 @@ editor_options:
 
 ```{=html}
 <style type="text/css">
-  .main-container {
-    max-width: 1300px;
-    margin-left: auto;
-    margin-right: auto;
-  }
+.main-container {
+max-width: 1300px;
+margin-left: auto;
+margin-right: auto;
+}
 </style>
 ```
 
@@ -71,29 +71,29 @@ library(shadowtext)
 library(RODBC)
 library(plotly)
 library(patchwork)
-library(httr)
 library(kableExtra)
 library(gt)
 library(gtExtras)
+```
 
-httr::set_config(httr::config(ssl_verifypeer = 0L))
-
+```{r helpers, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
 # Function to calculate local time difference from UTC/GMT (NSSP RStudio/BioSense time zone)
-recastTimezone.POSIXct <- function(x, timezone) return(
-  as.POSIXct(as.character(x), origin = as.POSIXct("1970-01-01"), tz = timezone))
+recastTimezone.POSIXct <- function(x, timezone) {
+  as.POSIXct(as.character(x), origin = as.POSIXct("1970-01-01"), tz = timezone)
+}
 
 # Note: functions are called explicitly by package in the code when a known conflict exists (e.g., plotly has a select() function that overrides dplyr::select(), as it is loaded after dplyr)
 ```
 
-```{r set dates, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
 
+```{r set dates, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
 # Dates selected by User Parameters
 start_date <- as.Date(params$start_date)
 end_date <- as.Date(params$end_date)
 
 # Date Labels
-start_date_lab = format(start_date, "%B %d, %Y")
-end_date_lab = format(end_date, "%B %d, %Y")
+start_date_lab <- format(start_date, "%B %d, %Y")
+end_date_lab <- format(end_date, "%B %d, %Y")
 
 # SQL Dates
 beginning_date <- gsub("-", "", start_date)
@@ -111,73 +111,63 @@ adjusted_local_time <- recastTimezone.POSIXct(local_time, "UTC")
 
 adt_adjustment <- as.integer(difftime(floor_date(system_time, "hour"), floor_date(adjusted_local_time, "hour"), units = "hours"))
 
-local_time_display <- format(with_tz(Sys.time(), tzone = paste0(timezone)), '%r')
+local_time_display <- format(with_tz(Sys.time(), tzone = paste0(timezone)), "%r")
 ```
 
 ```{r format patient_class, echo=FALSE, include=FALSE}
-
 # Format selected patient class for SQL pull and report display
-pat.class <-
-  if (params$patient_class == "E (Emergency Department)") {
-    paste0('Emergency Department')
-  } else if (params$patient_class == "I (Inpatient)") {
-    paste0('Inpatient')
-  } else if (params$patient_class == "O (Outpatient)") {
-    paste0('Outpatient')
-  }
+pat.class <- if (params$patient_class == "E (Emergency Department)") {
+  paste0("Emergency Department")
+} else if (params$patient_class == "I (Inpatient)") {
+  paste0("Inpatient")
+} else if (params$patient_class == "O (Outpatient)") {
+  paste0("Outpatient")
+}
 
-patient_class <-
-  if (params$patient_class == "E (Emergency Department)") {
-    paste0('E')
-  } else if (params$patient_class == "I (Inpatient)") {
-    paste0('I')
-  } else if (params$patient_class == "O (Outpatient)") {
-    paste0('O')
-  }
-
+patient_class <- if (params$patient_class == "E (Emergency Department)") {
+  paste0("E")
+} else if (params$patient_class == "I (Inpatient)") {
+  paste0("I")
+} else if (params$patient_class == "O (Outpatient)") {
+  paste0("O")
+}
 ```
 
 ```{r load NSSP profile, echo=FALSE, message=FALSE, include=FALSE}
-
 # Create NSSP/ESSENCE credentials profile from parameters
 myProfile <- Credentials$new(
   username = params$username,
   password = params$password
 )
-
 ```
 
 ```{r set site paramter, echo=FALSE, message=FALSE, include=FALSE}
-
 # Pull site short name for BioSense Platform SQL pulls
 sitename <- readRDS("nssp_sites.rds") %>%
-      filter(site_name == params$site) %>%
-      pull(site_short_name)
+  filter(site_name == params$site) %>%
+  pull(site_short_name)
 ```
 
 ```{r facilitypull, message=FALSE, warning=FALSE, echo=FALSE, include=FALSE}
-
 # SQL Connection
-con <-
-  RODBC::odbcConnect(
-    dsn = "BioSense_Platform",
-    uid = paste0("BIOSENSE\\", params$username),
-    pwd = paste0(params$password)
-  )
+con <- RODBC::odbcConnect(
+  dsn = "BioSense_Platform",
+  uid = paste0("BIOSENSE\\", params$username),
+  pwd = paste0(params$password)
+)
 
 # Pull site Operational Crosswalk
-operational_crosswalk <-
-  RODBC::sqlQuery(
-    con,
-    paste0(
-      "SELECT C_Biosense_Facility_ID,
+operational_crosswalk <- RODBC::sqlQuery(
+  con,
+  paste0(
+    "SELECT C_Biosense_Facility_ID,
       Facility_Status,
       Patient_Class_Code
       FROM ",
-      sitename,
-      "_Operational_Crosswalk"
-    )
+    sitename,
+    "_Operational_Crosswalk"
   )
+)
 
 # Pull onboarding facilities from crosswalk
 onboarding <- operational_crosswalk %>%
@@ -212,23 +202,23 @@ MFT <- MFT %>%
   filter(Patient_Class_Code == paste0(patient_class)) %>%
   mutate(
     Facility_Name = str_trim(Facility_Name, side = "both"),
-    Facility_Name = gsub(', Inc.', '', Facility_Name),
-    Facility_Name = gsub(' Inc.', '', Facility_Name),
-    Facility_Name = gsub(' LLC', '', Facility_Name),
-    Facility_Name = gsub(', LLC', '', Facility_Name)
+    Facility_Name = gsub(", Inc.", "", Facility_Name),
+    Facility_Name = gsub(" Inc.", "", Facility_Name),
+    Facility_Name = gsub(" LLC", "", Facility_Name),
+    Facility_Name = gsub(", LLC", "", Facility_Name)
   ) %>%
   dplyr::select(Facility_Name, C_Biosense_Facility_ID) %>%
   dplyr::distinct()
 
 # Join facility names to Crosswalk
-active_crosswalk <-
-  dplyr::left_join(active_crosswalk, MFT, by = "C_Biosense_Facility_ID") %>%
+active_crosswalk <- active_crosswalk %>%
+  dplyr::left_join(., MFT, by = "C_Biosense_Facility_ID") %>%
   dplyr::distinct() %>%
   dplyr::arrange(Facility_Name)
 
 # Join facility names to onboarding facilities
-onboarding <-
-  dplyr::left_join(onboarding, MFT, by = "C_Biosense_Facility_ID") %>%
+onboarding <- onboarding %>%
+  dplyr::left_join(., MFT, by = "C_Biosense_Facility_ID") %>%
   dplyr::distinct() %>%
   dplyr::arrange(Facility_Name)
 
@@ -236,33 +226,30 @@ odbcClose(con)
 ```
 
 ```{r pull_production_messages, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-
-#Set up con, SQL pull
-con <-
-  RODBC::odbcConnect(
-    dsn = "BioSense_Platform",
-    uid = paste0("BIOSENSE\\", params$username),
-    pwd = paste0(params$password)
-  )
+# Set up con, SQL pull
+con <- RODBC::odbcConnect(
+  dsn = "BioSense_Platform",
+  uid = paste0("BIOSENSE\\", params$username),
+  pwd = paste0(params$password)
+)
 
 # Pull NSSP Priority 1 & Priority 2 elements and timeliness fields
-# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; I prefer C_Patient_Class so patient encounters mirror production ESSENCE as closely as possible. 
-messages <-
-  RODBC::sqlQuery(
-    con,
-    paste0(
-      "SELECT Feed_Name, C_Biosense_Facility_ID, C_Facility_ID, C_Biosense_ID, Visit_ID, Processed_ID, Processing_ID, C_Unique_Patient_ID, Message_ID, Treating_Facility_ID, Sending_Facility_ID, Facility_Type_Code, C_FacType_Patient_Class, C_Patient_Class, Patient_Class_Code, Admit_Date_Time, Admit_Reason_Description, C_Chief_Complaint, Chief_Complaint_Text, C_Death, C_Patient_Age, C_Patient_Age_Years, Diagnosis_Code, Diagnosis_Description, Patient_Zip, Trigger_Event, Arrived_Date, Arrived_Date_Time, C_Visit_Date, C_Visit_Date_Time, Message_Date_Time, Recorded_Date_Time, Create_Raw_Date_Time, Sending_Facility_ID_Source, Discharge_Disposition, Discharge_Date_Time, First_Patient_ID, Medical_Record_Number, Admit_Reason_Code, Chief_Complaint_Code, Diagnosis_Type, Administrative_Sex, Age_Reported, Age_Units_Reported, C_Patient_Age_Units, C_Patient_Age_Source, C_Patient_County, Ethnicity_Code, Ethnicity_Description, Patient_City, Patient_State, Patient_Country, Race_Code, Race_Description, Version_ID FROM ",
-      sitename,
-      "_PR_Processed WITH (nolock) WHERE C_Patient_Class='",
-      patient_class,
-      "' and cast(C_Visit_Date as date) >='",
-      beginning_date,
-      "'",
-      " and cast(C_Visit_Date as date) <='",
-      ending_date,
-      "'"
-    )
+# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; I prefer C_Patient_Class so patient encounters mirror production ESSENCE as closely as possible.
+messages <- RODBC::sqlQuery(
+  con,
+  paste0(
+    "SELECT Feed_Name, C_Biosense_Facility_ID, C_Facility_ID, C_Biosense_ID, Visit_ID, Processed_ID, Processing_ID, C_Unique_Patient_ID, Message_ID, Treating_Facility_ID, Sending_Facility_ID, Facility_Type_Code, C_FacType_Patient_Class, C_Patient_Class, Patient_Class_Code, Admit_Date_Time, Admit_Reason_Description, C_Chief_Complaint, Chief_Complaint_Text, C_Death, C_Patient_Age, C_Patient_Age_Years, Diagnosis_Code, Diagnosis_Description, Patient_Zip, Trigger_Event, Arrived_Date, Arrived_Date_Time, C_Visit_Date, C_Visit_Date_Time, Message_Date_Time, Recorded_Date_Time, Create_Raw_Date_Time, Sending_Facility_ID_Source, Discharge_Disposition, Discharge_Date_Time, First_Patient_ID, Medical_Record_Number, Admit_Reason_Code, Chief_Complaint_Code, Diagnosis_Type, Administrative_Sex, Age_Reported, Age_Units_Reported, C_Patient_Age_Units, C_Patient_Age_Source, C_Patient_County, Ethnicity_Code, Ethnicity_Description, Patient_City, Patient_State, Patient_Country, Race_Code, Race_Description, Version_ID FROM ",
+    sitename,
+    "_PR_Processed WITH (nolock) WHERE C_Patient_Class='",
+    patient_class,
+    "' and cast(C_Visit_Date as date) >='",
+    beginning_date,
+    "'",
+    " and cast(C_Visit_Date as date) <='",
+    ending_date,
+    "'"
   )
+)
 
 odbcClose(con)
 
@@ -270,7 +257,8 @@ odbcClose(con)
 
 messages <- messages %>%
   dplyr::left_join(active_crosswalk,
-                   by = "C_Biosense_Facility_ID") %>%
+                   by = "C_Biosense_Facility_ID"
+  ) %>%
   mutate(
     C_Visit_Date = as.Date(C_Visit_Date),
     Arrived_Date = as.Date(Arrived_Date),
@@ -280,23 +268,23 @@ messages <- messages %>%
     Recorded_Date_Time = as.POSIXct(Recorded_Date_Time, format = "%Y-%m-%d %H:%M:%S"),
     C_Chief_Complaint = gsub(
       "NA|UNK|NULL|UNK|UNKNOWN|ER|Emergency Room|EMS|null|unk|ed|ed visit|er|na|illness|General|Ambulance|Medic|Chief complaint not present|ed visit|er|Advice Only|Other|xxx|Evaluation|Follow up|medical|General symptom|AMR|EMS//Arrived By|EMS//Ambulance|Triage|Document|DOCUMENT|Triage peds|Triage-|Triage peds-|See chief complaint quote|See CC quote|Sick|Injury|ill|Eval|squad|Referral|Code 1|Code 3|follow-up",
-      '',
+      "",
       C_Chief_Complaint,
       ignore.case = FALSE
     ),
-    C_Chief_Complaint = gsub("[//?,.;'-]+", '', C_Chief_Complaint),
-    C_Chief_Complaint = gsub("//S", '', C_Chief_Complaint),
+    C_Chief_Complaint = gsub("[//?,.;'-]+", "", C_Chief_Complaint),
+    C_Chief_Complaint = gsub("//S", "", C_Chief_Complaint),
     Diagnosis_Code = gsub(
       "NA|UNK|NULL|UNK|UNKNOWN|ER|Emergency Room|EMS|null|unk|ed|ed visit|er|na|illness|General|Ambulance|Medic|Chief complaint not present|ed visit|er|Advice Only|Other|xxx|Evaluation|Follow up|medical|General symptom|AMR|EMS//Arrived By|EMS//Ambulance|Triage|Document|DOCUMENT|Triage peds|Triage-|Triage peds-|See chief complaint quote|See CC quote|Sick|Injury|ill|Eval|squad|Referral|Code 1|Code 3|follow-up",
-      '',
+      "",
       Diagnosis_Code,
       ignore.case = FALSE
     ),
-    Diagnosis_Code = gsub("//S", '', Diagnosis_Code),
-    Diagnosis_Code = gsub("[//?,.;'-]+", '', Diagnosis_Code),
+    Diagnosis_Code = gsub("//S", "", Diagnosis_Code),
+    Diagnosis_Code = gsub("[//?,.;'-]+", "", Diagnosis_Code),
     Sending_Facility_ID = as.character(Sending_Facility_ID),
     Treating_Facility_ID = as.character(Treating_Facility_ID),
-    Feed = paste0(sitename,"_Feed")
+    Feed = paste0(sitename, "_Feed")
   ) %>%
   mutate(Arrived_Date_Time = Arrived_Date_Time - lubridate::hours(paste0(adt_adjustment))) %>%
   filter(Facility_Name != "")
@@ -304,7 +292,6 @@ messages <- messages %>%
 # Set blank chief complaints and diagnosis codes to NA
 messages$C_Chief_Complaint[messages$C_Chief_Complaint == ""] <- NA
 messages$Diagnosis_Code[messages$Diagnosis_Code == ""] <- NA
-
 ```
 
 ```{r limit_facilities, echo=FALSE, message=FALSE, warning=FALSE}
@@ -313,7 +300,7 @@ messages$Diagnosis_Code[messages$Diagnosis_Code == ""] <- NA
 
 fac <- ""
 
-#fac <- "&geography=24104"
+# fac <- "&geography=24104"
 ```
 
 #### About
@@ -347,25 +334,26 @@ These facility counts represent production ESSENCE data.
 
 ```{r facility_count, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
 # Count facilities - could change to Summary API
-url <-
-  paste0(
-    "https://essence.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
-    endDate,
-    "&geography=",
-    sitename,
-    "&percentParam=noPercent&datasource=va_hosp&startDate=",
-    startDate,
-    "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TableBuilder&geographySystem=hospitalstate&detector=nodetectordetector&timeResolution=daily&hasBeen",
-    patient_class,
-    "=1&rowFields=timeResolution&columnField=hospitalGrouping"
-  )
+url <- paste0(
+  "https://essence.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
+  endDate,
+  "&geography=",
+  sitename,
+  "&percentParam=noPercent&datasource=va_hosp&startDate=",
+  startDate,
+  "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TableBuilder&geographySystem=hospitalstate&detector=nodetectordetector&timeResolution=daily&hasBeen",
+  patient_class,
+  "=1&rowFields=timeResolution&columnField=hospitalGrouping"
+)
 
 facility.count <- myProfile$get_api_data(url, fromCSV = FALSE)
 
 facility.count <- facility.count %>%
-  rename(date = timeResolution,
-         hospital = hospitalGrouping,
-         encounters = count) %>%
+  rename(
+    date = timeResolution,
+    hospital = hospitalGrouping,
+    encounters = count
+  ) %>%
   filter(encounters > 0) %>%
   mutate(
     date = as.Date(date),
@@ -389,15 +377,15 @@ ab <- list(
 
 plotly::plot_ly(
   facilities,
-  x = ~ date,
-  y = ~ hospitals,
+  x = ~date,
+  y = ~hospitals,
   type = "scatter",
-  mode = 'lines+markers'
+  mode = "lines+markers"
 ) %>%
   plotly::layout(
     title = "Syndromic Facilities Online by Day",
     yaxis = ab,
-    xaxis = list(title = 'Date'),
+    xaxis = list(title = "Date"),
     showlegend = FALSE
   )
 ```
@@ -405,10 +393,9 @@ plotly::plot_ly(
 ## Total `r paste(params$site)` `r paste(pat.class)` Patient Encounters by Day
 
 ```{r daily_encounters, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
-
 daily.encounters <- facility.count %>%
   group_by(date) %>%
-  summarize(total_encounters = sum(encounters)) %>% 
+  summarize(total_encounters = sum(encounters)) %>%
   ungroup()
 
 ac <- list(
@@ -422,18 +409,17 @@ ac <- list(
 
 plotly::plot_ly(
   daily.encounters,
-  x = ~ date,
-  y = ~ total_encounters,
+  x = ~date,
+  y = ~total_encounters,
   type = "scatter",
-  mode = 'lines+markers'
+  mode = "lines+markers"
 ) %>%
   plotly::layout(
     title = "Total Patient Visits by Day",
     yaxis = ac,
-    xaxis = list(title = 'Date'),
+    xaxis = list(title = "Date"),
     showlegend = FALSE
   )
-
 ```
 
 ## Total `r paste(params$site)` `r paste(pat.class)` HL7 Messages by Day
@@ -441,7 +427,6 @@ plotly::plot_ly(
 This plot displays the total messages received by the BioSense platform for patient encounters that occurred on the listed date.
 
 ```{r messagesperday, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
-
 messages.by.day <- messages %>%
   group_by(Arrived_Date) %>%
   summarize(`Total Messages` = n()) %>%
@@ -458,17 +443,19 @@ aa <- list(
 
 plotly::plot_ly(
   messages.by.day,
-  x = ~ Arrived_Date,
-  y = ~ `Total Messages`,
-  name = 'Total Messages',
+  x = ~Arrived_Date,
+  y = ~`Total Messages`,
+  name = "Total Messages",
   type = "scatter",
-  mode = 'lines+markers',
+  mode = "lines+markers",
   line = list(color = "green"),
   marker = list(color = "green")
 ) %>%
-  plotly::layout(title = "Total Syndromic Messages Received by Day",
-                 yaxis = aa,
-                 xaxis = list(title = 'Date')) 
+  plotly::layout(
+    title = "Total Syndromic Messages Received by Day",
+    yaxis = aa,
+    xaxis = list(title = "Date")
+  )
 ```
 
 ## Onboarding `r paste(params$site)` `r paste(pat.class)` Facilities
@@ -480,17 +467,17 @@ onboarding <- onboarding %>%
 
 datatable(
   onboarding,
-  extensions = 'Buttons',
+  extensions = "Buttons",
   options = list(
-    dom = 'Bfrtip',
-    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print"),
     pageLength = 15,
     autoWidth = TRUE,
     scrollY = TRUE,
-    order = list(0, 'asc')
+    order = list(0, "asc")
   ),
   rownames = FALSE
-) 
+)
 ```
 
 # Timeliness {.tabset .tabset-fade .tabset-pills}
@@ -539,13 +526,17 @@ lag <- messages %>%
   ungroup()
 
 # Create table and proportion table for overall timeliness plot
-lag.table <-
-  as.data.frame(prop.table(table(lag$TimelinessCategory)))
+lag.table <- as.data.frame(prop.table(table(lag$TimelinessCategory)))
 colnames(lag.table) <- c("Timeliness Category", "Percent")
 
 lag.table <- lag.table %>%
   mutate(Percent = round(Percent, 2)) %>%
-  mutate(`Timeliness Category` = fct_relevel(`Timeliness Category`, c(">48 Hours", "24-48 Hours", "<24 Hours")))
+  mutate(
+    `Timeliness Category` = fct_relevel(
+      `Timeliness Category`,
+      c(">48 Hours", "24-48 Hours", "<24 Hours")
+    )
+  )
 
 ggplot(lag.table) +
   aes(
@@ -561,7 +552,8 @@ ggplot(lag.table) +
                       "<24 Hours" = "#2ca02c",
                       "24-48 Hours" = "blue",
                       ">48 Hours" = "red"
-                    )) +
+                    )
+  ) +
   labs(
     x = "NSSP Timeliness Category",
     y = "Percent",
@@ -575,8 +567,10 @@ ggplot(lag.table) +
     size = 5
   ) +
   scale_y_discrete(expand = expansion(mult = c(0, 0.12))) +
-  theme(legend.position = "none",
-        plot.title = element_text(hjust = 0.5))
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5)
+  )
 ```
 
 ## Facility Visit Counts by NSSP Timeliness Category
@@ -586,25 +580,28 @@ This plot display patient visit counts by NSSP timeliness category aggregated by
 [^4]: Note: the number of `r paste(pat.class)` facilities represented depends upon the number of facilities currently sending patient encounter messages with the corresponding C_Patient_Class, and whether those facilities could be joined to an active facility listed in either the `r paste0(sitename)`\_MFT (master facility table) or the `r paste0(sitename)`\_Operational_Crosswalk table.
 
 ```{r delay_counts, echo=FALSE,warning=FALSE,message=FALSE, fig.height=16,fig.width=12}
+lag.counts <- as.data.frame(table(lag$Facility_Name, lag$TimelinessCategory))
 
-lag.counts <-
-  as.data.frame(table(lag$Facility_Name, lag$TimelinessCategory))
-
-colnames(lag.counts) <-
-  c("Facility Name", "Timeliness Category", "Total")
+colnames(lag.counts) <- c("Facility Name", "Timeliness Category", "Total")
 
 delay.plot <- data.frame(
   lag.counts %>%
-    pivot_wider(names_from = `Timeliness Category`,
-                values_from = Total),
+    pivot_wider(
+      names_from = `Timeliness Category`,
+      values_from = Total
+    ),
   stringsAsFactors = FALSE
 )
 
 colnames(delay.plot) <- c("Facility Name", "<24 Hours", "24-48 Hours", ">48 Hours")
 
 delay.plot$`Facility Name` <-
-  factor(delay.plot$`Facility Name`,
-         levels = unique(delay.plot$`Facility Name`)[order(delay.plot$`Facility Name`, decreasing = TRUE)])
+  factor(
+    delay.plot$`Facility Name`,
+    levels = unique(delay.plot$`Facility Name`)[
+      order(delay.plot$`Facility Name`, decreasing = TRUE)
+    ]
+  )
 
 ad <- list(
   title = "",
@@ -616,26 +613,26 @@ ad <- list(
 
 plotly::plot_ly(
   delay.plot,
-  y = ~ `Facility Name`,
-  x = ~ `<24 Hours`,
-  type = 'bar',
-  name = '<24 Hours',
-  marker = list(color = 'green')
+  y = ~`Facility Name`,
+  x = ~`<24 Hours`,
+  type = "bar",
+  name = "<24 Hours",
+  marker = list(color = "green")
 ) %>%
   plotly::add_trace(
-    x = ~ `24-48 Hours`,
-    name = '24-48 Hours',
+    x = ~`24-48 Hours`,
+    name = "24-48 Hours",
     marker = list(color = "blue")
   ) %>%
   plotly::add_trace(
-    x = ~ `>48 Hours`,
-    name = '>48 Hours',
+    x = ~`>48 Hours`,
+    name = ">48 Hours",
     marker = list(color = "red")
   ) %>%
   plotly::layout(
     yaxis = ad,
-    xaxis = list(title = 'Counts by Timeliness Category'),
-    barmode = 'stack'
+    xaxis = list(title = "Counts by Timeliness Category"),
+    barmode = "stack"
   )
 ```
 
@@ -644,7 +641,6 @@ plotly::plot_ly(
 This plot display the percentage of patient visits by NSSP timeliness category aggregated by facility from `r start_date_lab` through `r end_date_lab` calculated using `r paste0(sitename)`\_PR_Processed table data.
 
 ```{r bigplot2, echo=FALSE,warning=FALSE,message=FALSE, fig.height=16,fig.width=12}
-
 lagtable <- table(lag$Facility_Name, lag$TimelinessCategory)
 FacilityLag <- data.frame(prop.table(lagtable, margin = 1))
 
@@ -655,39 +651,44 @@ FacilityLag <- FacilityLag %>%
 
 FacLag <- data.frame(
   FacilityLag %>%
-    pivot_wider(names_from = `Timeliness Category`,
-                values_from = Percent),
+    pivot_wider(
+      names_from = `Timeliness Category`,
+      values_from = Percent
+    ),
   stringsAsFactors = FALSE
 )
 
-colnames(FacLag) <-
-  c("Facility Name", "<24 Hours", "24-48 Hours", ">48 Hours")
+colnames(FacLag) <- c("Facility Name", "<24 Hours", "24-48 Hours", ">48 Hours")
 
-FacLag$`Facility Name` <-
-  factor(FacLag$`Facility Name`, levels = unique(FacLag$`Facility Name`)[order(FacLag$`Facility Name`, decreasing = TRUE)])
+FacLag$`Facility Name` <- factor(
+  FacLag$`Facility Name`,
+  levels = unique(FacLag$`Facility Name`)[
+    order(FacLag$`Facility Name`, decreasing = TRUE)
+  ]
+)
 
 plotly::plot_ly(
   FacLag,
-  y = ~ `Facility Name`,
-  x = ~ `<24 Hours`,
-  type = 'bar',
-  name = '<24 Hours',
-  marker = list(color = 'green')
+  y = ~`Facility Name`,
+  x = ~`<24 Hours`,
+  type = "bar",
+  name = "<24 Hours",
+  marker = list(color = "green")
 ) %>%
   plotly::add_trace(
-    x = ~ `24-48 Hours`,
-    name = '24-48 Hours',
+    x = ~`24-48 Hours`,
+    name = "24-48 Hours",
     marker = list(color = "blue")
   ) %>%
   plotly::add_trace(
-    x = ~ `>48 Hours`,
-    name = '>48 Hours',
+    x = ~`>48 Hours`,
+    name = ">48 Hours",
     marker = list(color = "red")
   ) %>%
   plotly::layout(
     yaxis = ad,
-    xaxis = list(title = 'Visit Percentage by Timeliness Category'),
-    barmode = 'stack'
+    xaxis = list(title = "Visit Percentage by Timeliness Category"),
+    barmode = "stack"
   )
 ```
 
@@ -698,35 +699,40 @@ The following table details mean and median first message lag/delay times for pa
 Table values are colored according to their NSSP timeliness category, with green indicating less than 24 hours, blue indicating between 24 and 48 hours, and red indicating greater than 48 hours.
 
 ```{r meanlag, echo=FALSE, message=FALSE, warning=FALSE}
-
 lagsummary <- lag %>%
   dplyr::select(Facility_Name, C_Biosense_Facility_ID, lag) %>%
   group_by(Facility_Name, C_Biosense_Facility_ID) %>%
-  dplyr::summarise(messagelagavg = round(mean(lag, na.rm = TRUE), 2),
-                   messagelagmedian = round(median(lag, na.rm = TRUE), 2)) %>%
+  dplyr::summarise(
+    messagelagavg = round(mean(lag, na.rm = TRUE), 2),
+    messagelagmedian = round(median(lag, na.rm = TRUE), 2)
+  ) %>%
   ungroup()
 
-lagsummary %>% datatable(
-  extensions = 'Buttons',
-  colnames = c(
-    "Facility Name",
-    "C_Biosense_Facility_ID",
-    "Mean 1st Message Lag",
-    "Median 1st Message Lag"
-  ),
-  options = list(
-    dom = 'Bfrtip',
-    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-    pageLength = 15,
-    autoWidth = TRUE,
-    scrollY = TRUE,
-    order = list(3, 'desc')
-  ),
-  rownames = FALSE,
-  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: center; color:black; font-size:125% ;', 'First Message Timeliness')
-) %>%
-  formatStyle('messagelagmedian', color = styleInterval(c(24, 48), c('green', 'blue', 'red'))) %>%
-  formatStyle('messagelagavg', color = styleInterval(c(24, 48), c('green', 'blue', 'red')))
+lagsummary %>%
+  datatable(
+    extensions = "Buttons",
+    colnames = c(
+      "Facility Name",
+      "C_Biosense_Facility_ID",
+      "Mean 1st Message Lag",
+      "Median 1st Message Lag"
+    ),
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print"),
+      pageLength = 15,
+      autoWidth = TRUE,
+      scrollY = TRUE,
+      order = list(3, "desc")
+    ),
+    rownames = FALSE,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: center; color:black; font-size:125% ;",
+      "First Message Timeliness"
+    )
+  ) %>%
+  formatStyle("messagelagmedian", color = styleInterval(c(24, 48), c("green", "blue", "red"))) %>%
+  formatStyle("messagelagavg", color = styleInterval(c(24, 48), c("green", "blue", "red")))
 ```
 
 ## Chief Complaint (CC) Timeliness by Facility Table
@@ -738,7 +744,6 @@ The following table details the mean and median chief complaint delay per patien
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
 ```{r CC_time, echo=FALSE, message=FALSE, warning=FALSE}
-
 # Calculate mean and median lag for the first message with a non-null chief complaint field by facility
 
 CClag <- messages %>%
@@ -759,13 +764,15 @@ CClag <- messages %>%
   )) %>%
   ungroup() %>%
   group_by(Facility_Name, C_Biosense_Facility_ID) %>%
-  dplyr::summarise(CClagavg = round(mean(lag, na.rm = TRUE), 2),
-                   CClagmedian = round(median(lag, na.rm = TRUE), 2)) %>%
+  dplyr::summarise(
+    CClagavg = round(mean(lag, na.rm = TRUE), 2),
+    CClagmedian = round(median(lag, na.rm = TRUE), 2)
+  ) %>%
   ungroup()
 
 CClag %>%
   datatable(
-    extensions = 'Buttons',
+    extensions = "Buttons",
     filter = "top",
     colnames = c(
       "Facility Name",
@@ -774,18 +781,25 @@ CClag %>%
       "Median Delay to 1st Non-Null CC"
     ),
     options = list(
-      dom = 'Bfrtip',
-      buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print"),
       pageLength = 15,
       autoWidth = TRUE,
       scrollY = TRUE,
-      order = list(3, 'desc')
+      order = list(3, "desc")
     ),
     rownames = FALSE,
-    caption = htmltools::tags$caption(style = 'caption-side: top; text-align: center; color:black; font-size:125% ;', 'Chief Complaint Timeliness')
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: center; color:black; font-size:125% ;", 
+      "Chief Complaint Timeliness"
+    )
   ) %>%
-  formatStyle('CClagavg', color = styleInterval(c(24, 48), c('green', 'blue', 'red'))) %>%
-  formatStyle('CClagmedian', color = styleInterval(c(24, 48), c('green', 'blue', 'red')))
+  formatStyle(
+    "CClagavg", color = styleInterval(c(24, 48), c("green", "blue", "red"))
+  ) %>%
+  formatStyle(
+    "CClagmedian", color = styleInterval(c(24, 48), c("green", "blue", "red"))
+  )
 ```
 
 ## Diagnosis Code Timeliness by Facility Table
@@ -797,7 +811,6 @@ The following table details the mean and median hourly diagnosis code delay per 
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
 ```{r DD_time, echo=FALSE, message=FALSE, warning=FALSE}
-
 # Calculate mean and median lag for first message with a non-null diagnosis code by facility
 
 DXlag <- messages %>%
@@ -818,13 +831,15 @@ DXlag <- messages %>%
   )) %>%
   ungroup() %>%
   group_by(Facility_Name, C_Biosense_Facility_ID) %>%
-  dplyr::summarise(DXlagavg = round(mean(lag, na.rm = TRUE), 2),
-                   DXlagmedian = round(median(lag, na.rm = TRUE), 2)) %>%
+  dplyr::summarise(
+    DXlagavg = round(mean(lag, na.rm = TRUE), 2),
+    DXlagmedian = round(median(lag, na.rm = TRUE), 2)
+  ) %>%
   ungroup()
 
 DXlag %>%
   datatable(
-    extensions = 'Buttons',
+    extensions = "Buttons",
     filter = "top",
     colnames = c(
       "Facility Name",
@@ -833,18 +848,25 @@ DXlag %>%
       "Median Delay to 1st Non-Null DX"
     ),
     options = list(
-      dom = 'Bfrtip',
-      buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print"),
       pageLength = 15,
       autoWidth = TRUE,
       scrollY = TRUE,
-      order = list(3, 'desc')
+      order = list(3, "desc")
     ),
     rownames = FALSE,
-    caption = htmltools::tags$caption(style = 'caption-side: top; text-align: center; color:black; font-size:125% ;', 'Diagnosis Code Timeliness')
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: center; color:black; font-size:125% ;", 
+      "Diagnosis Code Timeliness"
+    )
   ) %>%
-  formatStyle('DXlagavg', color = styleInterval(c(24, 48), c('green', 'blue', 'red'))) %>%
-  formatStyle('DXlagmedian', color = styleInterval(c(24, 48), c('green', 'blue', 'red')))
+  formatStyle(
+    "DXlagavg", color = styleInterval(c(24, 48), c("green", "blue", "red"))
+  ) %>%
+  formatStyle(
+    "DXlagmedian", color = styleInterval(c(24, 48), c("green", "blue", "red"))
+  )
 ```
 
 # Completeness {.tabset .tabset-fade .tabset-pills}
@@ -858,279 +880,470 @@ NSSP requires **80% completeness** for these Priority 1 and Priority 2 elements 
 Completeness is calculated as the number of patient encounters with a completed, non-null value for that message field over the total number of unique patient encounters.
 
 ```{r completeness_metrics, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=8, fig.height=6}
-
 # Group by patient encounter, determine whether required message fields have any completed values by NSSP Priority
 
 # NSSP Priority 1 Element Completeness (Aggregate)
-element1.summary <- messages %>% 
-  dplyr::group_by(C_Biosense_ID) %>% 
+element1.summary <- messages %>%
+  dplyr::group_by(C_Biosense_ID) %>%
   dplyr::mutate(
-    ADTstatus = case_when(any(!is.na(Admit_Date_Time)) ~ "complete",
-                          all(is.na(Admit_Date_Time)) ~ "null"),
-    ARDstatus = case_when(any(!is.na(Admit_Reason_Description)) ~ "complete",
-                          all(is.na(Admit_Reason_Description)) ~ "null"),
-    CCstatus = case_when(any(!is.na(C_Chief_Complaint)) ~ "complete",
-                         all(is.na(C_Chief_Complaint)) ~ "null"),
-    CDthstatus = case_when(any(!is.na(C_Death)) ~ "complete",
-                              all(is.na(C_Death)) ~ "null"),
-    CFacIDstatus = case_when(any(!is.na(C_Facility_ID)) ~ "complete",
-                             all(is.na(C_Facility_ID)) ~ "null"),
-    CFTstatus = case_when(any(!is.na(C_FacType_Patient_Class)) ~ "complete",
-                          all(is.na(C_FacType_Patient_Class)) ~ "null"),
-    CPatAgestatus = case_when(any(!is.na(C_Patient_Age)) ~ "complete",
-                              all(is.na(C_Patient_Age)) ~ "null"),
-    CPatAgeYrstatus = case_when(any(!is.na(C_Patient_Age_Years)) ~ "complete",
-                                all(is.na(C_Patient_Age_Years)) ~ "null"),
-    CPatClstatus = case_when(any(!is.na(C_Patient_Class)) ~ "complete",
-                              all(is.na(C_Patient_Class)) ~ "null"),
-    CPatIDstatus = case_when(any(!is.na(C_Unique_Patient_ID)) ~ "complete",
-                              all(is.na(C_Unique_Patient_ID)) ~ "null"),
-    CCtextstatus = case_when(any(!is.na(Chief_Complaint_Text)) ~ "complete",
-                             all(is.na(Chief_Complaint_Text)) ~ "null"),
-    DXstatus = case_when(any(!is.na(Diagnosis_Code)) ~ "complete",
-                         all(is.na(Diagnosis_Code)) ~ "null"),
-    DDescstatus = case_when(any(!is.na(Diagnosis_Description)) ~ "complete",
-                            all(is.na(Diagnosis_Description)) ~ "null"),
-    FTstatus = case_when(any(!is.na(Facility_Type_Code)) ~ "complete",
-                         all(is.na(Facility_Type_Code)) ~ "null"),
-    PCCstatus = case_when(any(!is.na(Patient_Class_Code)) ~ "complete",
-                          all(is.na(Patient_Class_Code)) ~ "null"),
-    PatZipstatus = case_when(any(!is.na(Patient_Zip)) ~ "complete",
-                             all(is.na(Patient_Zip)) ~ "null"),
-    ProcIDstatus = case_when(any(!is.na(Processing_ID)) ~ "complete",
-                             all(is.na(Processing_ID)) ~ "null"),
-    SFIDstatus = case_when(any(!is.na(Sending_Facility_ID)) ~ "complete",
-                           all(is.na(Sending_Facility_ID)) ~ "null"),
-    TFIDstatus = case_when(any(!is.na(Treating_Facility_ID)) ~ "complete",
-                           all(is.na(Treating_Facility_ID)) ~ "null"),
-    TrgEstatus = case_when(any(!is.na(Trigger_Event)) ~ "complete",
-                           all(is.na(Trigger_Event)) ~ "null"),
-    VIDstatus = case_when(any(!is.na(Visit_ID)) ~ "complete",
-                          all(is.na(Visit_ID)) ~ "null")) %>% 
-  slice(1) %>% 
-  ungroup() 
+    ADTstatus = case_when(
+      any(!is.na(Admit_Date_Time)) ~ "complete",
+      all(is.na(Admit_Date_Time)) ~ "null"
+    ),
+    ARDstatus = case_when(
+      any(!is.na(Admit_Reason_Description)) ~ "complete",
+      all(is.na(Admit_Reason_Description)) ~ "null"
+    ),
+    CCstatus = case_when(
+      any(!is.na(C_Chief_Complaint)) ~ "complete",
+      all(is.na(C_Chief_Complaint)) ~ "null"
+    ),
+    CDthstatus = case_when(
+      any(!is.na(C_Death)) ~ "complete",
+      all(is.na(C_Death)) ~ "null"
+    ),
+    CFacIDstatus = case_when(
+      any(!is.na(C_Facility_ID)) ~ "complete",
+      all(is.na(C_Facility_ID)) ~ "null"
+    ),
+    CFTstatus = case_when(
+      any(!is.na(C_FacType_Patient_Class)) ~ "complete",
+      all(is.na(C_FacType_Patient_Class)) ~ "null"
+    ),
+    CPatAgestatus = case_when(
+      any(!is.na(C_Patient_Age)) ~ "complete",
+      all(is.na(C_Patient_Age)) ~ "null"
+    ),
+    CPatAgeYrstatus = case_when(
+      any(!is.na(C_Patient_Age_Years)) ~ "complete",
+      all(is.na(C_Patient_Age_Years)) ~ "null"
+    ),
+    CPatClstatus = case_when(
+      any(!is.na(C_Patient_Class)) ~ "complete",
+      all(is.na(C_Patient_Class)) ~ "null"
+    ),
+    CPatIDstatus = case_when(
+      any(!is.na(C_Unique_Patient_ID)) ~ "complete",
+      all(is.na(C_Unique_Patient_ID)) ~ "null"
+    ),
+    CCtextstatus = case_when(
+      any(!is.na(Chief_Complaint_Text)) ~ "complete",
+      all(is.na(Chief_Complaint_Text)) ~ "null"
+    ),
+    DXstatus = case_when(
+      any(!is.na(Diagnosis_Code)) ~ "complete",
+      all(is.na(Diagnosis_Code)) ~ "null"
+    ),
+    DDescstatus = case_when(
+      any(!is.na(Diagnosis_Description)) ~ "complete",
+      all(is.na(Diagnosis_Description)) ~ "null"
+    ),
+    FTstatus = case_when(
+      any(!is.na(Facility_Type_Code)) ~ "complete",
+      all(is.na(Facility_Type_Code)) ~ "null"
+    ),
+    PCCstatus = case_when(
+      any(!is.na(Patient_Class_Code)) ~ "complete",
+      all(is.na(Patient_Class_Code)) ~ "null"
+    ),
+    PatZipstatus = case_when(
+      any(!is.na(Patient_Zip)) ~ "complete",
+      all(is.na(Patient_Zip)) ~ "null"
+    ),
+    ProcIDstatus = case_when(
+      any(!is.na(Processing_ID)) ~ "complete",
+      all(is.na(Processing_ID)) ~ "null"
+    ),
+    SFIDstatus = case_when(
+      any(!is.na(Sending_Facility_ID)) ~ "complete",
+      all(is.na(Sending_Facility_ID)) ~ "null"
+    ),
+    TFIDstatus = case_when(
+      any(!is.na(Treating_Facility_ID)) ~ "complete",
+      all(is.na(Treating_Facility_ID)) ~ "null"
+    ),
+    TrgEstatus = case_when(
+      any(!is.na(Trigger_Event)) ~ "complete",
+      all(is.na(Trigger_Event)) ~ "null"
+    ),
+    VIDstatus = case_when(
+      any(!is.na(Visit_ID)) ~ "complete",
+      all(is.na(Visit_ID)) ~ "null"
+    )
+  ) %>%
+  slice(1) %>%
+  ungroup()
 
-element1.sum <- element1.summary %>% 
-  group_by(Feed) %>% 
+element1.sum <- element1.summary %>%
+  group_by(Feed) %>%
   summarise(
-    Admit_Date_Time = round((sum(ADTstatus == "complete") / 
-                               (sum(ADTstatus == "complete") + 
-                                  sum(ADTstatus == "null")) * 100), 2),
-    Admit_Reason_Description = round((sum(ARDstatus == "complete") / 
-                                        (sum(ARDstatus == "complete") + 
-                                           sum(ARDstatus == "null")) * 100), 2),
-    C_Chief_Complaint = round((sum(CCstatus == "complete") / 
-                               (sum(CCstatus == "complete") + 
-                                  sum(CCstatus == "null")) * 100), 2),
-    C_Death = round((sum(CDthstatus == "complete") / 
-                       (sum(CDthstatus == "complete") + 
-                          sum(CDthstatus == "null")) * 100), 2),
-    C_Facility_ID = round((sum(CFacIDstatus == "complete") / 
-                             (sum(CFacIDstatus == "complete") + 
-                                sum(CFacIDstatus == "null")) * 100), 2),
-    C_FacType_Patient_Class = round((sum(CFTstatus == "complete") / 
-                                       (sum(CFTstatus == "complete") + 
-                                          sum(CFTstatus == "null")) * 100), 2),
-    C_Patient_Age = round((sum(CPatAgestatus == "complete") / 
-                               (sum(CPatAgestatus == "complete") + 
-                                  sum(CPatAgestatus == "null")) * 100), 2),
-    C_Patient_Age_Years = round((sum(CPatAgeYrstatus == "complete") / 
-                                   (sum(CPatAgeYrstatus == "complete") + 
-                                      sum(CPatAgeYrstatus == "null")) * 100), 2),
-    C_Patient_Class = round((sum(CPatClstatus == "complete") / 
-                               (sum(CPatClstatus == "complete") + 
-                                  sum(CPatClstatus == "null")) * 100), 2),
-    C_Unique_Patient_ID = round((sum(CPatIDstatus == "complete") / 
-                                   (sum(CPatIDstatus == "complete") + 
-                                      sum(CPatIDstatus == "null")) * 100), 2),
-    Chief_Complaint_Text = round((sum(CCtextstatus == "complete") / 
-                                    (sum(CCtextstatus == "complete") + 
-                                       sum(CCtextstatus == "null")) * 100), 2),
-    Diagnosis_Code = round((sum(DXstatus == "complete") / 
-                               (sum(DXstatus == "complete") + 
-                                  sum(DXstatus == "null")) * 100), 2),
-    Diagnosis_Description = round((sum(DDescstatus == "complete") / 
-                               (sum(DDescstatus == "complete") + 
-                                  sum(DDescstatus == "null")) * 100), 2),
-    Facility_Type_Code = round((sum(FTstatus == "complete") / 
-                                  (sum(FTstatus == "complete") + 
-                                     sum(FTstatus == "null")) * 100), 2),
-    Patient_Class_Code = round((sum(PCCstatus == "complete") / 
-                                  (sum(PCCstatus == "complete") + 
-                                     sum(PCCstatus == "null")) * 100), 2),
-    Patient_Zip = round((sum(PatZipstatus == "complete") / 
-                           (sum(PatZipstatus == "complete") + 
-                              sum(PatZipstatus == "null")) * 100), 2),
-    Processing_ID = round((sum(ProcIDstatus == "complete") / 
-                             (sum(ProcIDstatus == "complete") + 
-                                sum(ProcIDstatus == "null")) * 100), 2),
-    Sending_Facility_ID = round((sum(SFIDstatus == "complete") / 
-                                   (sum(SFIDstatus == "complete") + 
-                                      sum(SFIDstatus == "null")) * 100), 2),
-    Treating_Facility_ID = round((sum(TFIDstatus == "complete") / 
-                                    (sum(TFIDstatus == "complete") + 
-                                       sum(TFIDstatus == "null")) * 100), 2),
-    Trigger_Event = round((sum(TrgEstatus == "complete") / 
-                             (sum(TrgEstatus == "complete") + 
-                                sum(TrgEstatus == "null")) * 100), 2),
-    Visit_ID = round((sum(VIDstatus == "complete") / 
-                        (sum(VIDstatus == "complete") + 
-                           sum(VIDstatus == "null")) * 100), 2)) %>% 
-  ungroup() 
+    Admit_Date_Time = round(
+      (sum(ADTstatus == "complete") /
+         (sum(ADTstatus == "complete") +
+            sum(ADTstatus == "null")) * 100), 2
+    ),
+    Admit_Reason_Description = round(
+      (sum(ARDstatus == "complete") /
+         (sum(ARDstatus == "complete") +
+            sum(ARDstatus == "null")) * 100), 2
+    ),
+    C_Chief_Complaint = round(
+      (sum(CCstatus == "complete") /
+         (sum(CCstatus == "complete") +
+            sum(CCstatus == "null")) * 100), 2
+    ),
+    C_Death = round(
+      (sum(CDthstatus == "complete") /
+         (sum(CDthstatus == "complete") +
+            sum(CDthstatus == "null")) * 100), 2
+    ),
+    C_Facility_ID = round(
+      (sum(CFacIDstatus == "complete") /
+         (sum(CFacIDstatus == "complete") +
+            sum(CFacIDstatus == "null")) * 100), 2
+    ),
+    C_FacType_Patient_Class = round(
+      (sum(CFTstatus == "complete") /
+         (sum(CFTstatus == "complete") +
+            sum(CFTstatus == "null")) * 100), 2
+    ),
+    C_Patient_Age = round(
+      (sum(CPatAgestatus == "complete") /
+         (sum(CPatAgestatus == "complete") +
+            sum(CPatAgestatus == "null")) * 100), 2
+    ),
+    C_Patient_Age_Years = round(
+      (sum(CPatAgeYrstatus == "complete") /
+         (sum(CPatAgeYrstatus == "complete") +
+            sum(CPatAgeYrstatus == "null")) * 100), 2
+    ),
+    C_Patient_Class = round(
+      (sum(CPatClstatus == "complete") /
+         (sum(CPatClstatus == "complete") +
+            sum(CPatClstatus == "null")) * 100), 2
+    ),
+    C_Unique_Patient_ID = round(
+      (sum(CPatIDstatus == "complete") /
+         (sum(CPatIDstatus == "complete") +
+            sum(CPatIDstatus == "null")) * 100), 2
+    ),
+    Chief_Complaint_Text = round(
+      (sum(CCtextstatus == "complete") /
+         (sum(CCtextstatus == "complete") +
+            sum(CCtextstatus == "null")) * 100), 2
+    ),
+    Diagnosis_Code = round(
+      (sum(DXstatus == "complete") /
+         (sum(DXstatus == "complete") +
+            sum(DXstatus == "null")) * 100), 2
+    ),
+    Diagnosis_Description = round(
+      (sum(DDescstatus == "complete") /
+         (sum(DDescstatus == "complete") +
+            sum(DDescstatus == "null")) * 100), 2
+    ),
+    Facility_Type_Code = round(
+      (sum(FTstatus == "complete") /
+         (sum(FTstatus == "complete") +
+            sum(FTstatus == "null")) * 100), 2
+    ),
+    Patient_Class_Code = round(
+      (sum(PCCstatus == "complete") /
+         (sum(PCCstatus == "complete") +
+            sum(PCCstatus == "null")) * 100), 2
+    ),
+    Patient_Zip = round(
+      (sum(PatZipstatus == "complete") /
+         (sum(PatZipstatus == "complete") +
+            sum(PatZipstatus == "null")) * 100), 2
+    ),
+    Processing_ID = round(
+      (sum(ProcIDstatus == "complete") /
+         (sum(ProcIDstatus == "complete") +
+            sum(ProcIDstatus == "null")) * 100), 2
+    ),
+    Sending_Facility_ID = round(
+      (sum(SFIDstatus == "complete") /
+         (sum(SFIDstatus == "complete") +
+            sum(SFIDstatus == "null")) * 100), 2
+    ),
+    Treating_Facility_ID = round(
+      (sum(TFIDstatus == "complete") /
+         (sum(TFIDstatus == "complete") +
+            sum(TFIDstatus == "null")) * 100), 2
+    ),
+    Trigger_Event = round(
+      (sum(TrgEstatus == "complete") /
+         (sum(TrgEstatus == "complete") +
+            sum(TrgEstatus == "null")) * 100), 2
+    ),
+    Visit_ID = round(
+      (sum(VIDstatus == "complete") /
+         (sum(VIDstatus == "complete") +
+            sum(VIDstatus == "null")) * 100), 2
+    )
+  ) %>%
+  ungroup()
 
-element1.plot <- element1.sum %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Complete = value) %>% 
-  dplyr::select(-Feed) %>% 
-  arrange(Metric) %>% 
+element1.plot <- element1.sum %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Complete = value
+  ) %>%
+  dplyr::select(-Feed) %>%
+  arrange(Metric) %>%
   mutate(Metric = factor(Metric))
 
 # NSSP Priority 2 Element Completeness (Aggregate)
-element2.summary <- messages %>% 
-  dplyr::group_by(C_Biosense_ID) %>% 
+element2.summary <- messages %>%
+  dplyr::group_by(C_Biosense_ID) %>%
   dplyr::mutate(
-    FstPtIDstatus = case_when(any(!is.na(First_Patient_ID)) ~ "complete",
-                              all(is.na(First_Patient_ID)) ~ "null"),
-    MRNstatus = case_when(any(!is.na(Medical_Record_Number)) ~ "complete",
-                          all(is.na(Medical_Record_Number)) ~ "null"),
-    SendFacIDstatus = case_when(any(!is.na(Sending_Facility_ID_Source)) ~ "complete",
-                                all(is.na(Sending_Facility_ID_Source)) ~ "null"),
-    MDTstatus = case_when(any(!is.na(Message_Date_Time)) ~ "complete",
-                          all(is.na(Message_Date_Time)) ~ "null"),
-    RDTstatus  = case_when(any(!is.na(Recorded_Date_Time)) ~ "complete",
-                           all(is.na(Recorded_Date_Time)) ~ "null"),
-    DDstatus = case_when(any(!is.na(Discharge_Disposition)) ~ "complete",
-                         all(is.na(Discharge_Disposition)) ~ "null"),
-    DischDTstatus = case_when(any(!is.na(Discharge_Date_Time)) ~ "complete",
-                              all(is.na(Discharge_Date_Time)) ~ "null"),
-    AdmSexstatus = case_when(any(!is.na(Administrative_Sex)) ~ "complete",
-                           all(is.na(Administrative_Sex)) ~ "null"),
-    AgeRepstatus = case_when(any(!is.na(Age_Reported)) ~ "complete",
-                             all(is.na(Age_Reported)) ~ "null"),
-    AgeUnRepstatus = case_when(any(!is.na(Age_Units_Reported)) ~ "complete",
-                               all(is.na(Age_Units_Reported)) ~ "null"),
-    CPatAgeUnstatus = case_when(any(!is.na(C_Patient_Age_Units)) ~ "complete",
-                                all(is.na(C_Patient_Age_Units)) ~ "null"),
-    RaceCdstatus = case_when(any(!is.na(Race_Code)) ~ "complete",
-                             all(is.na(Race_Code)) ~ "null"),
-    EthCdstatus = case_when(any(!is.na(Ethnicity_Code)) ~ "complete",
-                            all(is.na(Ethnicity_Code)) ~ "null"),
-    EthDescstatus = case_when(any(!is.na(Ethnicity_Description)) ~ "complete",
-                              all(is.na(Ethnicity_Description)) ~ "null"),
-    PatCitstatus = case_when(any(!is.na(Patient_City)) ~ "complete",
-                             all(is.na(Patient_City)) ~ "null"),
-    PatStstatus = case_when(any(!is.na(Patient_State)) ~ "complete",
-                            all(is.na(Patient_State)) ~ "null"),
-    CPatCounstatus = case_when(any(!is.na(C_Patient_County)) ~ "complete",
-                               all(is.na(C_Patient_County)) ~ "null"),
-    PatCtrystatus = case_when(any(!is.na(Patient_Country)) ~ "complete",
-                              all(is.na(Patient_Country)) ~ "null"),
-    ARCstatus = case_when(any(!is.na(Admit_Reason_Code)) ~ "complete",
-                          all(is.na(Admit_Reason_Code)) ~ "null"),
-    CCcodestatus = case_when(any(!is.na(Chief_Complaint_Code)) ~ "complete",
-                             all(is.na(Chief_Complaint_Code)) ~ "null"),
-    DTstatus = case_when(any(!is.na(Diagnosis_Type)) ~ "complete",
-                         all(is.na(Diagnosis_Type)) ~ "null"),
-    VersIDstatus = case_when(any(!is.na(Version_ID)) ~ "complete",
-                             all(is.na(Version_ID)) ~ "null")) %>% 
-  slice(1) %>% 
-  ungroup() 
+    FstPtIDstatus = case_when(
+      any(!is.na(First_Patient_ID)) ~ "complete",
+      all(is.na(First_Patient_ID)) ~ "null"
+    ),
+    MRNstatus = case_when(
+      any(!is.na(Medical_Record_Number)) ~ "complete",
+      all(is.na(Medical_Record_Number)) ~ "null"
+    ),
+    SendFacIDstatus = case_when(
+      any(!is.na(Sending_Facility_ID_Source)) ~ "complete",
+      all(is.na(Sending_Facility_ID_Source)) ~ "null"
+    ),
+    MDTstatus = case_when(
+      any(!is.na(Message_Date_Time)) ~ "complete",
+      all(is.na(Message_Date_Time)) ~ "null"
+    ),
+    RDTstatus = case_when(
+      any(!is.na(Recorded_Date_Time)) ~ "complete",
+      all(is.na(Recorded_Date_Time)) ~ "null"
+    ),
+    DDstatus = case_when(
+      any(!is.na(Discharge_Disposition)) ~ "complete",
+      all(is.na(Discharge_Disposition)) ~ "null"
+    ),
+    DischDTstatus = case_when(
+      any(!is.na(Discharge_Date_Time)) ~ "complete",
+      all(is.na(Discharge_Date_Time)) ~ "null"
+    ),
+    AdmSexstatus = case_when(
+      any(!is.na(Administrative_Sex)) ~ "complete",
+      all(is.na(Administrative_Sex)) ~ "null"
+    ),
+    AgeRepstatus = case_when(
+      any(!is.na(Age_Reported)) ~ "complete",
+      all(is.na(Age_Reported)) ~ "null"
+    ),
+    AgeUnRepstatus = case_when(
+      any(!is.na(Age_Units_Reported)) ~ "complete",
+      all(is.na(Age_Units_Reported)) ~ "null"
+    ),
+    CPatAgeUnstatus = case_when(
+      any(!is.na(C_Patient_Age_Units)) ~ "complete",
+      all(is.na(C_Patient_Age_Units)) ~ "null"
+    ),
+    RaceCdstatus = case_when(
+      any(!is.na(Race_Code)) ~ "complete",
+      all(is.na(Race_Code)) ~ "null"
+    ),
+    EthCdstatus = case_when(
+      any(!is.na(Ethnicity_Code)) ~ "complete",
+      all(is.na(Ethnicity_Code)) ~ "null"
+    ),
+    EthDescstatus = case_when(
+      any(!is.na(Ethnicity_Description)) ~ "complete",
+      all(is.na(Ethnicity_Description)) ~ "null"
+    ),
+    PatCitstatus = case_when(
+      any(!is.na(Patient_City)) ~ "complete",
+      all(is.na(Patient_City)) ~ "null"
+    ),
+    PatStstatus = case_when(
+      any(!is.na(Patient_State)) ~ "complete",
+      all(is.na(Patient_State)) ~ "null"
+    ),
+    CPatCounstatus = case_when(
+      any(!is.na(C_Patient_County)) ~ "complete",
+      all(is.na(C_Patient_County)) ~ "null"
+    ),
+    PatCtrystatus = case_when(
+      any(!is.na(Patient_Country)) ~ "complete",
+      all(is.na(Patient_Country)) ~ "null"
+    ),
+    ARCstatus = case_when(
+      any(!is.na(Admit_Reason_Code)) ~ "complete",
+      all(is.na(Admit_Reason_Code)) ~ "null"
+    ),
+    CCcodestatus = case_when(
+      any(!is.na(Chief_Complaint_Code)) ~ "complete",
+      all(is.na(Chief_Complaint_Code)) ~ "null"
+    ),
+    DTstatus = case_when(
+      any(!is.na(Diagnosis_Type)) ~ "complete",
+      all(is.na(Diagnosis_Type)) ~ "null"
+    ),
+    VersIDstatus = case_when(
+      any(!is.na(Version_ID)) ~ "complete",
+      all(is.na(Version_ID)) ~ "null"
+    )
+  ) %>%
+  slice(1) %>%
+  ungroup()
 
-element2.sum <- element2.summary %>% 
-  group_by(Feed) %>% 
+element2.sum <- element2.summary %>%
+  group_by(Feed) %>%
   summarise(
-    First_Patient_ID = round((sum(FstPtIDstatus == "complete") / 
-                             (sum(FstPtIDstatus == "complete") + 
-                                sum(FstPtIDstatus == "null")) * 100), 2),
-    Medical_Record_Number = round((sum(MRNstatus == "complete") / 
-                             (sum(MRNstatus == "complete") + 
-                                sum(MRNstatus == "null")) * 100), 2),
-    Sending_Facility_ID_Source = round((sum(SendFacIDstatus == "complete") / 
-                             (sum(SendFacIDstatus == "complete") + 
-                                sum(SendFacIDstatus == "null")) * 100), 2),
-    Message_Date_Time = round((sum(MDTstatus == "complete") / 
-                             (sum(MDTstatus == "complete") + 
-                                sum(MDTstatus == "null")) * 100), 2),
-    Recorded_Date_Time = round((sum(RDTstatus == "complete") / 
-                             (sum(RDTstatus == "complete") + 
-                                sum(RDTstatus == "null")) * 100), 2),
-    Discharge_Disposition = round((sum(DDstatus == "complete") / 
-                             (sum(DDstatus == "complete") + 
-                                sum(DDstatus == "null")) * 100), 2),
-    Discharge_Date_Time = round((sum(DischDTstatus == "complete") / 
-                             (sum(DischDTstatus == "complete") + 
-                                sum(DischDTstatus == "null")) * 100), 2),
-    Administrative_Sex = round((sum(AdmSexstatus == "complete") / 
-                             (sum(AdmSexstatus == "complete") + 
-                                sum(AdmSexstatus == "null")) * 100), 2),
-    Age_Reported = round((sum(AgeRepstatus == "complete") / 
-                             (sum(AgeRepstatus == "complete") + 
-                                sum(AgeRepstatus == "null")) * 100), 2),
-    Age_Units_Reported = round((sum(AgeUnRepstatus == "complete") / 
-                             (sum(AgeUnRepstatus == "complete") + 
-                                sum(AgeUnRepstatus == "null")) * 100), 2),
-    C_Patient_Age_Units = round((sum(CPatAgeUnstatus == "complete") / 
-                             (sum(CPatAgeUnstatus == "complete") + 
-                                sum(CPatAgeUnstatus == "null")) * 100), 2),
-    Race_Code = round((sum(RaceCdstatus == "complete") / 
-                             (sum(RaceCdstatus == "complete") + 
-                                sum(RaceCdstatus == "null")) * 100), 2),
-    Ethnicity_Code = round((sum(EthCdstatus == "complete") / 
-                             (sum(EthCdstatus == "complete") + 
-                                sum(EthCdstatus == "null")) * 100), 2),
-    Ethnicity_Description = round((sum(EthDescstatus == "complete") / 
-                             (sum(EthDescstatus == "complete") + 
-                                sum(EthDescstatus == "null")) * 100), 2),
-    Patient_City = round((sum(PatCitstatus == "complete") / 
-                             (sum(PatCitstatus == "complete") + 
-                                sum(PatCitstatus == "null")) * 100), 2),
-    Patient_State = round((sum(PatStstatus == "complete") / 
-                             (sum(PatStstatus == "complete") + 
-                                sum(PatStstatus == "null")) * 100), 2),
-    C_Patient_County = round((sum(CPatCounstatus == "complete") / 
-                             (sum(CPatCounstatus == "complete") + 
-                                sum(CPatCounstatus == "null")) * 100), 2),
-    Patient_Country = round((sum(PatCtrystatus == "complete") / 
-                             (sum(PatCtrystatus == "complete") + 
-                                sum(PatCtrystatus == "null")) * 100), 2),
-    Admit_Reason_Code = round((sum(ARCstatus == "complete") / 
-                             (sum(ARCstatus == "complete") + 
-                                sum(ARCstatus == "null")) * 100), 2),
-    Chief_Complaint_Code = round((sum(CCcodestatus == "complete") / 
-                             (sum(CCcodestatus == "complete") + 
-                                sum(CCcodestatus == "null")) * 100), 2),
-    Diagnosis_Type = round((sum(DTstatus == "complete") / 
-                             (sum(DTstatus == "complete") + 
-                                sum(DTstatus == "null")) * 100), 2),
-    Version_ID = round((sum(VersIDstatus == "complete") / 
-                             (sum(VersIDstatus == "complete") + 
-                                sum(VersIDstatus == "null")) * 100), 2)) %>% 
-  ungroup() 
+    First_Patient_ID = round(
+      (sum(FstPtIDstatus == "complete") /
+         (sum(FstPtIDstatus == "complete") +
+            sum(FstPtIDstatus == "null")) * 100), 2
+    ),
+    Medical_Record_Number = round(
+      (sum(MRNstatus == "complete") /
+         (sum(MRNstatus == "complete") +
+            sum(MRNstatus == "null")) * 100), 2
+    ),
+    Sending_Facility_ID_Source = round(
+      (sum(SendFacIDstatus == "complete") /
+         (sum(SendFacIDstatus == "complete") +
+            sum(SendFacIDstatus == "null")) * 100), 2
+    ),
+    Message_Date_Time = round(
+      (sum(MDTstatus == "complete") /
+         (sum(MDTstatus == "complete") +
+            sum(MDTstatus == "null")) * 100), 2
+    ),
+    Recorded_Date_Time = round(
+      (sum(RDTstatus == "complete") /
+         (sum(RDTstatus == "complete") +
+            sum(RDTstatus == "null")) * 100), 2
+    ),
+    Discharge_Disposition = round(
+      (sum(DDstatus == "complete") /
+         (sum(DDstatus == "complete") +
+            sum(DDstatus == "null")) * 100), 2
+    ),
+    Discharge_Date_Time = round(
+      (sum(DischDTstatus == "complete") /
+         (sum(DischDTstatus == "complete") +
+            sum(DischDTstatus == "null")) * 100), 2
+    ),
+    Administrative_Sex = round(
+      (sum(AdmSexstatus == "complete") /
+         (sum(AdmSexstatus == "complete") +
+            sum(AdmSexstatus == "null")) * 100), 2
+    ),
+    Age_Reported = round(
+      (sum(AgeRepstatus == "complete") /
+         (sum(AgeRepstatus == "complete") +
+            sum(AgeRepstatus == "null")) * 100), 2
+    ),
+    Age_Units_Reported = round(
+      (sum(AgeUnRepstatus == "complete") /
+         (sum(AgeUnRepstatus == "complete") +
+            sum(AgeUnRepstatus == "null")) * 100), 2
+    ),
+    C_Patient_Age_Units = round(
+      (sum(CPatAgeUnstatus == "complete") /
+         (sum(CPatAgeUnstatus == "complete") +
+            sum(CPatAgeUnstatus == "null")) * 100), 2
+    ),
+    Race_Code = round(
+      (sum(RaceCdstatus == "complete") /
+         (sum(RaceCdstatus == "complete") +
+            sum(RaceCdstatus == "null")) * 100), 2
+    ),
+    Ethnicity_Code = round(
+      (sum(EthCdstatus == "complete") /
+         (sum(EthCdstatus == "complete") +
+            sum(EthCdstatus == "null")) * 100), 2
+    ),
+    Ethnicity_Description = round(
+      (sum(EthDescstatus == "complete") /
+         (sum(EthDescstatus == "complete") +
+            sum(EthDescstatus == "null")) * 100), 2
+    ),
+    Patient_City = round(
+      (sum(PatCitstatus == "complete") /
+         (sum(PatCitstatus == "complete") +
+            sum(PatCitstatus == "null")) * 100), 2
+    ),
+    Patient_State = round(
+      (sum(PatStstatus == "complete") /
+         (sum(PatStstatus == "complete") +
+            sum(PatStstatus == "null")) * 100), 2
+    ),
+    C_Patient_County = round(
+      (sum(CPatCounstatus == "complete") /
+         (sum(CPatCounstatus == "complete") +
+            sum(CPatCounstatus == "null")) * 100), 2
+    ),
+    Patient_Country = round(
+      (sum(PatCtrystatus == "complete") /
+         (sum(PatCtrystatus == "complete") +
+            sum(PatCtrystatus == "null")) * 100), 2
+    ),
+    Admit_Reason_Code = round(
+      (sum(ARCstatus == "complete") /
+         (sum(ARCstatus == "complete") +
+            sum(ARCstatus == "null")) * 100), 2
+    ),
+    Chief_Complaint_Code = round(
+      (sum(CCcodestatus == "complete") /
+         (sum(CCcodestatus == "complete") +
+            sum(CCcodestatus == "null")) * 100), 2
+    ),
+    Diagnosis_Type = round(
+      (sum(DTstatus == "complete") /
+         (sum(DTstatus == "complete") +
+            sum(DTstatus == "null")) * 100), 2
+    ),
+    Version_ID = round(
+      (sum(VersIDstatus == "complete") /
+         (sum(VersIDstatus == "complete") +
+            sum(VersIDstatus == "null")) * 100), 2
+    )
+  ) %>%
+  ungroup()
 
-element2.plot <- element2.sum %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Complete = value) %>% 
-  dplyr::select(-Feed) %>% 
-  arrange(Metric) %>% 
+element2.plot <- element2.sum %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Complete = value
+  ) %>%
+  dplyr::select(-Feed) %>%
+  arrange(Metric) %>%
   mutate(Metric = factor(Metric))
 
-ggplot(element1.plot, aes(x = fct_rev(Metric), y = Percent_Complete, fill = Percent_Complete)) +
-  geom_bar(position = "dodge", stat = "identity", color = "black") + 
-  geom_shadowtext(aes(label = scales::percent((Percent_Complete/100), accuracy = 1L)),
-            nudge_y = -6, size = 4, color = "white", fontface = "bold") +
-  labs(x = "Message Field", 
-       y = "Percent Complete", 
-       title = paste0(
+element1.plot %>%
+  ggplot(aes(x = fct_rev(Metric), y = Percent_Complete, fill = Percent_Complete)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  geom_shadowtext(
+    aes(label = scales::percent((Percent_Complete / 100), accuracy = 1L)),
+    nudge_y = -6, size = 4, color = "white", fontface = "bold"
+  ) +
+  labs(
+    x = "Message Field",
+    y = "Percent Complete",
+    title = paste0(
       params$site,
       " - NSSP Priority 1 Data Elements Percent Completeness\n(",
       pat.class,
       " Only)"
-    )) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), labels = scales::label_percent(scale = 1)) +
-  scale_fill_gradient2("Percent Completeness", low = "red", mid = "yellow", high = "#2ca02c",
-                       midpoint = 50) +
+    )
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0), 
+    limits = c(0, 100), 
+    labels = scales::label_percent(scale = 1)
+  ) +
+  scale_fill_gradient2(
+    "Percent Completeness",
+    low = "red", mid = "yellow", high = "#2ca02c",
+    midpoint = 50
+  ) +
   coord_flip() +
   theme_minimal() +
   theme(
@@ -1139,31 +1352,46 @@ ggplot(element1.plot, aes(x = fct_rev(Metric), y = Percent_Complete, fill = Perc
     axis.text.x = element_text(size = 12),
     strip.text.x = element_text(
       size = 12, face = "bold"
-        ))
+    )
+  )
 
-ggplot(element2.plot, aes(x = fct_rev(Metric), y = Percent_Complete, fill = Percent_Complete)) +
-  geom_bar(position = "dodge", stat = "identity", color = "black") + 
-  geom_shadowtext(aes(label = scales::percent((Percent_Complete/100), accuracy = 1L)),
-            nudge_y = -5.5, size = 4, color = "white", fontface = "bold") +
+element2.plot %>%
+  ggplot(
+    aes(x = fct_rev(Metric), y = Percent_Complete, fill = Percent_Complete)
+  ) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  geom_shadowtext(
+    aes(label = scales::percent((Percent_Complete / 100), accuracy = 1L)),
+    nudge_y = -5.5, size = 4, color = "white", fontface = "bold"
+  ) +
   labs(
-    x = "Message Field", 
-    y = "Percent Complete", 
+    x = "Message Field",
+    y = "Percent Complete",
     title = paste0(
       params$site,
       " - NSSP Priority 2 Data Elements Percent Completeness\n(",
       pat.class,
       " Only)"
-    )) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), labels = scales::label_percent(scale = 1)) +
-  scale_fill_gradient2("Percent Completeness", low = "red", mid = "yellow", high = "#2ca02c",
-                       midpoint = 50) +
+    )
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0), 
+    limits = c(0, 100), 
+    labels = scales::label_percent(scale = 1)
+  ) +
+  scale_fill_gradient2(
+    "Percent Completeness",
+    low = "red", mid = "yellow", high = "#2ca02c",
+    midpoint = 50
+  ) +
   coord_flip() +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 14, hjust = 0.5),
     axis.text.y = element_text(size = 12),
     axis.text.x = element_text(size = 12),
-    strip.text.x = element_text(size = 12, face = "bold")) 
+    strip.text.x = element_text(size = 12, face = "bold")
+  )
 ```
 
 ## ESSENCE API-Derived Chief Complaint and Diagnosis Code Completeness (Overall)
@@ -1179,39 +1407,46 @@ The DDAvailable field measures completeness of the 'discharge_diagnosis' (the "D
 ```{r ccddavailable, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=10}
 # Pull CCAvailable & DDAvailable Encounters Using ESSENCE API
 
-url <-
-  paste0(
-    "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
-    endDate,
-    fac,
-    "&percentParam=ccAvailable&datasource=va_hosp&startDate=",
-    startDate,
-    "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ccAvailable=1&timeResolution=daily&hasBeen",
-    patient_class,
-    "=1"
-  )
+url <- paste0(
+  "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
+  endDate,
+  fac,
+  "&percentParam=ccAvailable&datasource=va_hosp&startDate=",
+  startDate,
+  "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ccAvailable=1&timeResolution=daily&hasBeen",
+  patient_class,
+  "=1"
+)
 
 cc.available <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
   pluck("timeSeriesData") %>%
   mutate(date = as.Date(date))
 
-completeness.date <-
-  paste(format(min(cc.available$date), "%B %d, %Y,"), "to", format(max(cc.available$date), "%B %d, %Y"))
+completeness.date <- paste(
+  format(min(cc.available$date), "%B %d, %Y,"),
+  "to",
+  format(max(cc.available$date), "%B %d, %Y")
+)
 
-plot.ccavailable <- ggplot(cc.available) +
+plot.ccavailable <- cc.available %>%
+  ggplot() +
   geom_line(aes(date, count, color = "CCAvailable = 1")) +
   geom_point(aes(date, count, color = "CCAvailable = 1"), size = 1.25) +
-  labs(x = "Date",
-       y = "Percent of Patient Encounters",
-       title = "Chief Complaint Available") +
+  labs(
+    x = "Date",
+    y = "Percent of Patient Encounters",
+    title = "Chief Complaint Available"
+  ) +
   scale_x_date(date_labels = "%b %d", expand = c(0, 0.1)) +
   scale_y_continuous(
     breaks = scales::pretty_breaks(8),
-    labels = scales::label_percent(accuracy = 1,
-                                   scale = 1),
+    labels = scales::label_percent(
+      accuracy = 1,
+      scale = 1
+    ),
     limits = c(0, 100)
   ) +
-  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
+  geom_hline(yintercept = 80, linetype = "dashed", color = "black") +
   annotate("text", x = min(cc.available$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
   scale_color_manual(values = c("CCAvailable = 1" = "Blue")) +
   theme_bw() +
@@ -1222,17 +1457,16 @@ plot.ccavailable <- ggplot(cc.available) +
     legend.position = "bottom"
   )
 
-url <-
-  paste0(
-    "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
-    endDate,
-    fac,
-    "&percentParam=ddAvailable&datasource=va_hosp&startDate=",
-    startDate,
-    "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ddAvailable=1&timeResolution=daily&hasBeen",
-    patient_class,
-    "=1"
-  )
+url <- paste0(
+  "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
+  endDate,
+  fac,
+  "&percentParam=ddAvailable&datasource=va_hosp&startDate=",
+  startDate,
+  "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ddAvailable=1&timeResolution=daily&hasBeen",
+  patient_class,
+  "=1"
+)
 
 dd.available <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
   pluck("timeSeriesData") %>%
@@ -1240,20 +1474,25 @@ dd.available <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
 
 plot.ddavailable <- ggplot(dd.available) +
   geom_line(aes(date, count, color = "DDAvailable = 1")) +
-  labs(x = "Date",
-       y = "Percent of Patient Encounters",
-       title = "Discharge Diagnosis (Code) Available") +
+  labs(
+    x = "Date",
+    y = "Percent of Patient Encounters",
+    title = "Discharge Diagnosis (Code) Available"
+  ) +
   geom_point(aes(date, count, color = "DDAvailable = 1"), size = 1.25) +
-  scale_x_date(date_labels = "%b %d",
-               expand = c(0, 0.1)) +
+  scale_x_date(date_labels = "%b %d", expand = c(0, 0.1)) +
   scale_y_continuous(
     breaks = scales::pretty_breaks(8),
-    labels = scales::label_percent(accuracy = 1,
-                                   scale = 1),
+    labels = scales::label_percent(accuracy = 1, scale = 1),
     limits = c(0, 100)
   ) +
-  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(dd.available$date) + days(7), y = 74.5, label = "NSSP Completeness Threshold") +
+  geom_hline(yintercept = 80, linetype = "dashed", color = "black") +
+  annotate(
+    "text",
+    x = min(dd.available$date) + days(7),
+    y = 74.5,
+    label = "NSSP Completeness Threshold"
+  ) +
   scale_color_manual(values = c("DDAvailable = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -1263,7 +1502,8 @@ plot.ddavailable <- ggplot(dd.available) +
     legend.position = "bottom"
   )
 
-plot.ccavailable + plot.ddavailable +
+plot.ccavailable +
+  plot.ddavailable +
   plot_annotation(
     title = paste0(
       "ESSENCE API-Derived Chief Complaint and Diagnosis Code Completeness (",
@@ -1289,17 +1529,20 @@ Green indicates greater than or equal to 80% completeness (NSSP's percent comple
 The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 24 hour grace period.
 
 ```{r ccddcompleteness table, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
-
 # Calculate completeness for C_Chief_Complaint and Diagnosis_Code message fields across encounters in date range
 
 ccdx.summary <- messages %>%
   dplyr::group_by(C_Biosense_ID) %>%
   mutate(
     Date = as.Date(C_Visit_Date),
-    CCstatus = case_when(any(!is.na(C_Chief_Complaint)) ~ "complete",
-                         all(is.na(C_Chief_Complaint)) ~ "null"),
-    DXstatus = case_when(any(!is.na(Diagnosis_Code)) ~ "complete",
-                         all(is.na(Diagnosis_Code)) ~ "null")
+    CCstatus = case_when(
+      any(!is.na(C_Chief_Complaint)) ~ "complete",
+      all(is.na(C_Chief_Complaint)) ~ "null"
+    ),
+    DXstatus = case_when(
+      any(!is.na(Diagnosis_Code)) ~ "complete",
+      all(is.na(Diagnosis_Code)) ~ "null"
+    )
   ) %>%
   slice(1) %>%
   ungroup()
@@ -1331,7 +1574,7 @@ ccdx.summary.table <- ccdx.summary.table %>%
 
 ccdx.summary.table %>%
   datatable(
-    extensions = 'Buttons',
+    extensions = "Buttons",
     filter = "top",
     colnames = c(
       "Facility Name",
@@ -1344,19 +1587,25 @@ ccdx.summary.table %>%
       "Total Patient Encounters"
     ),
     options = list(
-      dom = 'Bfrtip',
-      buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print"),
       pageLength = 15,
       autoWidth = TRUE,
       scrollY = TRUE,
       scrollX = TRUE,
-      order = list(6, 'asc')
+      order = list(6, "asc")
     ),
     rownames = FALSE
   ) %>%
-  formatStyle('CC.pct.complete', color = styleInterval(c(60, 80), c('red', '#f26a44', 'green'))) %>%
-  formatStyle('DX.pct.complete', color = styleInterval(c(60, 80), c('red', '#f26a44', 'green'))) %>%
-  formatStyle(c('Facility_Name', 'Total'), color = 'black')
+  formatStyle(
+    "CC.pct.complete",
+    color = styleInterval(c(60, 80), c("red", "#f26a44", "green"))
+  ) %>%
+  formatStyle(
+    "DX.pct.complete",
+    color = styleInterval(c(60, 80), c("red", "#f26a44", "green"))
+  ) %>%
+  formatStyle(c("Facility_Name", "Total"), color = "black")
 ```
 
 # Validity Metrics (Overall Performance) {.tabset .tabset-fade .tabset-pills}
@@ -1369,7 +1618,7 @@ This reports presents validity as a combination of:
 
 -   the **percentage of messages** (for "required" (R) and "calculated required" (CR) data elements) with a valid, non-null response for that data element compared to the **total number of messages** with a **C_Patient_Class of `r paste(patient_class)`**\
 
-    **AND**\
+**AND**\
 
 -   the **percentage of patient encounters** (for "required but may remain empty" (RE) and "calculated required but may remain empty" (CRE) data elements) with a valid, non-null response for that data element compared to the **total number of patient encounters** with a **C_Patient_Class of `r paste(patient_class)`**.
 
@@ -1390,82 +1639,78 @@ NSSP Priority 1 and Priority 2 element validity definitions are presented in the
 -   **CRE**: Calculated and Required; required at least once across each patient encounter (may remain empty in initial message)
 
 ```{r validity_table, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
-
 # Create vectors for each column in Priority 1 Element Validity Tables
-element1 <-
-  c(
-    "Admit_Date_Time",
-    "Admit_Reason_Description",
-    "C_Chief_Complaint",
-    "C_Death",
-    "C_Facility_ID",
-    "C_FacType_Patient_Class",
-    "C_Patient_Age",
-    "C_Patient_Age_Years",
-    "C_Patient_Class",
-    "C_Unique_Patient_ID",
-    "Chief_Complaint_Text",
-    "Diagnosis_Code",
-    "Diagnosis_Description",
-    "Facility_Type_Code",
-    "Patient_Class_Code",
-    "Patient_Zip",
-    "Processing_ID",
-    "Sending_Facility_ID",
-    "Treating_Facility_ID",
-    "Trigger_Event",
-    "Visit_ID"
-  )
+element1 <- c(
+  "Admit_Date_Time",
+  "Admit_Reason_Description",
+  "C_Chief_Complaint",
+  "C_Death",
+  "C_Facility_ID",
+  "C_FacType_Patient_Class",
+  "C_Patient_Age",
+  "C_Patient_Age_Years",
+  "C_Patient_Class",
+  "C_Unique_Patient_ID",
+  "Chief_Complaint_Text",
+  "Diagnosis_Code",
+  "Diagnosis_Description",
+  "Facility_Type_Code",
+  "Patient_Class_Code",
+  "Patient_Zip",
+  "Processing_ID",
+  "Sending_Facility_ID",
+  "Treating_Facility_ID",
+  "Trigger_Event",
+  "Visit_ID"
+)
 
-definition1 <-
-  c(
-    "Considered valid if field contains a valid date-time (in POSIXct format)",
-    "Considered valid if field is not null and string length > 2",
-    "Considered valid if value in its entirety is not found in the Non-informative Chief Complaint (NICC) terms list and string length is > 2",
-    "Considered valid if field is not null and contains 'Yes' or 'No'",
-    "Considered valid if field is not null and exists in the site's Master Facility Table (MFT) or Operational_Crosswalk",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if value is numeric and less than 120",
-    "Considered valid if value is numeric and less than 120",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if field is not null",
-    "Considered valid if field is not null and string length is > 2",
-    "Considered valid if value in its entirety is not found in the Non-informative Chief Complaint (NICC) terms list and string length is > 2",
-    "Considered valid if field contains a string length greater > 2",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if characters are digits and formatted as ##### or #####-####",
-    "Considered valid if field is not null and contains 'D,' 'P,' or 'T'",
-    "Considered valid if field is not null",
-    "Considered valid if field is not null",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if field is not null"
-  )
+definition1 <- c(
+  "Considered valid if field contains a valid date-time (in POSIXct format)",
+  "Considered valid if field is not null and string length > 2",
+  "Considered valid if value in its entirety is not found in the Non-informative Chief Complaint (NICC) terms list and string length is > 2",
+  "Considered valid if field is not null and contains 'Yes' or 'No'",
+  "Considered valid if field is not null and exists in the site's Master Facility Table (MFT) or Operational_Crosswalk",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if value is numeric and less than 120",
+  "Considered valid if value is numeric and less than 120",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if field is not null",
+  "Considered valid if field is not null and string length is > 2",
+  "Considered valid if value in its entirety is not found in the Non-informative Chief Complaint (NICC) terms list and string length is > 2",
+  "Considered valid if field contains a string length greater > 2",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if characters are digits and formatted as ##### or #####-####",
+  "Considered valid if field is not null and contains 'D,' 'P,' or 'T'",
+  "Considered valid if field is not null",
+  "Considered valid if field is not null",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if field is not null"
+)
 
-required1 <-
-  c(
-    "R",
-    "RE",
-    "CRE",
-    "CRE",
-    "CR",
-    "CR",
-    "CRE",
-    "CRE",
-    "CR",
-    "CR",
-    "RE",
-    "RE",
-    "RE",
-    "R",
-    "R",
-    "RE",
-    "R",
-    "R",
-    "R",
-    "R",
-    "R"
-  )
+required1 <- c(
+  "R",
+  "RE",
+  "CRE",
+  "CRE",
+  "CR",
+  "CR",
+  "CRE",
+  "CRE",
+  "CR",
+  "CR",
+  "RE",
+  "RE",
+  "RE",
+  "R",
+  "R",
+  "RE",
+  "R",
+  "R",
+  "R",
+  "R",
+  "R"
+)
 
 code1 <- c(
   " ",
@@ -1496,92 +1741,88 @@ priority.1 <- tibble(element1, definition1, required1, code1) %>%
   mutate(code1 = map(code1, gt::html))
 
 # Rename columns
-colnames(priority.1) <-
-  c(
-    "Data Element",
-    "Validity Definition",
-    "Required",
-    "Code Set Location (PHIN-VADS) or Processing Logic"
-  )
+colnames(priority.1) <- c(
+  "Data Element",
+  "Validity Definition",
+  "Required",
+  "Code Set Location (PHIN-VADS) or Processing Logic"
+)
 
 # Create vectors for each column in Priority 2 Element Validity Tables
-element2 <-
-  c(
-    "First_Patient_ID",
-    "Medical_Record_Number",
-    "Sending_Facility_ID_Source",
-    "Message_Date_Time",
-    "Recorded_Date_Time",
-    "Discharge_Disposition",
-    "Discharge_Date_Time",
-    "Administrative_Sex",
-    "Age_Reported",
-    "Age_Units_Reported",
-    "C_Patient_Age_Units",
-    "Race_Code",
-    "Ethnicity_Code",
-    "Ethnicity_Description",
-    "Patient_City",
-    "Patient_State",
-    "C_Patient_County",
-    "Patient_Country",
-    "Admit_Reason_Code",
-    "Chief_Complaint_Code",
-    "Diagnosis_Type",
-    "Version_ID"
-  )
+element2 <- c(
+  "First_Patient_ID",
+  "Medical_Record_Number",
+  "Sending_Facility_ID_Source",
+  "Message_Date_Time",
+  "Recorded_Date_Time",
+  "Discharge_Disposition",
+  "Discharge_Date_Time",
+  "Administrative_Sex",
+  "Age_Reported",
+  "Age_Units_Reported",
+  "C_Patient_Age_Units",
+  "Race_Code",
+  "Ethnicity_Code",
+  "Ethnicity_Description",
+  "Patient_City",
+  "Patient_State",
+  "C_Patient_County",
+  "Patient_Country",
+  "Admit_Reason_Code",
+  "Chief_Complaint_Code",
+  "Diagnosis_Type",
+  "Version_ID"
+)
 
-definition2 <-
-  c(
-    "Considered valid if field is not null",
-    "Considered valid if field is not null",
-    "Considered valid if field is not null",
-    "Considered valid if field contains a valid date-time (in POSIXct format)",
-    "Considered valid if field contains a valid date-time (in POSIXct format)",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if field contains a valid date-time (in POSIXct format)",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if value is numeric and less than 120",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if value exists in PHIN VADS value list",
-    "Considered valid if all values received within that message exist in PHIN VADS value list",
-    "Considered valid if all values received within that message exist in PHIN VADS value list",
-    "Considered valid if field contains a parsed PHVS_EthnicityGroup_CDC value",
-    "Considered valid if field is not null",
-    "Considered valid if field contains a valid US state abbreviation or FIPS code",
-    "Considered valid if field is not null and contains a valid FIPS code from PHVS_County_FIPS_6-4",
-    "Considered valid if field is not null and contains a valid code from PHVS_Country_ISO_3166-1",
-    "Considered valid if field is not null",
-    "Considered valid if field is not null",
-    "Considered valid if all values received within that message exist in PHIN VADS value list",
-    "Considered valid if field is not null"
-  )
+definition2 <- c(
+  "Considered valid if field is not null",
+  "Considered valid if field is not null",
+  "Considered valid if field is not null",
+  "Considered valid if field contains a valid date-time (in POSIXct format)",
+  "Considered valid if field contains a valid date-time (in POSIXct format)",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if field contains a valid date-time (in POSIXct format)",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if value is numeric and less than 120",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if value exists in PHIN VADS value list",
+  "Considered valid if all values received within that message exist in PHIN VADS value list",
+  "Considered valid if all values received within that message exist in PHIN VADS value list",
+  "Considered valid if field contains a parsed PHVS_EthnicityGroup_CDC value",
+  "Considered valid if field is not null",
+  "Considered valid if field contains a valid US state abbreviation or FIPS code",
+  "Considered valid if field is not null and contains a valid FIPS code from PHVS_County_FIPS_6-4",
+  "Considered valid if field is not null and contains a valid code from PHVS_Country_ISO_3166-1",
+  "Considered valid if field is not null",
+  "Considered valid if field is not null",
+  "Considered valid if all values received within that message exist in PHIN VADS value list",
+  "Considered valid if field is not null"
+)
 
-required2 <-
-  c(
-    "R",
-    "R",
-    "R",
-    "R",
-    "R",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "C",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "RE",
-    "R"
-  )
+required2 <- c(
+  "R",
+  "R",
+  "R",
+  "R",
+  "R",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "C",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "RE",
+  "R"
+)
 
 code2 <- c(
   " ",
@@ -1609,17 +1850,16 @@ code2 <- c(
 )
 
 # Bind columns into a tibble, then map processing column to html to include hyperlinks
-priority.2 <- tibble(element2, definition2, required2, code2) %>%  
+priority.2 <- tibble(element2, definition2, required2, code2) %>%
   mutate(code2 = map(code2, gt::html))
 
 # Rename columns
-colnames(priority.2) <-
-  c(
-    "Data Element",
-    "Validity Definition",
-    "Required",
-    "Code Set Location (PHIN-VADS) or Processing Logic"
-  )
+colnames(priority.2) <- c(
+  "Data Element",
+  "Validity Definition",
+  "Required",
+  "Code Set Location (PHIN-VADS) or Processing Logic"
+)
 
 # NSSP Priority 1 Element Table
 priority.1 %>%
@@ -1628,17 +1868,21 @@ priority.1 %>%
   gt_add_divider(columns = everything(), style = "solid") %>%
   tab_footnote(
     footnote = "Public Health Information Network Vocabulary Access and Distribution System",
-    locations = cells_column_labels(columns = "Code Set Location (PHIN-VADS) or Processing Logic")
+    locations = cells_column_labels(
+      columns = "Code Set Location (PHIN-VADS) or Processing Logic"
+    )
   )
 
 # NSSP Priority 2 Element Table
-priority.2 %>% 
-  gt() %>% 
-  tab_header(title = md("**NSSP Priority 2 Element Validity Definitions**")) %>% 
+priority.2 %>%
+  gt() %>%
+  tab_header(title = md("**NSSP Priority 2 Element Validity Definitions**")) %>%
   gt_add_divider(columns = everything(), style = "solid") %>%
   tab_footnote(
     footnote = "Public Health Information Network Vocabulary Access and Distribution System",
-    locations = cells_column_labels(columns = "Code Set Location (PHIN-VADS) or Processing Logic")
+    locations = cells_column_labels(
+      columns = "Code Set Location (PHIN-VADS) or Processing Logic"
+    )
   )
 ```
 
@@ -1650,7 +1894,7 @@ In the site-wide plot(s) below, data fields with 80% validity or greater are gre
 
 ```{r validity_plot, echo=FALSE,warning=FALSE,message=FALSE,fig.align='center',fig.width=8,fig.height=6}
 # NSSP Priority 1 Required Elements (required in every message)
-p1_R <- messages %>% 
+p1_R <- messages %>%
   mutate(
     vAdmit_Date_Time = case_when(
       is.POSIXct(Admit_Date_Time) ~ "valid",
@@ -1674,7 +1918,9 @@ p1_R <- messages %>%
       is.na(C_Unique_Patient_ID) ~ "invalid"
     ),
     vFacility_Type_Code = case_when(
-      str_detect(Facility_Type_Code, "261QE0002X|1021-5|261QM2500X|261QP2300X|261QU0200X") ~ "valid",
+      str_detect(
+        Facility_Type_Code, "261QE0002X|1021-5|261QM2500X|261QP2300X|261QU0200X"
+      ) ~ "valid",
       TRUE ~ "invalid"
     ),
     vPatient_Class_Code = case_when(
@@ -1700,421 +1946,621 @@ p1_R <- messages %>%
     vVisit_ID = case_when(
       !is.na(Visit_ID) ~ "valid",
       TRUE ~ "invalid"
-  ))
+    )
+  )
 
 # Summarize NSSP Priority 1 Required Element Validity
-p1_R_summary <- p1_R %>% 
-dplyr::group_by(Feed) %>% 
+p1_R_summary <- p1_R %>%
+  dplyr::group_by(Feed) %>%
   summarize(
-    Admit_Date_Time = round((sum(vAdmit_Date_Time == "valid") / 
-                               (sum(vAdmit_Date_Time == "valid") + 
-                                  sum(vAdmit_Date_Time == "invalid")) * 100), 2),
-    C_Facility_ID = round((sum(vC_Facility_ID == "valid") / 
-                             (sum(vC_Facility_ID == "valid") + 
-                                sum(vC_Facility_ID == "invalid")) * 100), 2),
-    C_FacType_Patient_Class = round((sum(vC_FacType_Patient_Class == "valid") / 
-                                       (sum(vC_FacType_Patient_Class == "valid") + 
-                                          sum(vC_FacType_Patient_Class == "invalid")) * 100), 2),
-    C_Patient_Class = round((sum(vC_Patient_Class == "valid") / 
-                               (sum(vC_Patient_Class == "valid") + 
-                                  sum(vC_Patient_Class == "invalid")) * 100), 2),
-    C_Unique_Patient_ID = round((sum(vC_Unique_Patient_ID == "valid") / 
-                                   (sum(vC_Unique_Patient_ID == "valid") + 
-                                      sum(vC_Unique_Patient_ID == "invalid")) * 100), 2),
-    Facility_Type_Code = round((sum(vFacility_Type_Code == "valid") / 
-                                  (sum(vFacility_Type_Code == "valid") + 
-                                     sum(vFacility_Type_Code == "invalid")) * 100), 2),
-    Patient_Class_Code = round((sum(vPatient_Class_Code == "valid") / 
-                                  (sum(vPatient_Class_Code == "valid") + 
-                                     sum(vPatient_Class_Code == "invalid")) * 100), 2),
-    Processing_ID = round((sum(vProcessing_ID == "valid") / 
-                             (sum(vProcessing_ID == "valid") + 
-                                sum(vProcessing_ID == "invalid")) * 100), 2),
-    Sending_Facility_ID = round(((sum(vSending_Facility_ID == "valid") / 
-                                    (sum(vSending_Facility_ID == "valid") + 
-                                       sum(vSending_Facility_ID == "invalid"))) * 100), 2),
-    Treating_Facility_ID = round(((sum(vTreating_Facility_ID == "valid") / 
-                                     (sum(vTreating_Facility_ID == "valid") + 
-                                        sum(vTreating_Facility_ID == "invalid"))) * 100), 2), 
-    Trigger_Event = round(((sum(vTrigger_Event == "valid") / 
-                              (sum(vTrigger_Event == "valid") + 
-                                 sum(vTrigger_Event == "invalid"))) * 100), 2),
-    Visit_ID = round(((sum(vVisit_ID == "valid") / 
-                         (sum(vVisit_ID == "valid") + 
-                            sum(vVisit_ID == "invalid"))) * 100), 2)) %>% 
-  ungroup()  %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Valid = value) %>% 
+    Admit_Date_Time = round(
+      (sum(vAdmit_Date_Time == "valid") /
+         (sum(vAdmit_Date_Time == "valid") +
+            sum(vAdmit_Date_Time == "invalid")) * 100), 2
+    ),
+    C_Facility_ID = round(
+      (sum(vC_Facility_ID == "valid") /
+         (sum(vC_Facility_ID == "valid") +
+            sum(vC_Facility_ID == "invalid")) * 100), 2
+    ),
+    C_FacType_Patient_Class = round(
+      (sum(vC_FacType_Patient_Class == "valid") /
+         (sum(vC_FacType_Patient_Class == "valid") +
+            sum(vC_FacType_Patient_Class == "invalid")) * 100), 2
+    ),
+    C_Patient_Class = round(
+      (sum(vC_Patient_Class == "valid") /
+         (sum(vC_Patient_Class == "valid") +
+            sum(vC_Patient_Class == "invalid")) * 100), 2
+    ),
+    C_Unique_Patient_ID = round(
+      (sum(vC_Unique_Patient_ID == "valid") /
+         (sum(vC_Unique_Patient_ID == "valid") +
+            sum(vC_Unique_Patient_ID == "invalid")) * 100), 2
+    ),
+    Facility_Type_Code = round(
+      (sum(vFacility_Type_Code == "valid") /
+         (sum(vFacility_Type_Code == "valid") +
+            sum(vFacility_Type_Code == "invalid")) * 100), 2
+    ),
+    Patient_Class_Code = round(
+      (sum(vPatient_Class_Code == "valid") /
+         (sum(vPatient_Class_Code == "valid") +
+            sum(vPatient_Class_Code == "invalid")) * 100), 2
+    ),
+    Processing_ID = round(
+      (sum(vProcessing_ID == "valid") /
+         (sum(vProcessing_ID == "valid") +
+            sum(vProcessing_ID == "invalid")) * 100), 2
+    ),
+    Sending_Facility_ID = round(
+      ((sum(vSending_Facility_ID == "valid") /
+          (sum(vSending_Facility_ID == "valid") +
+             sum(vSending_Facility_ID == "invalid"))) * 100), 2
+    ),
+    Treating_Facility_ID = round(
+      ((sum(vTreating_Facility_ID == "valid") /
+          (sum(vTreating_Facility_ID == "valid") +
+             sum(vTreating_Facility_ID == "invalid"))) * 100), 2
+    ),
+    Trigger_Event = round(
+      ((sum(vTrigger_Event == "valid") /
+          (sum(vTrigger_Event == "valid") +
+             sum(vTrigger_Event == "invalid"))) * 100), 2
+    ),
+    Visit_ID = round(
+      ((sum(vVisit_ID == "valid") /
+          (sum(vVisit_ID == "valid") +
+             sum(vVisit_ID == "invalid"))) * 100), 2
+    )
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Valid = value
+  ) %>%
   dplyr::select(-Feed)
 
 # NSSP Priority 1 RE & CRE Element Validity (Required Once Per Patient Encounter, e.g., must be present in at least one message/record per patient)
-p1_RE <- messages %>% 
+p1_RE <- messages %>%
   mutate(
     C_Patient_Age = as.integer(C_Patient_Age),
     admit_reason = case_when(
       str_length(Admit_Reason_Description) > 2 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     c_chief_complaint = case_when(
       str_length(C_Chief_Complaint) > 2 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     chief_complaint_text = case_when(
       str_length(Chief_Complaint_Text) > 2 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     diag_code = case_when(
       str_length(Diagnosis_Code) > 2 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     diag_descript = case_when(
       str_length(Diagnosis_Description) > 2 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     zip = case_when(
       str_detect(Patient_Zip, regex("^\\d{5}$|^\\d{5}.\\d{4}$")) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     c_age = case_when(
       C_Patient_Age >= 0 & C_Patient_Age < 120 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     c_age_years = case_when(
       C_Patient_Age_Years >= 0 & C_Patient_Age_Years < 120 ~ 1,
-      TRUE ~ 0)) %>% 
-  dplyr::group_by(C_Biosense_ID) %>% 
+      TRUE ~ 0
+    )
+  ) %>%
+  dplyr::group_by(C_Biosense_ID) %>%
   mutate(
     vAdmit_Reason_Description = case_when(
       any(admit_reason == 1) ~ "valid",
-      all(admit_reason == 0) ~ "invalid"),
+      all(admit_reason == 0) ~ "invalid"
+    ),
     vC_Chief_Complaint = case_when(
       any(c_chief_complaint == 1) ~ "valid",
-      all(c_chief_complaint == 0) ~ "invalid"),
+      all(c_chief_complaint == 0) ~ "invalid"
+    ),
     vC_Death = case_when(
       any(str_detect(C_Death, "Yes|No")) ~ "valid",
-      all(is.na(C_Death)) ~ "invalid"),
+      all(is.na(C_Death)) ~ "invalid"
+    ),
     vC_Patient_Age = case_when(
       any(c_age == 1) ~ "valid",
-      all(c_age == 0) ~ "invalid"),
+      all(c_age == 0) ~ "invalid"
+    ),
     vC_Patient_Age_Years = case_when(
       any(c_age_years == 1) ~ "valid",
-      all(c_age_years == 0) ~ "invalid"),
+      all(c_age_years == 0) ~ "invalid"
+    ),
     vChief_Complaint_Text = case_when(
       any(chief_complaint_text == 1) ~ "valid",
-      all(chief_complaint_text == 0) ~ "invalid"),
+      all(chief_complaint_text == 0) ~ "invalid"
+    ),
     vDiagnosis_Code = case_when(
       any(diag_code == 1) ~ "valid",
-      all(diag_code == 0) ~ "invalid"),
+      all(diag_code == 0) ~ "invalid"
+    ),
     vDiagnosis_Description = case_when(
       any(diag_descript == 1) ~ "valid",
-      all(diag_descript == 0) ~ "invalid"),
+      all(diag_descript == 0) ~ "invalid"
+    ),
     vPatient_Zip = case_when(
       any(zip == 1) ~ "valid",
-      all(zip == 0) ~ "invalid")) %>% 
-  slice(which.max(Arrived_Date_Time)) %>% 
+      all(zip == 0) ~ "invalid"
+    )
+  ) %>%
+  slice(which.max(Arrived_Date_Time)) %>%
   ungroup()
 
 # Summarize NSSP Priority 1 RE & CRE Element Validity by Feed
-p1_RE_summary <- p1_RE %>% 
-  group_by(Feed) %>% 
+p1_RE_summary <- p1_RE %>%
+  group_by(Feed) %>%
   summarize(
-    Admit_Reason_Description = round((sum(vAdmit_Reason_Description == "valid") / 
-                                        (sum(vAdmit_Reason_Description == "valid") + 
-                                           sum(vAdmit_Reason_Description == "invalid")) * 100), 2),
-    C_Chief_Complaint = round((sum(vC_Chief_Complaint == "valid") / 
-                                 (sum(vC_Chief_Complaint == "valid") + 
-                                    sum(vC_Chief_Complaint == "invalid")) * 100), 2),
-    C_Death = round((sum(vC_Death == "valid") / 
-                       (sum(vC_Death == "valid") + 
-                          sum(vC_Death == "invalid")) * 100), 2),
-    C_Patient_Age = round((sum(vC_Patient_Age == "valid") / 
-                             (sum(vC_Patient_Age == "valid") + 
-                                sum(vC_Patient_Age == "invalid")) * 100), 2),
-    C_Patient_Age_Years = round((sum(vC_Patient_Age_Years == "valid") / 
-                                   (sum(vC_Patient_Age_Years == "valid") + 
-                                      sum(vC_Patient_Age_Years == "invalid")) * 100), 2),
-    C_Chief_Complaint_Text = round((sum(vChief_Complaint_Text == "valid") / 
-                                      (sum(vChief_Complaint_Text == "valid") + 
-                                         sum(vChief_Complaint_Text == "invalid")) * 100), 2),
-    Diagnosis_Code = round((sum(vDiagnosis_Code == "valid") / 
-                              (sum(vDiagnosis_Code == "valid") + 
-                                 sum(vDiagnosis_Code == "invalid")) * 100), 2),
-    Diagnosis_Description = round((sum(vDiagnosis_Description == "valid") / 
-                                     (sum(vDiagnosis_Description == "valid") + 
-                                        sum(vDiagnosis_Description == "invalid")) * 100), 2),
-    Patient_Zip = round((sum(vPatient_Zip == "valid") / 
-                           (sum(vPatient_Zip == "valid") + 
-                              sum(vPatient_Zip == "invalid")) * 100), 2) 
-    ) %>% 
-  ungroup()  %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Valid = value) %>% 
+    Admit_Reason_Description = round(
+      (sum(vAdmit_Reason_Description == "valid") /
+         (sum(vAdmit_Reason_Description == "valid") +
+            sum(vAdmit_Reason_Description == "invalid")) * 100), 2
+    ),
+    C_Chief_Complaint = round(
+      (sum(vC_Chief_Complaint == "valid") /
+         (sum(vC_Chief_Complaint == "valid") +
+            sum(vC_Chief_Complaint == "invalid")) * 100), 2
+    ),
+    C_Death = round(
+      (sum(vC_Death == "valid") /
+         (sum(vC_Death == "valid") +
+            sum(vC_Death == "invalid")) * 100), 2
+    ),
+    C_Patient_Age = round(
+      (sum(vC_Patient_Age == "valid") /
+         (sum(vC_Patient_Age == "valid") +
+            sum(vC_Patient_Age == "invalid")) * 100), 2
+    ),
+    C_Patient_Age_Years = round(
+      (sum(vC_Patient_Age_Years == "valid") /
+         (sum(vC_Patient_Age_Years == "valid") +
+            sum(vC_Patient_Age_Years == "invalid")) * 100), 2
+    ),
+    C_Chief_Complaint_Text = round(
+      (sum(vChief_Complaint_Text == "valid") /
+         (sum(vChief_Complaint_Text == "valid") +
+            sum(vChief_Complaint_Text == "invalid")) * 100), 2
+    ),
+    Diagnosis_Code = round(
+      (sum(vDiagnosis_Code == "valid") /
+         (sum(vDiagnosis_Code == "valid") +
+            sum(vDiagnosis_Code == "invalid")) * 100), 2
+    ),
+    Diagnosis_Description = round(
+      (sum(vDiagnosis_Description == "valid") /
+         (sum(vDiagnosis_Description == "valid") +
+            sum(vDiagnosis_Description == "invalid")) * 100), 2
+    ),
+    Patient_Zip = round(
+      (sum(vPatient_Zip == "valid") /
+         (sum(vPatient_Zip == "valid") +
+            sum(vPatient_Zip == "invalid")) * 100), 2
+    )
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Valid = value
+  ) %>%
   dplyr::select(-Feed)
 
-# Combine Metrics for Priority 1 Plot  
-priority_1_plot <- rbind(p1_R_summary, p1_RE_summary)  %>% 
-  arrange(Metric) %>% 
-  mutate(Metric = factor(Metric)) 
+# Combine Metrics for Priority 1 Plot
+priority_1_plot <- rbind(p1_R_summary, p1_RE_summary) %>%
+  arrange(Metric) %>%
+  mutate(Metric = factor(Metric))
 
 # Calculate NSSP Priority 2 Required Element Validity (required in every message)
-p2_R <- messages %>% 
+p2_R <- messages %>%
   mutate(
     vFirst_Patient_ID = case_when(
       !is.na(First_Patient_ID) ~ "valid",
-      TRUE ~ "invalid"),
+      TRUE ~ "invalid"
+    ),
     vMedical_Record_Number = case_when(
       !is.na(Medical_Record_Number) ~ "valid",
-      TRUE ~ "invalid"),
+      TRUE ~ "invalid"
+    ),
     vSending_Facility_ID_Source = case_when(
       str_detect(Sending_Facility_ID_Source, "MSH-4.1|MSH-4.2") ~ "valid",
-      TRUE ~ "invalid"),
+      TRUE ~ "invalid"
+    ),
     vMessage_Date_Time = case_when(
-     is.POSIXct(Message_Date_Time) ~ "valid",
-     TRUE ~ "invalid"),
+      is.POSIXct(Message_Date_Time) ~ "valid",
+      TRUE ~ "invalid"
+    ),
     vRecorded_Date_Time = case_when(
       is.POSIXct(Recorded_Date_Time) ~ "valid",
-      TRUE ~ "invalid"),
+      TRUE ~ "invalid"
+    ),
     vVersion_ID = case_when(
       str_detect(Version_ID, "2.5.1") ~ "valid",
-      TRUE ~ "invalid"))
+      TRUE ~ "invalid"
+    )
+  )
 
 # Summarize NSSP Priority 2 Required Elements
-p2_R_summary <- p2_R %>% 
-dplyr::group_by(Feed) %>% 
+p2_R_summary <- p2_R %>%
+  dplyr::group_by(Feed) %>%
   summarize(
-    First_Patient_ID = round((sum(vFirst_Patient_ID == "valid") / 
-                                (sum(vFirst_Patient_ID == "valid") + 
-                                   sum(vFirst_Patient_ID == "invalid")) * 100), 2),
-    Medical_Record_Number = round((sum(vMedical_Record_Number == "valid") / 
-                                     (sum(vMedical_Record_Number == "valid") + 
-                                        sum(vMedical_Record_Number == "invalid")) * 100), 2),
-    Sending_Facility_ID_Source = round((sum(vSending_Facility_ID_Source == "valid") / 
-                                          (sum(vSending_Facility_ID_Source == "valid") + 
-                                             sum(vSending_Facility_ID_Source == "invalid")) * 100), 2),
-    Message_Date_Time = round((sum(vMessage_Date_Time == "valid") / 
-                                 (sum(vMessage_Date_Time == "valid") + 
-                                    sum(vMessage_Date_Time == "invalid")) * 100), 2),
-    Recorded_Date_Time = round((sum(vRecorded_Date_Time == "valid") / 
-                                  (sum(vRecorded_Date_Time == "valid") + 
-                                     sum(vRecorded_Date_Time == "invalid")) * 100), 2),
-    Version_ID = round((sum(vVersion_ID == "valid") / 
-                          (sum(vVersion_ID == "valid") + 
-                             sum(vVersion_ID == "invalid")) * 100), 2)) %>% 
-  ungroup()  %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Valid = value) %>% 
+    First_Patient_ID = round(
+      (sum(vFirst_Patient_ID == "valid") /
+         (sum(vFirst_Patient_ID == "valid") +
+            sum(vFirst_Patient_ID == "invalid")) * 100), 2
+    ),
+    Medical_Record_Number = round(
+      (sum(vMedical_Record_Number == "valid") /
+         (sum(vMedical_Record_Number == "valid") +
+            sum(vMedical_Record_Number == "invalid")) * 100), 2
+    ),
+    Sending_Facility_ID_Source = round(
+      (sum(vSending_Facility_ID_Source == "valid") /
+         (sum(vSending_Facility_ID_Source == "valid") +
+            sum(vSending_Facility_ID_Source == "invalid")) * 100), 2
+    ),
+    Message_Date_Time = round(
+      (sum(vMessage_Date_Time == "valid") /
+         (sum(vMessage_Date_Time == "valid") +
+            sum(vMessage_Date_Time == "invalid")) * 100), 2
+    ),
+    Recorded_Date_Time = round(
+      (sum(vRecorded_Date_Time == "valid") /
+         (sum(vRecorded_Date_Time == "valid") +
+            sum(vRecorded_Date_Time == "invalid")) * 100), 2
+    ),
+    Version_ID = round(
+      (sum(vVersion_ID == "valid") /
+         (sum(vVersion_ID == "valid") +
+            sum(vVersion_ID == "invalid")) * 100), 2
+    )
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Valid = value
+  ) %>%
   dplyr::select(-Feed)
 
 # NSSP Priority 2 RE & CRE Element Validity (Required Once Per Patient Encounter, e.g., must be present in at least one message/record per patient)
-p2_RE <- messages %>% 
+p2_RE <- messages %>%
   mutate(
     discharge_disposition = case_when(
-      str_detect(Discharge_Disposition, "1-9|0[1-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9]|6[0-9]|7[0-9]|8[0-9]|9[0-9]|10[0-9]") ~ 1,
-      TRUE ~ 0),
+      str_detect(
+        Discharge_Disposition,
+        "1-9|0[1-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9]|6[0-9]|7[0-9]|8[0-9]|9[0-9]|10[0-9]"
+      ) ~ 1,
+      TRUE ~ 0
+    ),
     discharge_date_time = case_when(
       !is.na(Discharge_Date_Time) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     administrative_sex = case_when(
-      str_detect(Administrative_Sex, '(F|M|O|U)') ~ 1,
-      TRUE ~ 0),
+      str_detect(Administrative_Sex, "(F|M|O|U)") ~ 1,
+      TRUE ~ 0
+    ),
     age_reported = case_when(
       Age_Reported >= 0 & Age_Reported < 120 ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     age_units_reported = case_when(
-      str_detect(Age_Units_Reported, '(d|m|UNK|wk|a|day|DAY|month|MONTH|unknown|UNKNOWN|week|WEEK|year|YEAR|DAYS|WEEKS|MONTHS|YEARS|days|weeks|months|years)') ~ 1,
-      TRUE ~ 0),
+      str_detect(
+        Age_Units_Reported,
+        "(d|m|UNK|wk|a|day|DAY|month|MONTH|unknown|UNKNOWN|week|WEEK|year|YEAR|DAYS|WEEKS|MONTHS|YEARS|days|weeks|months|years)"
+      ) ~ 1,
+      TRUE ~ 0
+    ),
     race_code = case_when(
-      str_detect(Race_Code, regex('(?>1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK)*?', ignore_case = TRUE)) ~ 1,
-      TRUE ~ 0),
+      str_detect(
+        Race_Code,
+        regex(
+          "(?>1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK)*?",
+          ignore_case = TRUE
+        )
+      ) ~ 1,
+      TRUE ~ 0
+    ),
     ethnicity_code = case_when(
-      str_detect(Ethnicity_Code, regex('(2135-2|2186-5|PHC1175|UNK)', ignore_case = TRUE)) ~ 1,
-      TRUE ~ 0),
+      str_detect(
+        Ethnicity_Code, regex(
+          "(2135-2|2186-5|PHC1175|UNK)",
+          ignore_case = TRUE
+        )
+      ) ~ 1,
+      TRUE ~ 0
+    ),
     ethnicity_description = case_when(
-      str_detect(Ethnicity_Description, '(Hispanic or Latino|Not Hispanic or Latino|HISPANIC OR LATINO|NOT HISPANIC OR LATINO|UNKNOWN|unknown)') ~ 1,
-      TRUE ~ 0),
+      str_detect(
+        Ethnicity_Description,
+        "(Hispanic or Latino|Not Hispanic or Latino|HISPANIC OR LATINO|NOT HISPANIC OR LATINO|UNKNOWN|unknown)"
+      ) ~ 1,
+      TRUE ~ 0
+    ),
     patient_city = case_when(
       !is.na(Patient_City) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     patient_state = case_when(
       !is.na(Patient_State) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     c_patient_county = case_when(
       !is.na(C_Patient_County) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     patient_country = case_when(
       !is.na(Patient_Country) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     admit_reason_code = case_when(
       !is.na(Admit_Reason_Code) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     chief_complaint_code = case_when(
       !is.na(Chief_Complaint_Code) ~ 1,
-      TRUE ~ 0),
+      TRUE ~ 0
+    ),
     diagnosis_type = case_when(
-      str_detect(Diagnosis_Type, '(A|F|W)+') ~ 1,
-      TRUE ~ 0),
-  ) %>% 
-  group_by(C_Biosense_ID) %>% 
+      str_detect(Diagnosis_Type, "(A|F|W)+") ~ 1,
+      TRUE ~ 0
+    ),
+  ) %>%
+  group_by(C_Biosense_ID) %>%
   mutate(
     vDischarge_Disposition = case_when(
       any(discharge_disposition == 1) ~ "valid",
-      all(discharge_disposition == 0) ~ "invalid"),
+      all(discharge_disposition == 0) ~ "invalid"
+    ),
     vDischarge_Date_Time = case_when(
       any(discharge_date_time == 1) ~ "valid",
-      all(discharge_date_time == 0) ~ "invalid"),
+      all(discharge_date_time == 0) ~ "invalid"
+    ),
     vAdministrative_Sex = case_when(
       any(administrative_sex == 1) ~ "valid",
-      all(administrative_sex == 0) ~ "invalid"),
+      all(administrative_sex == 0) ~ "invalid"
+    ),
     vAge_Reported = case_when(
       any(age_reported == 1) ~ "valid",
-      all(age_reported == 0) ~ "invalid"),
+      all(age_reported == 0) ~ "invalid"
+    ),
     vAge_Units_Reported = case_when(
       any(age_units_reported == 1) ~ "valid",
-      all(age_units_reported == 0) ~ "invalid"),
+      all(age_units_reported == 0) ~ "invalid"
+    ),
     vC_Patient_Age_Units = case_when(
       any(!is.na(C_Patient_Age_Units)) ~ "valid",
-      all(is.na(C_Patient_Age_Units)) ~ "invalid"),
+      all(is.na(C_Patient_Age_Units)) ~ "invalid"
+    ),
     vRace_Code = case_when(
       any(race_code == 1) ~ "valid",
-      all(race_code == 0) ~ "invalid"),
+      all(race_code == 0) ~ "invalid"
+    ),
     vEthnicity_Code = case_when(
       any(ethnicity_code == 1) ~ "valid",
-      all(ethnicity_code == 0) ~ "invalid"),
+      all(ethnicity_code == 0) ~ "invalid"
+    ),
     vEthnicity_Description = case_when(
       any(ethnicity_description == 1) ~ "valid",
-      all(ethnicity_description == 0) ~ "invalid"),
+      all(ethnicity_description == 0) ~ "invalid"
+    ),
     vPatient_City = case_when(
       any(patient_city == 1) ~ "valid",
-      all(patient_city == 0) ~ "invalid"),
+      all(patient_city == 0) ~ "invalid"
+    ),
     vPatient_State = case_when(
       any(patient_state == 1) ~ "valid",
-      all(patient_state == 0) ~ "invalid"),
+      all(patient_state == 0) ~ "invalid"
+    ),
     vC_Patient_County = case_when(
       any(c_patient_county == 1) ~ "valid",
-      all(c_patient_county == 0) ~ "invalid"),
+      all(c_patient_county == 0) ~ "invalid"
+    ),
     vPatient_Country = case_when(
       any(patient_country == 1) ~ "valid",
-      all(patient_country == 0) ~ "invalid"),
+      all(patient_country == 0) ~ "invalid"
+    ),
     vAdmit_Reason_Code = case_when(
       any(admit_reason_code == 1) ~ "valid",
-      all(admit_reason_code == 0) ~ "invalid"),
+      all(admit_reason_code == 0) ~ "invalid"
+    ),
     vChief_Complaint_Code = case_when(
       any(chief_complaint_code == 1) ~ "valid",
-      all(chief_complaint_code == 0) ~ "invalid"),
+      all(chief_complaint_code == 0) ~ "invalid"
+    ),
     vDiagnosis_Type = case_when(
       any(diagnosis_type == 1) ~ "valid",
-      all(diagnosis_type == 0) ~ "invalid"))  %>% 
-  slice(which.max(Arrived_Date_Time)) %>% 
+      all(diagnosis_type == 0) ~ "invalid"
+    )
+  ) %>%
+  slice(which.max(Arrived_Date_Time)) %>%
   ungroup()
 
-# Summarize NSSP Priority 2 RE & CRE Elements by Feed  
-p2_RE_summary <- p2_RE %>% 
-  group_by(Feed) %>% 
+# Summarize NSSP Priority 2 RE & CRE Elements by Feed
+p2_RE_summary <- p2_RE %>%
+  group_by(Feed) %>%
   summarize(
-    Discharge_Disposition = round((sum(vDischarge_Disposition == "valid") / 
-                                     (sum(vDischarge_Disposition == "valid") + 
-                                        sum(vDischarge_Disposition == "invalid")) * 100), 2),
-    Discharge_Date_Time = round((sum(vDischarge_Date_Time == "valid") / 
-                                   (sum(vDischarge_Date_Time == "valid") + 
-                                      sum(vDischarge_Date_Time == "invalid")) * 100), 2),
-    Administrative_Sex = round((sum(vAdministrative_Sex == "valid") / 
-                                  (sum(vAdministrative_Sex == "valid") + 
-                                     sum(vAdministrative_Sex == "invalid")) * 100), 2),
-    Age_Reported = round((sum(vAge_Reported == "valid") / 
-                            (sum(vAge_Reported == "valid") + 
-                               sum(vAge_Reported == "invalid")) * 100), 2),
-    Age_Units_Reported = round((sum(vAge_Units_Reported == "valid") / 
-                                  (sum(vAge_Units_Reported == "valid") + 
-                                     sum(vAge_Units_Reported == "invalid")) * 100), 2),
-    C_Patient_Age_Units = round((sum(vC_Patient_Age_Units == "valid") / 
-                                  (sum(vC_Patient_Age_Units == "valid") + 
-                                     sum(vC_Patient_Age_Units == "invalid")) * 100), 2),
-    Race_Code = round((sum(vRace_Code == "valid") / 
-                         (sum(vRace_Code == "valid") + 
-                            sum(vRace_Code == "invalid")) * 100), 2),
-    Ethnicity_Code = round((sum(vEthnicity_Code == "valid") / 
-                              (sum(vEthnicity_Code == "valid") + 
-                                 sum(vEthnicity_Code == "invalid")) * 100), 2),
-    Ethnicity_Description = round((sum(vEthnicity_Description == "valid") / 
-                                     (sum(vEthnicity_Description == "valid") + 
-                                        sum(vEthnicity_Description == "invalid")) * 100), 2),
-    Patient_City = round((sum(vPatient_City == "valid") / 
-                            (sum(vPatient_City == "valid") + 
-                               sum(vPatient_City == "invalid")) * 100), 2),
-    Patient_State = round((sum(vPatient_State == "valid") / 
-                            (sum(vPatient_State == "valid") + 
-                               sum(vPatient_State == "invalid")) * 100), 2),
-    C_Patient_County = round((sum(vC_Patient_County == "valid") / 
-                            (sum(vC_Patient_County == "valid") + 
-                               sum(vC_Patient_County == "invalid")) * 100), 2),
-    Patient_Country = round((sum(vPatient_Country == "valid") / 
-                            (sum(vPatient_Country == "valid") + 
-                               sum(vPatient_Country == "invalid")) * 100), 2),
-    Admit_Reason_Code = round((sum(vAdmit_Reason_Code == "valid") / 
-                            (sum(vAdmit_Reason_Code == "valid") + 
-                               sum(vAdmit_Reason_Code == "invalid")) * 100), 2),
-    Chief_Complaint_Code = round((sum(vChief_Complaint_Code == "valid") / 
-                            (sum(vChief_Complaint_Code == "valid") + 
-                               sum(vChief_Complaint_Code == "invalid")) * 100), 2),
-    Diagnosis_Type = round((sum(vDiagnosis_Type == "valid") / 
-                            (sum(vDiagnosis_Type == "valid") + 
-                               sum(vDiagnosis_Type == "invalid")) * 100), 2)) %>% 
-  ungroup()  %>% 
-  pivot_longer(cols = -Feed) %>% 
-  dplyr::rename(Metric = name,
-                Percent_Valid = value) %>% 
+    Discharge_Disposition = round(
+      (sum(vDischarge_Disposition == "valid") /
+         (sum(vDischarge_Disposition == "valid") +
+            sum(vDischarge_Disposition == "invalid")) * 100), 2
+    ),
+    Discharge_Date_Time = round(
+      (sum(vDischarge_Date_Time == "valid") /
+         (sum(vDischarge_Date_Time == "valid") +
+            sum(vDischarge_Date_Time == "invalid")) * 100), 2
+    ),
+    Administrative_Sex = round(
+      (sum(vAdministrative_Sex == "valid") /
+         (sum(vAdministrative_Sex == "valid") +
+            sum(vAdministrative_Sex == "invalid")) * 100), 2
+    ),
+    Age_Reported = round(
+      (sum(vAge_Reported == "valid") /
+         (sum(vAge_Reported == "valid") +
+            sum(vAge_Reported == "invalid")) * 100), 2
+    ),
+    Age_Units_Reported = round(
+      (sum(vAge_Units_Reported == "valid") /
+         (sum(vAge_Units_Reported == "valid") +
+            sum(vAge_Units_Reported == "invalid")) * 100), 2
+    ),
+    C_Patient_Age_Units = round(
+      (sum(vC_Patient_Age_Units == "valid") /
+         (sum(vC_Patient_Age_Units == "valid") +
+            sum(vC_Patient_Age_Units == "invalid")) * 100), 2
+    ),
+    Race_Code = round(
+      (sum(vRace_Code == "valid") /
+         (sum(vRace_Code == "valid") +
+            sum(vRace_Code == "invalid")) * 100), 2
+    ),
+    Ethnicity_Code = round(
+      (sum(vEthnicity_Code == "valid") /
+         (sum(vEthnicity_Code == "valid") +
+            sum(vEthnicity_Code == "invalid")) * 100), 2
+    ),
+    Ethnicity_Description = round(
+      (sum(vEthnicity_Description == "valid") /
+         (sum(vEthnicity_Description == "valid") +
+            sum(vEthnicity_Description == "invalid")) * 100), 2
+    ),
+    Patient_City = round(
+      (sum(vPatient_City == "valid") /
+         (sum(vPatient_City == "valid") +
+            sum(vPatient_City == "invalid")) * 100), 2
+    ),
+    Patient_State = round(
+      (sum(vPatient_State == "valid") /
+         (sum(vPatient_State == "valid") +
+            sum(vPatient_State == "invalid")) * 100), 2
+    ),
+    C_Patient_County = round(
+      (sum(vC_Patient_County == "valid") /
+         (sum(vC_Patient_County == "valid") +
+            sum(vC_Patient_County == "invalid")) * 100), 2
+    ),
+    Patient_Country = round(
+      (sum(vPatient_Country == "valid") /
+         (sum(vPatient_Country == "valid") +
+            sum(vPatient_Country == "invalid")) * 100), 2
+    ),
+    Admit_Reason_Code = round(
+      (sum(vAdmit_Reason_Code == "valid") /
+         (sum(vAdmit_Reason_Code == "valid") +
+            sum(vAdmit_Reason_Code == "invalid")) * 100), 2
+    ),
+    Chief_Complaint_Code = round(
+      (sum(vChief_Complaint_Code == "valid") /
+         (sum(vChief_Complaint_Code == "valid") +
+            sum(vChief_Complaint_Code == "invalid")) * 100), 2
+    ),
+    Diagnosis_Type = round(
+      (sum(vDiagnosis_Type == "valid") /
+         (sum(vDiagnosis_Type == "valid") +
+            sum(vDiagnosis_Type == "invalid")) * 100), 2
+    )
+  ) %>%
+  ungroup() %>%
+  pivot_longer(cols = -Feed) %>%
+  dplyr::rename(
+    Metric = name,
+    Percent_Valid = value
+  ) %>%
   dplyr::select(-Feed)
 
 # Combine R and RE elements
-priority_2_plot <- rbind(p2_R_summary, p2_RE_summary) %>% 
-  arrange(Metric) %>% 
+priority_2_plot <- rbind(p2_R_summary, p2_RE_summary) %>%
+  arrange(Metric) %>%
   mutate(Metric = factor(Metric))
 
 # NSSP Priority 1 Plot
-ggplot(priority_1_plot, aes(x = fct_rev(Metric), y = Percent_Valid, fill = Percent_Valid)) +
-  geom_bar(position = "dodge", stat = "identity", color = "black") + 
-  geom_shadowtext(aes(label = scales::percent((Percent_Valid/100), accuracy = 1L)),
-            nudge_y = -6, size = 4.5, color = "white", fontface = "bold") +
+priority_1_plot %>%
+  ggplot(aes(x = fct_rev(Metric), y = Percent_Valid, fill = Percent_Valid)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  geom_shadowtext(
+    aes(label = scales::percent((Percent_Valid / 100), accuracy = 1L)),
+    nudge_y = -6, size = 4.5, color = "white", fontface = "bold"
+  ) +
   labs(
-    x = "Message Field", 
-    y = "Percent Valid", 
+    x = "Message Field",
+    y = "Percent Valid",
     title = paste0(
       params$site,
       " - NSSP Priority 1 Data Elements Percent Validity\n(",
       pat.class,
       " Only)"
-    )) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), labels = scales::label_percent(scale = 1)) +
-  scale_fill_gradient2("Percent Valid", low = "red", mid = "yellow", high = "#2ca02c",
-                       midpoint = 50) +
+    )
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, 100),
+    labels = scales::label_percent(scale = 1)
+  ) +
+  scale_fill_gradient2(
+    "Percent Valid",
+    low = "red", mid = "yellow", high = "#2ca02c",
+    midpoint = 50
+  ) +
   coord_flip() +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 14, hjust = 0.5),
     axis.text.y = element_text(size = 12),
     axis.text.x = element_text(size = 12),
-    strip.text.x = element_text(size = 12, face = "bold"))
+    strip.text.x = element_text(size = 12, face = "bold")
+  )
 
 # NSSP Priority 2 Plot
-ggplot(priority_2_plot, aes(x = fct_rev(Metric), y = Percent_Valid, fill = Percent_Valid)) +
-  geom_bar(position = "dodge", stat = "identity", color = "black") + 
-  geom_shadowtext(aes(label = scales::percent((Percent_Valid/100), accuracy = 1L)),
-            nudge_y = -6, size = 4, color = "white", fontface = "bold") +
+priority_2_plot %>%
+  ggplot(aes(x = fct_rev(Metric), y = Percent_Valid, fill = Percent_Valid)) +
+  geom_bar(position = "dodge", stat = "identity", color = "black") +
+  geom_shadowtext(
+    aes(label = scales::percent((Percent_Valid / 100), accuracy = 1L)),
+    nudge_y = -6, size = 4, color = "white", fontface = "bold"
+  ) +
   labs(
-    x = "Message Field", 
-    y = "Percent Valid", 
+    x = "Message Field",
+    y = "Percent Valid",
     title = paste0(
       params$site,
       " - NSSP Priority 2 Data Elements Percent Validity\n(",
       pat.class,
       " Only)"
-    )) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), labels = scales::label_percent(scale = 1)) +
-  scale_fill_gradient2("Percent Valid", low = "red", mid = "yellow", high = "#2ca02c",
-                       midpoint = 50) +
+    )
+  ) +
+  scale_y_continuous(
+    expand = c(0, 0),
+    limits = c(0, 100),
+    labels = scales::label_percent(scale = 1)
+  ) +
+  scale_fill_gradient2(
+    "Percent Valid",
+    low = "red", mid = "yellow", high = "#2ca02c",
+    midpoint = 50
+  ) +
   coord_flip() +
   theme_minimal() +
   theme(
     plot.title = element_text(size = 14, hjust = 0.5),
     axis.text.y = element_text(size = 12),
     axis.text.x = element_text(size = 12),
-    strip.text.x = element_text(size = 12, face = "bold"))
+    strip.text.x = element_text(size = 12, face = "bold")
+  )
 ```
 
 ## Validity by Message Field by Facility Tables (`r paste0(sitename)`\_PR_Processed Table)
@@ -2126,314 +2572,511 @@ Fields with 80% validity or greater are green, while fields with less than 80% v
 Note: the PR_Processed table may reflect slightly different completeness and validity metrics compared to production ESSENCE data.
 
 ```{r facility_validity_table, echo=FALSE, warning=FALSE,message=FALSE,fig.align='center'}
-
 # Calculate validity percentage by facility
 
-p1_R_facility <- p1_R %>% 
-  dplyr::group_by(Facility_Name) %>% 
+p1_R_facility <- p1_R %>%
+  dplyr::group_by(Facility_Name) %>%
   summarize(
-    Admit_Date_Time = round((sum(vAdmit_Date_Time == "valid") / 
-                               (sum(vAdmit_Date_Time == "valid") + 
-                                  sum(vAdmit_Date_Time == "invalid")) * 100), 2),
-    C_Facility_ID = round((sum(vC_Facility_ID == "valid") / 
-                             (sum(vC_Facility_ID == "valid") + 
-                                sum(vC_Facility_ID == "invalid")) * 100), 2),
-    C_FacType_Patient_Class = round((sum(vC_FacType_Patient_Class == "valid") / 
-                                       (sum(vC_FacType_Patient_Class == "valid") + 
-                                          sum(vC_FacType_Patient_Class == "invalid")) * 100), 2),
-    C_Patient_Class = round((sum(vC_Patient_Class == "valid") / 
-                               (sum(vC_Patient_Class == "valid") + 
-                                  sum(vC_Patient_Class == "invalid")) * 100), 2),
-    C_Unique_Patient_ID = round((sum(vC_Unique_Patient_ID == "valid") / 
-                                   (sum(vC_Unique_Patient_ID == "valid") + 
-                                      sum(vC_Unique_Patient_ID == "invalid")) * 100), 2),
-    Facility_Type_Code = round((sum(vFacility_Type_Code == "valid") / 
-                                  (sum(vFacility_Type_Code == "valid") + 
-                                     sum(vFacility_Type_Code == "invalid")) * 100), 2),
-    Patient_Class_Code = round((sum(vPatient_Class_Code == "valid") / 
-                                  (sum(vPatient_Class_Code == "valid") + 
-                                     sum(vPatient_Class_Code == "invalid")) * 100), 2),
-    Processing_ID = round((sum(vProcessing_ID == "valid") / 
-                             (sum(vProcessing_ID == "valid") + 
+    Admit_Date_Time = round(
+      (sum(vAdmit_Date_Time == "valid") /
+         (sum(vAdmit_Date_Time == "valid") +
+            sum(vAdmit_Date_Time == "invalid")) * 100), 2
+    ),
+    C_Facility_ID = round(
+      (sum(vC_Facility_ID == "valid") /
+         (sum(vC_Facility_ID == "valid") +
+            sum(vC_Facility_ID == "invalid")) * 100), 2
+    ),
+    C_FacType_Patient_Class = round(
+      (sum(vC_FacType_Patient_Class == "valid") /
+         (sum(vC_FacType_Patient_Class == "valid") +
+            sum(vC_FacType_Patient_Class == "invalid")) * 100), 2
+    ),
+    C_Patient_Class = round(
+      (sum(vC_Patient_Class == "valid") /
+         (sum(vC_Patient_Class == "valid") +
+            sum(vC_Patient_Class == "invalid")) * 100), 2
+    ),
+    C_Unique_Patient_ID = round(
+      (sum(vC_Unique_Patient_ID == "valid") /
+         (sum(vC_Unique_Patient_ID == "valid") +
+            sum(vC_Unique_Patient_ID == "invalid")) * 100), 2
+    ),
+    Facility_Type_Code = round(
+      (sum(vFacility_Type_Code == "valid") /
+         (sum(vFacility_Type_Code == "valid") +
+            sum(vFacility_Type_Code == "invalid")) * 100), 2
+    ),
+    Patient_Class_Code = round(
+      (sum(vPatient_Class_Code == "valid") /
+         (sum(vPatient_Class_Code == "valid") +
+            sum(vPatient_Class_Code == "invalid")) * 100), 2
+    ),
+    Processing_ID = round((sum(vProcessing_ID == "valid") /
+                             (sum(vProcessing_ID == "valid") +
                                 sum(vProcessing_ID == "invalid")) * 100), 2),
-    Sending_Facility_ID = round(((sum(vSending_Facility_ID == "valid") / 
-                                    (sum(vSending_Facility_ID == "valid") + 
-                                       sum(vSending_Facility_ID == "invalid"))) * 100), 2),
-    Treating_Facility_ID = round(((sum(vTreating_Facility_ID == "valid") / 
-                                     (sum(vTreating_Facility_ID == "valid") + 
-                                        sum(vTreating_Facility_ID == "invalid"))) * 100), 2), 
-    Trigger_Event = round(((sum(vTrigger_Event == "valid") / 
-                              (sum(vTrigger_Event == "valid") + 
-                                 sum(vTrigger_Event == "invalid"))) * 100), 2),
-    Visit_ID = round(((sum(vVisit_ID == "valid") / 
-                         (sum(vVisit_ID == "valid") + 
-                            sum(vVisit_ID == "invalid"))) * 100), 2)) %>% 
+    Sending_Facility_ID = round(
+      ((sum(vSending_Facility_ID == "valid") /
+          (sum(vSending_Facility_ID == "valid") +
+             sum(vSending_Facility_ID == "invalid"))) * 100), 2
+    ),
+    Treating_Facility_ID = round(
+      ((sum(vTreating_Facility_ID == "valid") /
+          (sum(vTreating_Facility_ID == "valid") +
+             sum(vTreating_Facility_ID == "invalid"))) * 100), 2
+    ),
+    Trigger_Event = round(
+      ((sum(vTrigger_Event == "valid") /
+          (sum(vTrigger_Event == "valid") +
+             sum(vTrigger_Event == "invalid"))) * 100), 2
+    ),
+    Visit_ID = round(
+      ((sum(vVisit_ID == "valid") /
+          (sum(vVisit_ID == "valid") +
+             sum(vVisit_ID == "invalid"))) * 100), 2
+    )
+  ) %>%
   ungroup()
 
-p1_RE_facility <- p1_RE %>% 
-  group_by(Facility_Name) %>% 
+p1_RE_facility <- p1_RE %>%
+  group_by(Facility_Name) %>%
   summarize(
-    Admit_Reason_Description = round((sum(vAdmit_Reason_Description == "valid") / 
-                                        (sum(vAdmit_Reason_Description == "valid") + 
-                                           sum(vAdmit_Reason_Description == "invalid")) * 100), 2),
-    C_Chief_Complaint = round((sum(vC_Chief_Complaint == "valid") / 
-                                 (sum(vC_Chief_Complaint == "valid") + 
-                                    sum(vC_Chief_Complaint == "invalid")) * 100), 2),
-    C_Death = round((sum(vC_Death == "valid") / 
-                       (sum(vC_Death == "valid") + 
-                          sum(vC_Death == "invalid")) * 100), 2),
-    C_Patient_Age = round((sum(vC_Patient_Age == "valid") / 
-                             (sum(vC_Patient_Age == "valid") + 
-                                sum(vC_Patient_Age == "invalid")) * 100), 2),
-    C_Patient_Age_Years = round((sum(vC_Patient_Age_Years == "valid") / 
-                                   (sum(vC_Patient_Age_Years == "valid") + 
-                                      sum(vC_Patient_Age_Years == "invalid")) * 100), 2),
-    Chief_Complaint_Text = round((sum(vChief_Complaint_Text == "valid") / 
-                                      (sum(vChief_Complaint_Text == "valid") + 
-                                         sum(vChief_Complaint_Text == "invalid")) * 100), 2),
-    Diagnosis_Code = round((sum(vDiagnosis_Code == "valid") / 
-                              (sum(vDiagnosis_Code == "valid") + 
-                                 sum(vDiagnosis_Code == "invalid")) * 100), 2),
-    Diagnosis_Description = round((sum(vDiagnosis_Description == "valid") / 
-                                     (sum(vDiagnosis_Description == "valid") + 
-                                        sum(vDiagnosis_Description == "invalid")) * 100), 2),
-    Patient_Zip = round((sum(vPatient_Zip == "valid") / 
-                           (sum(vPatient_Zip == "valid") + 
-                              sum(vPatient_Zip == "invalid")) * 100), 2) 
-    ) %>% 
+    Admit_Reason_Description = round(
+      (sum(vAdmit_Reason_Description == "valid") /
+         (sum(vAdmit_Reason_Description == "valid") +
+            sum(vAdmit_Reason_Description == "invalid")) * 100), 2
+    ),
+    C_Chief_Complaint = round(
+      (sum(vC_Chief_Complaint == "valid") /
+         (sum(vC_Chief_Complaint == "valid") +
+            sum(vC_Chief_Complaint == "invalid")) * 100), 2
+    ),
+    C_Death = round(
+      (sum(vC_Death == "valid") /
+         (sum(vC_Death == "valid") +
+            sum(vC_Death == "invalid")) * 100), 2
+    ),
+    C_Patient_Age = round(
+      (sum(vC_Patient_Age == "valid") /
+         (sum(vC_Patient_Age == "valid") +
+            sum(vC_Patient_Age == "invalid")) * 100), 2
+    ),
+    C_Patient_Age_Years = round(
+      (sum(vC_Patient_Age_Years == "valid") /
+         (sum(vC_Patient_Age_Years == "valid") +
+            sum(vC_Patient_Age_Years == "invalid")) * 100), 2
+    ),
+    Chief_Complaint_Text = round(
+      (sum(vChief_Complaint_Text == "valid") /
+         (sum(vChief_Complaint_Text == "valid") +
+            sum(vChief_Complaint_Text == "invalid")) * 100), 2
+    ),
+    Diagnosis_Code = round(
+      (sum(vDiagnosis_Code == "valid") /
+         (sum(vDiagnosis_Code == "valid") +
+            sum(vDiagnosis_Code == "invalid")) * 100), 2
+    ),
+    Diagnosis_Description = round(
+      (sum(vDiagnosis_Description == "valid") /
+         (sum(vDiagnosis_Description == "valid") +
+            sum(vDiagnosis_Description == "invalid")) * 100), 2
+    ),
+    Patient_Zip = round(
+      (sum(vPatient_Zip == "valid") /
+         (sum(vPatient_Zip == "valid") +
+            sum(vPatient_Zip == "invalid")) * 100), 2
+    )
+  ) %>%
   ungroup()
 
-p1_facility <- left_join(p1_R_facility, p1_RE_facility, by = "Facility_Name")
+p1_facility <- p1_R_facility %>%
+  left_join(., p1_RE_facility, by = "Facility_Name")
 
-p2_R_facility <- p2_R %>% 
-  dplyr::group_by(Facility_Name) %>% 
+p2_R_facility <- p2_R %>%
+  dplyr::group_by(Facility_Name) %>%
   summarize(
-    First_Patient_ID = round((sum(vFirst_Patient_ID == "valid") / 
-                                (sum(vFirst_Patient_ID == "valid") + 
-                                   sum(vFirst_Patient_ID == "invalid")) * 100), 2),
-    Medical_Record_Number = round((sum(vMedical_Record_Number == "valid") / 
-                                     (sum(vMedical_Record_Number == "valid") + 
-                                        sum(vMedical_Record_Number == "invalid")) * 100), 2),
-    Sending_Facility_ID_Source = round((sum(vSending_Facility_ID_Source == "valid") / 
-                                          (sum(vSending_Facility_ID_Source == "valid") + 
-                                             sum(vSending_Facility_ID_Source == "invalid")) * 100), 2),
-    Message_Date_Time = round((sum(vMessage_Date_Time == "valid") / 
-                                 (sum(vMessage_Date_Time == "valid") + 
-                                    sum(vMessage_Date_Time == "invalid")) * 100), 2),
-    Recorded_Date_Time = round((sum(vRecorded_Date_Time == "valid") / 
-                                  (sum(vRecorded_Date_Time == "valid") + 
-                                     sum(vRecorded_Date_Time == "invalid")) * 100), 2),
-    Version_ID = round((sum(vVersion_ID == "valid") / 
-                          (sum(vVersion_ID == "valid") + 
-                             sum(vVersion_ID == "invalid")) * 100), 2)) %>% 
+    First_Patient_ID = round(
+      (sum(vFirst_Patient_ID == "valid") /
+         (sum(vFirst_Patient_ID == "valid") +
+            sum(vFirst_Patient_ID == "invalid")) * 100), 2
+    ),
+    Medical_Record_Number = round(
+      (sum(vMedical_Record_Number == "valid") /
+         (sum(vMedical_Record_Number == "valid") +
+            sum(vMedical_Record_Number == "invalid")) * 100), 2
+    ),
+    Sending_Facility_ID_Source = round(
+      (sum(vSending_Facility_ID_Source == "valid") /
+         (sum(vSending_Facility_ID_Source == "valid") +
+            sum(vSending_Facility_ID_Source == "invalid")) * 100), 2
+    ),
+    Message_Date_Time = round(
+      (sum(vMessage_Date_Time == "valid") /
+         (sum(vMessage_Date_Time == "valid") +
+            sum(vMessage_Date_Time == "invalid")) * 100), 2
+    ),
+    Recorded_Date_Time = round(
+      (sum(vRecorded_Date_Time == "valid") /
+         (sum(vRecorded_Date_Time == "valid") +
+            sum(vRecorded_Date_Time == "invalid")) * 100), 2
+    ),
+    Version_ID = round(
+      (sum(vVersion_ID == "valid") /
+         (sum(vVersion_ID == "valid") +
+            sum(vVersion_ID == "invalid")) * 100), 2
+    )
+  ) %>%
   ungroup()
 
-p2_RE_facility <- p2_RE %>% 
-  group_by(Facility_Name) %>% 
+p2_RE_facility <- p2_RE %>%
+  group_by(Facility_Name) %>%
   summarize(
-    Discharge_Disposition = round((sum(vDischarge_Disposition == "valid") / 
-                                     (sum(vDischarge_Disposition == "valid") + 
-                                        sum(vDischarge_Disposition == "invalid")) * 100), 2),
-    Discharge_Date_Time = round((sum(vDischarge_Date_Time == "valid") / 
-                                   (sum(vDischarge_Date_Time == "valid") + 
-                                      sum(vDischarge_Date_Time == "invalid")) * 100), 2),
-    Administrative_Sex = round((sum(vAdministrative_Sex == "valid") / 
-                                  (sum(vAdministrative_Sex == "valid") + 
-                                     sum(vAdministrative_Sex == "invalid")) * 100), 2),
-    Age_Reported = round((sum(vAge_Reported == "valid") / 
-                            (sum(vAge_Reported == "valid") + 
-                               sum(vAge_Reported == "invalid")) * 100), 2),
-    Age_Units_Reported = round((sum(vAge_Units_Reported == "valid") / 
-                                  (sum(vAge_Units_Reported == "valid") + 
-                                     sum(vAge_Units_Reported == "invalid")) * 100), 2),
-    C_Patient_Age_Units = round((sum(vC_Patient_Age_Units == "valid") / 
-                                  (sum(vC_Patient_Age_Units == "valid") + 
-                                     sum(vC_Patient_Age_Units == "invalid")) * 100), 2),
-    Race_Code = round((sum(vRace_Code == "valid") / 
-                         (sum(vRace_Code == "valid") + 
-                            sum(vRace_Code == "invalid")) * 100), 2),
-    Ethnicity_Code = round((sum(vEthnicity_Code == "valid") / 
-                              (sum(vEthnicity_Code == "valid") + 
-                                 sum(vEthnicity_Code == "invalid")) * 100), 2),
-    Ethnicity_Description = round((sum(vEthnicity_Description == "valid") / 
-                                     (sum(vEthnicity_Description == "valid") + 
-                                        sum(vEthnicity_Description == "invalid")) * 100), 2),
-    Patient_City = round((sum(vPatient_City == "valid") / 
-                            (sum(vPatient_City == "valid") + 
-                               sum(vPatient_City == "invalid")) * 100), 2),
-    Patient_State = round((sum(vPatient_State == "valid") / 
-                            (sum(vPatient_State == "valid") + 
-                               sum(vPatient_State == "invalid")) * 100), 2),
-    C_Patient_County = round((sum(vC_Patient_County == "valid") / 
-                            (sum(vC_Patient_County == "valid") + 
-                               sum(vC_Patient_County == "invalid")) * 100), 2),
-    Patient_Country = round((sum(vPatient_Country == "valid") / 
-                            (sum(vPatient_Country == "valid") + 
-                               sum(vPatient_Country == "invalid")) * 100), 2),
-    Admit_Reason_Code = round((sum(vAdmit_Reason_Code == "valid") / 
-                            (sum(vAdmit_Reason_Code == "valid") + 
-                               sum(vAdmit_Reason_Code == "invalid")) * 100), 2),
-    Chief_Complaint_Code = round((sum(vChief_Complaint_Code == "valid") / 
-                            (sum(vChief_Complaint_Code == "valid") + 
-                               sum(vChief_Complaint_Code == "invalid")) * 100), 2),
-    Diagnosis_Type = round((sum(vDiagnosis_Type == "valid") / 
-                            (sum(vDiagnosis_Type == "valid") + 
-                               sum(vDiagnosis_Type == "invalid")) * 100), 2)) %>% 
+    Discharge_Disposition = round(
+      (sum(vDischarge_Disposition == "valid") /
+         (sum(vDischarge_Disposition == "valid") +
+            sum(vDischarge_Disposition == "invalid")) * 100), 2
+    ),
+    Discharge_Date_Time = round(
+      (sum(vDischarge_Date_Time == "valid") /
+         (sum(vDischarge_Date_Time == "valid") +
+            sum(vDischarge_Date_Time == "invalid")) * 100), 2
+    ),
+    Administrative_Sex = round(
+      (sum(vAdministrative_Sex == "valid") /
+         (sum(vAdministrative_Sex == "valid") +
+            sum(vAdministrative_Sex == "invalid")) * 100), 2
+    ),
+    Age_Reported = round(
+      (sum(vAge_Reported == "valid") /
+         (sum(vAge_Reported == "valid") +
+            sum(vAge_Reported == "invalid")) * 100), 2
+    ),
+    Age_Units_Reported = round(
+      (sum(vAge_Units_Reported == "valid") /
+         (sum(vAge_Units_Reported == "valid") +
+            sum(vAge_Units_Reported == "invalid")) * 100), 2
+    ),
+    C_Patient_Age_Units = round(
+      (sum(vC_Patient_Age_Units == "valid") /
+         (sum(vC_Patient_Age_Units == "valid") +
+            sum(vC_Patient_Age_Units == "invalid")) * 100), 2
+    ),
+    Race_Code = round(
+      (sum(vRace_Code == "valid") /
+         (sum(vRace_Code == "valid") +
+            sum(vRace_Code == "invalid")) * 100), 2
+    ),
+    Ethnicity_Code = round(
+      (sum(vEthnicity_Code == "valid") /
+         (sum(vEthnicity_Code == "valid") +
+            sum(vEthnicity_Code == "invalid")) * 100), 2
+    ),
+    Ethnicity_Description = round(
+      (sum(vEthnicity_Description == "valid") /
+         (sum(vEthnicity_Description == "valid") +
+            sum(vEthnicity_Description == "invalid")) * 100), 2
+    ),
+    Patient_City = round(
+      (sum(vPatient_City == "valid") /
+         (sum(vPatient_City == "valid") +
+            sum(vPatient_City == "invalid")) * 100), 2
+    ),
+    Patient_State = round(
+      (sum(vPatient_State == "valid") /
+         (sum(vPatient_State == "valid") +
+            sum(vPatient_State == "invalid")) * 100), 2
+    ),
+    C_Patient_County = round(
+      (sum(vC_Patient_County == "valid") /
+         (sum(vC_Patient_County == "valid") +
+            sum(vC_Patient_County == "invalid")) * 100), 2
+    ),
+    Patient_Country = round(
+      (sum(vPatient_Country == "valid") /
+         (sum(vPatient_Country == "valid") +
+            sum(vPatient_Country == "invalid")) * 100), 2
+    ),
+    Admit_Reason_Code = round(
+      (sum(vAdmit_Reason_Code == "valid") /
+         (sum(vAdmit_Reason_Code == "valid") +
+            sum(vAdmit_Reason_Code == "invalid")) * 100), 2
+    ),
+    Chief_Complaint_Code = round(
+      (sum(vChief_Complaint_Code == "valid") /
+         (sum(vChief_Complaint_Code == "valid") +
+            sum(vChief_Complaint_Code == "invalid")) * 100), 2
+    ),
+    Diagnosis_Type = round(
+      (sum(vDiagnosis_Type == "valid") /
+         (sum(vDiagnosis_Type == "valid") +
+            sum(vDiagnosis_Type == "invalid")) * 100), 2
+    )
+  ) %>%
   ungroup()
 
-p2_facility <- left_join(p2_R_facility, p2_RE_facility, by = "Facility_Name")
+p2_facility <- p2_R_facility %>%
+  left_join(., p2_RE_facility, by = "Facility_Name")
 
-cap <- paste("NSSP Priority 1 Element Percent Validity by Facility from",start_date_lab,"through",end_date_lab) 
+cap <- paste(
+  "NSSP Priority 1 Element Percent Validity by Facility from",
+  start_date_lab,
+  "through",
+  end_date_lab
+)
 
-p1_facility %>% 
+p1_facility %>%
   mutate(
-    Admit_Date_Time = cell_spec(Admit_Date_Time, 
-                                color = ifelse(Admit_Date_Time >= 80, "green","red"),
-                                      align = "c"),
-    Admit_Reason_Description = cell_spec(Admit_Reason_Description, 
-                                         color = ifelse(Admit_Reason_Description >= 80, "green","red"),
-                                      align = "c"),
-    Chief_Complaint_Text = cell_spec(Chief_Complaint_Text, 
-                                     color = ifelse(Chief_Complaint_Text >= 80, "green","red"),
-                                      align = "c"),
-    C_Chief_Complaint = cell_spec(C_Chief_Complaint, 
-                                  color = ifelse(C_Chief_Complaint >= 80, "green","red"),
-                                      align = "c"),
-    C_Death = cell_spec(C_Death, 
-                        color = ifelse(C_Death >= 80, "green","red"),
-                                      align = "c"),
-    C_Facility_ID = cell_spec(C_Facility_ID, 
-                              color = ifelse(C_Facility_ID >= 80, "green","red"),
-                                      align = "c"),
-    C_FacType_Patient_Class = cell_spec(C_FacType_Patient_Class, 
-                                        color = ifelse(C_FacType_Patient_Class >= 80, "green","red"),
-                                      align = "c"),
-    C_Patient_Age = cell_spec(C_Patient_Age, 
-                              color = ifelse(C_Patient_Age >= 80, "green","red"),
-                                      align = "c"),
-    C_Patient_Age_Years = cell_spec(C_Patient_Age_Years, 
-                                    color = ifelse(C_Patient_Age_Years >= 80, "green","red"),
-                                      align = "c"),
-    C_Patient_Class = cell_spec(C_Patient_Class, 
-                                color = ifelse(C_Patient_Class >= 80, "green","red"),
-                                      align = "c"),
-    C_Unique_Patient_ID = cell_spec(C_Unique_Patient_ID, 
-                                    color = ifelse(C_Unique_Patient_ID >= 80, "green","red"),
-                                      align = "c"),
-    Diagnosis_Code = cell_spec(Diagnosis_Code, 
-                               color = ifelse(Diagnosis_Code >= 80, "green","red"),
-                                      align = "c"),
-    Diagnosis_Description = cell_spec(Diagnosis_Description, 
-                                      color = ifelse(Diagnosis_Description >= 80, "green","red"),
-                                      align = "c"),
-    Facility_Type_Code = cell_spec(Facility_Type_Code, 
-                                   color = ifelse(Facility_Type_Code >= 80, "green","red"),
-                                      align = "c"),
-    Patient_Class_Code = cell_spec(Patient_Class_Code, 
-                                   color = ifelse(Patient_Class_Code >= 80, "green","red"),
-                                      align = "c"),
-    Patient_Zip = cell_spec(Patient_Zip, 
-                            color = ifelse(Patient_Zip >= 80, "green","red"),
-                            align = "c"),
-    Processing_ID = cell_spec(Processing_ID, 
-                              color = ifelse(Processing_ID >= 80, "green","red"),
-                                      align = "c"),
-    Sending_Facility_ID = cell_spec(Sending_Facility_ID, 
-                                    color = ifelse(Sending_Facility_ID >= 80, "green","red"),
-                                      align = "c"),
-    Treating_Facility_ID = cell_spec(Treating_Facility_ID, 
-                                     color = ifelse(Treating_Facility_ID >= 80, "green","red"),
-                                      align = "c"),
-    Trigger_Event = cell_spec(Trigger_Event, 
-                              color = ifelse(Trigger_Event >= 80, "green","red"),
-                                      align = "c"),
-    Visit_ID = cell_spec(Visit_ID, 
-                            color = ifelse(Visit_ID >= 80, "green","red"),
-                            align = "c")) %>% 
-  kbl(escape = FALSE,
-      caption = cap) %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
-                fixed_thead = TRUE, full_width = FALSE) %>% 
-  row_spec(0, color = "white", background = "black", align = "c", font_size = 9) %>% 
-  column_spec(1:22,border_left = TRUE, border_right = TRUE) %>%
+    Admit_Date_Time = cell_spec(
+      Admit_Date_Time,
+      color = ifelse(Admit_Date_Time >= 80, "green", "red"),
+      align = "c"
+    ),
+    Admit_Reason_Description = cell_spec(
+      Admit_Reason_Description,
+      color = ifelse(Admit_Reason_Description >= 80, "green", "red"),
+      align = "c"
+    ),
+    Chief_Complaint_Text = cell_spec(
+      Chief_Complaint_Text,
+      color = ifelse(Chief_Complaint_Text >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Chief_Complaint = cell_spec(
+      C_Chief_Complaint,
+      color = ifelse(C_Chief_Complaint >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Death = cell_spec(
+      C_Death,
+      color = ifelse(C_Death >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Facility_ID = cell_spec(
+      C_Facility_ID,
+      color = ifelse(C_Facility_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_FacType_Patient_Class = cell_spec(
+      C_FacType_Patient_Class,
+      color = ifelse(C_FacType_Patient_Class >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Patient_Age = cell_spec(
+      C_Patient_Age,
+      color = ifelse(C_Patient_Age >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Patient_Age_Years = cell_spec(
+      C_Patient_Age_Years,
+      color = ifelse(C_Patient_Age_Years >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Patient_Class = cell_spec(
+      C_Patient_Class,
+      color = ifelse(C_Patient_Class >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Unique_Patient_ID = cell_spec(
+      C_Unique_Patient_ID,
+      color = ifelse(C_Unique_Patient_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    Diagnosis_Code = cell_spec(
+      Diagnosis_Code,
+      color = ifelse(Diagnosis_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Diagnosis_Description = cell_spec(
+      Diagnosis_Description,
+      color = ifelse(Diagnosis_Description >= 80, "green", "red"),
+      align = "c"
+    ),
+    Facility_Type_Code = cell_spec(
+      Facility_Type_Code,
+      color = ifelse(Facility_Type_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Patient_Class_Code = cell_spec(
+      Patient_Class_Code,
+      color = ifelse(Patient_Class_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Patient_Zip = cell_spec(
+      Patient_Zip,
+      color = ifelse(Patient_Zip >= 80, "green", "red"),
+      align = "c"
+    ),
+    Processing_ID = cell_spec(
+      Processing_ID,
+      color = ifelse(Processing_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    Sending_Facility_ID = cell_spec(
+      Sending_Facility_ID,
+      color = ifelse(Sending_Facility_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    Treating_Facility_ID = cell_spec(
+      Treating_Facility_ID,
+      color = ifelse(Treating_Facility_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    Trigger_Event = cell_spec(
+      Trigger_Event,
+      color = ifelse(Trigger_Event >= 80, "green", "red"),
+      align = "c"
+    ),
+    Visit_ID = cell_spec(
+      Visit_ID,
+      color = ifelse(Visit_ID >= 80, "green", "red"),
+      align = "c"
+    )
+  ) %>%
+  kbl(escape = FALSE, caption = cap) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    fixed_thead = TRUE,
+    full_width = FALSE
+  ) %>%
+  row_spec(
+    0,
+    color = "white", background = "black", align = "c", font_size = 9
+  ) %>%
+  column_spec(1:22, border_left = TRUE, border_right = TRUE) %>%
   scroll_box(width = "100%", height = "600px")
 
-cap1 <- paste("NSSP Priority 2 Element Validity by Facility from",start_date_lab,"through",end_date_lab)
+cap1 <- paste(
+  "NSSP Priority 2 Element Validity by Facility from",
+  start_date_lab,
+  "through",
+  end_date_lab
+)
 
-p2_facility %>% 
+p2_facility %>%
   mutate(
-    Administrative_Sex = cell_spec(Administrative_Sex, 
-                                   color = ifelse(Administrative_Sex >= 80, "green","red"),
-                                   align = "c"),
-    Admit_Reason_Code = cell_spec(Admit_Reason_Code, 
-                          color = ifelse(Admit_Reason_Code >= 80, "green","red"),
-                          align = "c"),
-    Age_Reported = cell_spec(Age_Reported, 
-                             color = ifelse(Age_Reported >= 80, "green","red"),
-                             align = "c"),
-    Age_Units_Reported = cell_spec(Age_Units_Reported, 
-                                   color = ifelse(Age_Units_Reported >= 80, "green","red"),
-                                   align = "c"),
-    C_Patient_Age_Units = cell_spec(C_Patient_Age_Units, 
-                                    color = ifelse(C_Patient_Age_Units >= 80, "green","red"),
-                                    align = "c"),
-    C_Patient_County = cell_spec(C_Patient_County, 
-                          color = ifelse(C_Patient_County >= 80, "green","red"),
-                          align = "c"),
-    Chief_Complaint_Code = cell_spec(Chief_Complaint_Code, 
-                          color = ifelse(Chief_Complaint_Code >= 80, "green","red"),
-                          align = "c"),
-    Diagnosis_Type = cell_spec(Diagnosis_Type, 
-                               color = ifelse(Diagnosis_Type >= 80, "green","red"),
-                               align = "c"),
-    Discharge_Date_Time = cell_spec(Discharge_Date_Time, 
-                                    color = ifelse(Discharge_Date_Time >= 80, "green","red"),
-                                    align = "c"),
-    Discharge_Disposition = cell_spec(Discharge_Disposition, 
-                                      color = ifelse(Discharge_Disposition >= 80, "green","red"),
-                                      align = "c"),
-    Ethnicity_Code = cell_spec(Ethnicity_Code, 
-                               color = ifelse(Ethnicity_Code >= 80, "green","red"),
-                          align = "c"),
-    Ethnicity_Description = cell_spec(Ethnicity_Description, 
-                               color = ifelse(Ethnicity_Description >= 80, "green","red"),
-                          align = "c"),
-    First_Patient_ID = cell_spec(First_Patient_ID, 
-                                      color = ifelse(First_Patient_ID >= 80, "green","red"),
-                                      align = "c"),
-    Medical_Record_Number = cell_spec(Medical_Record_Number, 
-                                      color = ifelse(Medical_Record_Number >= 80, "green","red"),
-                                      align = "c"),
-    Message_Date_Time = cell_spec(Message_Date_Time,
-                                  color = ifelse(Message_Date_Time >= 80, "green","red"),
-                                  align = "c"),
-    Patient_City = cell_spec(Patient_City, 
-                          color = ifelse(Patient_City >= 80, "green","red"),
-                          align = "c"),
-    Patient_Country = cell_spec(Patient_Country, 
-                          color = ifelse(Patient_Country >= 80, "green","red"),
-                          align = "c"),
-    Patient_State = cell_spec(Patient_State, 
-                          color = ifelse(Patient_State >= 80, "green","red"),
-                          align = "c"),
-    Race_Code = cell_spec(Race_Code, 
-                          color = ifelse(Race_Code >= 80, "green","red"),
-                          align = "c"),
-    Recorded_Date_Time = cell_spec(Recorded_Date_Time, 
-                                   color = ifelse(Recorded_Date_Time >= 80, "green","red"),
-                                   align = "c"),
-    Sending_Facility_ID_Source = cell_spec(Sending_Facility_ID_Source, 
-                                           color = ifelse(Sending_Facility_ID_Source >= 80, "green","red"),
-                                           align = "c"),
-    Version_ID = cell_spec(Version_ID, 
-                               color = ifelse(Version_ID >= 80, "green","red"),
-                               align = "c")) %>% 
-  kbl(escape = FALSE,
-      caption = cap1) %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
-                fixed_thead = TRUE, full_width = FALSE) %>% 
-  row_spec(0, color = "white", background = "black", align = "c", font_size = 9) %>% 
-  column_spec(1:23,border_left = TRUE, border_right = TRUE) %>%
+    Administrative_Sex = cell_spec(
+      Administrative_Sex,
+      color = ifelse(Administrative_Sex >= 80, "green", "red"),
+      align = "c"
+    ),
+    Admit_Reason_Code = cell_spec(
+      Admit_Reason_Code,
+      color = ifelse(Admit_Reason_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Age_Reported = cell_spec(
+      Age_Reported,
+      color = ifelse(Age_Reported >= 80, "green", "red"),
+      align = "c"
+    ),
+    Age_Units_Reported = cell_spec(
+      Age_Units_Reported,
+      color = ifelse(Age_Units_Reported >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Patient_Age_Units = cell_spec(
+      C_Patient_Age_Units,
+      color = ifelse(C_Patient_Age_Units >= 80, "green", "red"),
+      align = "c"
+    ),
+    C_Patient_County = cell_spec(
+      C_Patient_County,
+      color = ifelse(C_Patient_County >= 80, "green", "red"),
+      align = "c"
+    ),
+    Chief_Complaint_Code = cell_spec(
+      Chief_Complaint_Code,
+      color = ifelse(Chief_Complaint_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Diagnosis_Type = cell_spec(
+      Diagnosis_Type,
+      color = ifelse(Diagnosis_Type >= 80, "green", "red"),
+      align = "c"
+    ),
+    Discharge_Date_Time = cell_spec(
+      Discharge_Date_Time,
+      color = ifelse(Discharge_Date_Time >= 80, "green", "red"),
+      align = "c"
+    ),
+    Discharge_Disposition = cell_spec(
+      Discharge_Disposition,
+      color = ifelse(Discharge_Disposition >= 80, "green", "red"),
+      align = "c"
+    ),
+    Ethnicity_Code = cell_spec(
+      Ethnicity_Code,
+      color = ifelse(Ethnicity_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Ethnicity_Description = cell_spec(
+      Ethnicity_Description,
+      color = ifelse(Ethnicity_Description >= 80, "green", "red"),
+      align = "c"
+    ),
+    First_Patient_ID = cell_spec(
+      First_Patient_ID,
+      color = ifelse(First_Patient_ID >= 80, "green", "red"),
+      align = "c"
+    ),
+    Medical_Record_Number = cell_spec(
+      Medical_Record_Number,
+      color = ifelse(Medical_Record_Number >= 80, "green", "red"),
+      align = "c"
+    ),
+    Message_Date_Time = cell_spec(
+      Message_Date_Time,
+      color = ifelse(Message_Date_Time >= 80, "green", "red"),
+      align = "c"
+    ),
+    Patient_City = cell_spec(
+      Patient_City,
+      color = ifelse(Patient_City >= 80, "green", "red"),
+      align = "c"
+    ),
+    Patient_Country = cell_spec(
+      Patient_Country,
+      color = ifelse(Patient_Country >= 80, "green", "red"),
+      align = "c"
+    ),
+    Patient_State = cell_spec(
+      Patient_State,
+      color = ifelse(Patient_State >= 80, "green", "red"),
+      align = "c"
+    ),
+    Race_Code = cell_spec(
+      Race_Code,
+      color = ifelse(Race_Code >= 80, "green", "red"),
+      align = "c"
+    ),
+    Recorded_Date_Time = cell_spec(
+      Recorded_Date_Time,
+      color = ifelse(Recorded_Date_Time >= 80, "green", "red"),
+      align = "c"
+    ),
+    Sending_Facility_ID_Source = cell_spec(
+      Sending_Facility_ID_Source,
+      color = ifelse(Sending_Facility_ID_Source >= 80, "green", "red"),
+      align = "c"
+    ),
+    Version_ID = cell_spec(
+      Version_ID,
+      color = ifelse(Version_ID >= 80, "green", "red"),
+      align = "c"
+    )
+  ) %>%
+  kbl(
+    escape = FALSE,
+    caption = cap1
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    fixed_thead = TRUE, full_width = FALSE
+  ) %>%
+  row_spec(
+    0, color = "white", background = "black", align = "c", font_size = 9
+  ) %>%
+  column_spec(1:23, border_left = TRUE, border_right = TRUE) %>%
   scroll_box(width = "100%", height = "600px")
 ```
 
@@ -2452,40 +3095,52 @@ A full list of NICC terms can be found in the NSSP Data Dictionary, or at [ESSEN
 ```{r ccddinformative, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.width=10}
 # Pull CCInformative and DDInformative metrics using ESSENCE API
 
-url <-
-  paste0(
-    "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
-    endDate,
-    fac,
-    "&percentParam=ccInformative&datasource=va_hosp&startDate=",
-    startDate,
-    "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ccInformative=1&timeResolution=daily&hasBeen",
-    patient_class,
-    "=1"
-  )
+url <- paste0(
+  "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
+  endDate,
+  fac,
+  "&percentParam=ccInformative&datasource=va_hosp&startDate=",
+  startDate,
+  "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ccInformative=1&timeResolution=daily&hasBeen",
+  patient_class,
+  "=1"
+)
 
 cc.informative <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
   pluck("timeSeriesData") %>%
   mutate(date = as.Date(date))
 
-informative.date <-
-  paste(format(min(cc.informative$date), "%B %d, %Y,"), "to", format(max(cc.informative$date), "%B %d, %Y"))
+informative.date <- paste(
+  format(min(cc.informative$date), "%B %d, %Y,"),
+  "to",
+  format(max(cc.informative$date), "%B %d, %Y")
+)
 
-plot.ccinformative <- ggplot(cc.informative) +
+plot.ccinformative <- cc.informative %>%
+  ggplot() +
   geom_line(aes(date, count, color = "CCInformative = 1")) +
   geom_point(aes(date, count, color = "CCInformative = 1"), size = 1.25) +
-  labs(x = "Date",
-       y = "Percent of Patient Encounters",
-       title = "Chief Complaint Informative") +
+  labs(
+    x = "Date",
+    y = "Percent of Patient Encounters",
+    title = "Chief Complaint Informative"
+  ) +
   scale_x_date(date_labels = "%b %d", expand = c(0, 0.1)) +
   scale_y_continuous(
     breaks = scales::pretty_breaks(8),
-    labels = scales::label_percent(accuracy = 1,
-                                   scale = 1),
-    limits = c(0,100)
+    labels = scales::label_percent(
+      accuracy = 1,
+      scale = 1
+    ),
+    limits = c(0, 100)
   ) +
-  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(cc.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
+  geom_hline(yintercept = 80, linetype = "dashed", color = "black") +
+  annotate(
+    "text",
+    x = min(cc.informative$date) + days(7),
+    y = 74.5,
+    label = "NSSP Validity Threshold"
+  ) +
   scale_color_manual(values = c("CCInformative = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -2495,17 +3150,16 @@ plot.ccinformative <- ggplot(cc.informative) +
     legend.position = "bottom"
   )
 
-url <-
-  paste0(
-    "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
-    endDate,
-    fac,
-    "&percentParam=ddInformative&datasource=va_hosp&startDate=",
-    startDate,
-    "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ddInformative=1&timeResolution=daily&hasBeen",
-    patient_class,
-    "=1"
-  )
+url <- paste0(
+  "https://essence.syndromicsurveillance.org/nssp_essence/api/timeSeries?endDate=",
+  endDate,
+  fac,
+  "&percentParam=ddInformative&datasource=va_hosp&startDate=",
+  startDate,
+  "&medicalGroupingSystem=essencesyndromes&userId=2765&aqtTarget=TimeSeries&geographySystem=hospital&detector=probrepswitch&ddInformative=1&timeResolution=daily&hasBeen",
+  patient_class,
+  "=1"
+)
 
 dd.informative <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
   pluck("timeSeriesData") %>%
@@ -2514,19 +3168,30 @@ dd.informative <- myProfile$get_api_data(url, fromCSV = FALSE) %>%
 plot.ddinformative <- ggplot(dd.informative) +
   geom_line(aes(date, count, color = "DDInformative = 1")) +
   geom_point(aes(date, count, color = "DDInformative = 1"), size = 1.25) +
-  labs(x = "Date",
-       y = "Percent of Patient Encounters",
-       title = "Discharge Diagnosis (Code) Informative") +
-  scale_x_date(date_labels = "%b %d",
-               expand = c(0, 0.1)) +
+  labs(
+    x = "Date",
+    y = "Percent of Patient Encounters",
+    title = "Discharge Diagnosis (Code) Informative"
+  ) +
+  scale_x_date(
+    date_labels = "%b %d",
+    expand = c(0, 0.1)
+  ) +
   scale_y_continuous(
     breaks = scales::pretty_breaks(8),
-    labels = scales::label_percent(accuracy = 1,
-                                   scale = 1),
-    limits = c(0,100)
+    labels = scales::label_percent(
+      accuracy = 1,
+      scale = 1
+    ),
+    limits = c(0, 100)
   ) +
-  geom_hline(yintercept = 80, linetype = 'dashed', color = 'black') +
-  annotate("text", x = min(dd.informative$date) + days(7), y = 74.5, label = "NSSP Validity Threshold") +
+  geom_hline(yintercept = 80, linetype = "dashed", color = "black") +
+  annotate(
+    "text",
+    x = min(dd.informative$date) + days(7),
+    y = 74.5,
+    label = "NSSP Validity Threshold"
+  ) +
   scale_color_manual(values = c("DDInformative = 1" = "Blue")) +
   theme_bw() +
   theme(
@@ -2556,31 +3221,28 @@ plot.ccinformative + plot.ddinformative +
 The following graph displays counts of messages by message arrival date (Arrived_Date) that contained a message error causing them to be sent to the `r paste(params$site)` production exceptions table from `r start_date_lab` through `r end_date_lab`.
 
 ```{r exceptions_plot, fig.align='center', echo=FALSE, message=FALSE, warning=FALSE}
-
 # SQL Connection
-con <-
-  RODBC::odbcConnect(
-    dsn = "BioSense_Platform",
-    uid = paste0("BIOSENSE\\", params$username),
-    pwd = paste0(params$password)
-  )
+con <- RODBC::odbcConnect(
+  dsn = "BioSense_Platform",
+  uid = paste0("BIOSENSE\\", params$username),
+  pwd = paste0(params$password)
+)
 
 # Set up SQL query and join to facility names
-query <-
-  paste0(
-    "SELECT distinct(d.Facility_Name), count(*) as count, cast(a.Arrived_Date as date) as Arrived_Date, c.Exceptions_Reason as Reason_Text from ",
-    sitename,
-    "_PR_Except a with (nolock) join ",
-    sitename,
-    "_PR_Except_Reason b ON a.Message_ID=b.Message_ID JOIN BioSense_Platform.dbo.Except_Reasons c ON b.Exceptions_Reason_Code=c.Exceptions_Reason_Code right outer join ",
-    sitename,
-    "_MFT d with (nolock) on a.C_Biosense_Facility_ID=d.C_Biosense_Facility_ID WHERE cast(a.Arrived_Date as date) >='",
-    beginning_date,
-    "'",
-    " and cast(Arrived_Date as date) <='",
-    ending_date,
-    "' group by c.Exceptions_Reason, d.Facility_Name, cast(a.Arrived_Date as date)"
-  )
+query <- paste0(
+  "SELECT distinct(d.Facility_Name), count(*) as count, cast(a.Arrived_Date as date) as Arrived_Date, c.Exceptions_Reason as Reason_Text from ",
+  sitename,
+  "_PR_Except a with (nolock) join ",
+  sitename,
+  "_PR_Except_Reason b ON a.Message_ID=b.Message_ID JOIN BioSense_Platform.dbo.Except_Reasons c ON b.Exceptions_Reason_Code=c.Exceptions_Reason_Code right outer join ",
+  sitename,
+  "_MFT d with (nolock) on a.C_Biosense_Facility_ID=d.C_Biosense_Facility_ID WHERE cast(a.Arrived_Date as date) >='",
+  beginning_date,
+  "'",
+  " and cast(Arrived_Date as date) <='",
+  ending_date,
+  "' group by c.Exceptions_Reason, d.Facility_Name, cast(a.Arrived_Date as date)"
+)
 
 # Run query
 table_messages <- RODBC::sqlQuery(con, query)
@@ -2610,11 +3272,11 @@ ad <- list(
 
 plotly::plot_ly(
   exceptions_overall,
-  x = ~ Arrived_Date,
-  y = ~ count,
-  name = ~ Reason_Text,
+  x = ~Arrived_Date,
+  y = ~count,
+  name = ~Reason_Text,
   type = "scatter",
-  mode = 'lines+markers',
+  mode = "lines+markers",
   autosize = FALSE,
   width = 950,
   height = 650
@@ -2622,10 +3284,9 @@ plotly::plot_ly(
   plotly::layout(
     title = "Exception Messages Received by Arrived_Date",
     yaxis = ad,
-    xaxis = list(title = 'Date'),
+    xaxis = list(title = "Date"),
     legend = list(x = 0, y = -.5)
   )
-
 ```
 
 ## `r paste(params$site)` Production Exception Messages by Error Type, `r start_date_lab` through `r end_date_lab` (Table)
@@ -2639,7 +3300,6 @@ The following table displays messages from the `r paste(params$site)` production
 -   Number of invalid messages, by Message Error Type
 
 ```{r exceptions_tbl, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
-
 table_view <- table_messages %>%
   dplyr::select(Facility_Name, count, Reason_Text) %>%
   group_by(Reason_Text, `Facility_Name`) %>%
@@ -2654,19 +3314,18 @@ table_view <- table_view %>%
 
 datatable(
   table_view,
-  filter = 'top',
-  extensions = 'Buttons',
+  filter = "top",
+  extensions = "Buttons",
   options = list(
-    dom = 'Bfrtip',
-    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    dom = "Bfrtip",
+    buttons = c("copy", "csv", "excel", "pdf", "print"),
     pageLength = 15,
     autoWidth = TRUE,
     scrollY = TRUE,
-    order = list(2, 'desc')
+    order = list(2, "desc")
   ),
   rownames = FALSE
 )
-
 ```
 
 *The template for this report was created by [Andrew Farrey](https://github.com/andrew-farrey) at the Kentucky Injury Prevention and Research Center. The data quality metrics presented have not been validated by NSSP, however NSSP has confirmed the message fields utilized. Development of this template was supported by Cooperative Agreement Number NU17CE924971, funded by the Centers for Disease Control and Prevention. Its contents are solely the responsibility of the author and do not necessarily represent the official views of the Centers for Disease Control and Prevention, the National Syndromic Surveillance Program, or the U.S. Department of Health and Human Services.*
