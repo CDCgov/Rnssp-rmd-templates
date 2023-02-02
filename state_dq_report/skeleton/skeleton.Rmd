@@ -1,7 +1,7 @@
 ---
 title: "`r paste(params$site)` Syndromic Surveillance Data Quality Report"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
-description: "This is a site-level data quality report that generates metrics similar to the NSSP Data Quality dashboards. It utilizes your site's Production Processed table and the ESSENCE API to assess the data quality of facilities that submit encounters matching the selected C_Patient_Class in your jurisdiction. Please knit with parameters within the NSSP RStudio Workbench. This report will not work in other instances of RStudio, as it must be able to query the BioSense platform."
+description: "This is a site-specific data quality report that generates coverage, timeliness, completeness, and validity metrics similar to the NSSP Data Quality dashboards. It utilizes your site's BioSense Production Processed table and the ESSENCE API to assess the data quality of patient encounters that occurred during the chosen date range and match the selected C_Patient_Class. Please knit with parameters within the NSSP RStudio Workbench. The default end_date parameter reflects the recommended lag time of at least two days. Caution: selecting a date range longer than 90 days will result in extensive rendering time."
 output:
   html_document:
     toc: true
@@ -1866,6 +1866,8 @@ priority.1 %>%
   gt() %>%
   tab_header(title = md("**NSSP Priority 1 Element Validity Definitions**")) %>%
   gt_add_divider(columns = everything(), style = "solid") %>%
+  tab_options(table.font.size = 11,
+              column_labels.font.weight = 'bold') %>%
   tab_footnote(
     footnote = "Public Health Information Network Vocabulary Access and Distribution System",
     locations = cells_column_labels(
@@ -1878,6 +1880,8 @@ priority.2 %>%
   gt() %>%
   tab_header(title = md("**NSSP Priority 2 Element Validity Definitions**")) %>%
   gt_add_divider(columns = everything(), style = "solid") %>%
+  tab_options(table.font.size = 11,
+              column_labels.font.weight = 'bold') %>%
   tab_footnote(
     footnote = "Public Health Information Network Vocabulary Access and Distribution System",
     locations = cells_column_labels(
