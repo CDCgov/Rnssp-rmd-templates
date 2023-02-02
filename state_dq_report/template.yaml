@@ -1,8 +1,12 @@
 name: State Data Quality Report
 description: >
-  An automated, site-specific data quality report template that summarizes 
-  data quality metrics, including timeliness, completeness, and validity. 
-  Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
+  An automated, site-specific data quality report template that calculates and 
+  summarizes data quality metrics for patient encounters that occurred during 
+  the selected date range. Metrics include coverage, timeliness, completeness, 
+  and validity of all NSSP Priority 1 & NSSP Priority 2 data elements, limited
+  to the selected calculated patient class (C_Patient_Class). Allow significant 
+  rendering time for date ranges greater than a month. Note: must be run on the 
+  NSSP RStudio Workbench.
   Original Code By: Andrew Farrey.
   Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon.
 create_dir: true
