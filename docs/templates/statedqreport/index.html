@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>State Data Quality Report :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1675301662 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1675301662 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1675301662></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1675443856 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1675443856 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1675443856></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/statedqreport/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1675301662></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1675301662></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1675443856></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1675443856></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1675301662></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1675443856></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -269,10 +269,12 @@ State Data Quality Report
 <span style=color:#f92672>create_dir</span>: <span style=color:#66d9ef>true</span>
 </code></pre></div><hr>
 <h2 id=detailed-description>Detailed Description</h2>
-<p>The state data quality template calculates and summarizes syndromic surveillance data quality metrics pulled from the BioSense platform and the ESSENCE application programming interface (API). The template assesses the coverage, timeliness, completeness, and validity of patient encounters limited to the selected calculated patient class (C_Patient_Class) that occurred during the chosen date range. Note that default end_date reflects the recommended two day lag time.</p>
-<p>Coverage visualizations include interactive plotly plots of the total active facility count, total patient encounters limited to the selected C_Patient_Class, total messages received by BioSense for patient encounters limited to the selected C_Patient_Class, and a table of onboarding facilities.</p>
-<p>Timeliness visualizations include first message (or &ldquo;overall&rdquo;) timeliness, message counts by NSSP Timeliness Category by facility, message percentages by NSSP timeliness count by facility, a table of chief complaint timeliness by facility, and a table of diagnosis code timeliness by facility. BioSense platform arrival date time stamps have been adjusted to reflect the user’s selected time zone to avoid adversely affecting timeliness calculations.</p>
-<p>All NSSP Priority 1 and NSSP Priority 2 data elements are assessed for completness and validity. Completeness is calculated by data element across the entire patient encounter, while validity is assessed on a per message or per patient encounter basis, depending on each data field’s requirement level.</p>
+<p>The state data quality template calculates and summarizes syndromic surveillance data quality metrics pulled from the BioSense platform and the ESSENCE application programming interface (API) similar to the NSSP Data Quality Dashboards. The template assesses coverage, timeliness, completeness, and validity of patient encounters limited to the selected calculated patient class (C_Patient_Class) that occurred during the chosen date range. The default start and end dates include the previous two weeks of data, with the recommended two day lag time reflected. Note that selecting a date range longer than 90 days will result in extensive rendering time.</p>
+<p>Coverage visualizations include interactive plots of the total active facility count, total patient encounters limited to the selected C_Patient_Class, total HL7 messages received by BioSense for patient encounters limited to the selected C_Patient_Class, and a table of currently onboarding facilities.</p>
+<p>Timeliness visualizations include an overall timeliness plot (depicting first message timeliness), an interactive plot of message counts by NSSP Timeliness Category by facility, an interactive plot of message percentages by NSSP timeliness count by facility, a table containing mean and median first message timeliness by facility, a table containing mean and median chief complaint timeliness by facility (chief complaint lag/delay), and a table containing mean and median diagnosis code timeliness by facility (diagnosis code lag/delay). BioSense platform arrival date time stamps have been adjusted to reflect the user’s selected time zone to avoid adversely affecting timeliness calculations.</p>
+<p>The template assesses all NSSP Priority 1 and NSSP Priority 2 data elements for completeness and validity. Completeness is assessed by data element across the entire patient encounter (required data fields must be present at least once per C_Biosense_ID), while validity is assessed by data element on a per message or per patient encounter basis, depending on each data field’s requirement level (see the validity definition table in the template for more information).</p>
+<p>Completeness visualizations include overall completeness plots for each NSSP priority level broken down by data element, time series plots of CCAvailable and DDAvailable pulled using the ESSENCE API, and a table containing chief complaint and diagnosis code completeness by facility. Validity visualizations include overall validity plots for both NSSP priority levels broken down by data element, validity tables for both NSSP priority level data elements by facility, time series plots of CCInformative and DDInformative pulled using the ESSENCE API, an interactive plot containing messages sent to the user&rsquo;s site exceptions table, and a table containing error message counts by facility received during the selected date range.</p>
+<p>Interactive plots were created using the <a href=https://plotly.com/r/>plotly</a> package. Interactive tables were created using the <a href=https://rstudio.github.io/DT/>DT</a> package and the <a href=https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html>kableExtra</a> package.</p>
 <hr>
 <h2 id=user-inputs>User Inputs</h2>
 <ul>
@@ -315,16 +317,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1675301662></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1675443856></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1675301662></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1675301662></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1675443856></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1675443856></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
