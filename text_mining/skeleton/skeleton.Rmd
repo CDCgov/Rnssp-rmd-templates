@@ -279,7 +279,7 @@ data <- api_data %>%
 
 ```{r data and icd_dictionary import, echo = FALSE, warning = FALSE, message = FALSE}
 
-icd_dictionary <- readRDS("icd102022.rds") %>%
+icd_dictionary <- readRDS("icd10.rds") %>%
   distinct(code, description, .keep_all = TRUE) %>%
   select(-set)
 
