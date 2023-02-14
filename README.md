@@ -12,23 +12,23 @@ Report Templates to extend the [`Rnssp`](https://github.com/CDCgov/Rnssp) packag
 
 To use any of the templates of this repository, **please install the  [`Rnssp`](https://github.com/CDCgov/Rnssp) package first**.
 
- Then, from your R console, run `Rnssp::list_templates()` function to list the available templates.
+Then, from your R console, run `Rnssp::list_templates()` function to list the available templates.
  
- To download and add a specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template("<specify template>")` function as depicted in the example below (with `text_mining` template report):
+To download and add a specific template to your existing `Rnssp` installation, use the `Rnssp::add_rmd_template("<specify template>")` function as depicted in the example below (with `text_mining` template report):
  
- ```r
- library("Rnssp")
+```r
+library("Rnssp")
 
- # Provide a detailed tabular view of all available template reports
- list_templates(as.table = TRUE) %>% View()
+# Provide a detailed tabular view of all available template reports
+list_templates(as.table = TRUE) %>% View()
 
- # Extend the Rnssp package with the Text Mining template report
- add_rmd_template("text_mining")
- ```
+# Extend the Rnssp package with the Text Mining template report
+add_rmd_template("text_mining")
+```
 
 Alternatively, users can download .zip releases of the templates for manual integration with the Rnssp package by running the `Rnssp::add_rmd_template()` without argument.
 
-With the release of `Rnssp 0.1.0`, RStudio users can manage (add, update or remove) Rnssp R Markdown templates with the [Rnssp Addins](https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/).
+With `Rnssp 0.1.0` and future versions, RStudio users can manage (add, update or remove) Rnssp R Markdown templates using [Rnssp Addins](https://cdcgov.github.io/Rnssp-rmd-templates/usage/templatemanager/) (see live demo below):
 
 ![](docs/usage/templatemanager/images/add_update_templates.gif)
 
