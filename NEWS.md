@@ -32,6 +32,15 @@ State Emergency Department template available.
 
 <details>
 
+<summary>2/14/2023</summary>
+The Text Mining template has been updated. 
+
+This version contains uses the 2023 updated ICD 10 codes.
+
+</details>
+
+<details>
+
 <summary>8/12/2022</summary>
 The Text Mining template has been updated. 
 
