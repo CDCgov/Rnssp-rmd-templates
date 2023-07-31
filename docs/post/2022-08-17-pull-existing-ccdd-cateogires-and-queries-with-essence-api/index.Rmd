@@ -36,10 +36,7 @@ If you haven't already saved your AMC credentials to a `myProfile` object, then 
 
 ```{r create myProfile}
 
-myProfile <- Credentials$new(
-  username = askme("Enter your username: "),
-  password = askme()
-)
+myProfile <- create_profile()
 
 ```
 
@@ -100,10 +97,7 @@ Typically, only the `category` and `definition` fields will be of interest. The 
 
 ccdd_queries <- get_api_data(url) %>%
   pluck("categories") %>%
-  select(
-    category,
-    definition
-  )
+  select(category, definition)
 
 head(ccdd_queries)
 
