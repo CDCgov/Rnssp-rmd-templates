@@ -1,0 +1,11 @@
+name: Lab Pathogen Surveillance
+description: >
+  Generates a report of all tests for a selected laboratory A 
+  laboratory category 2 pathogen by user selected time period 
+  and demographic stratification. Users can select to return 
+  the percent of tests with negative results or positive results.
+  Original Code By: Jourdan Devies & Kelly Carey. 
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true

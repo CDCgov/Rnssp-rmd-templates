@@ -1,0 +1,870 @@
+---
+title: "Lab Category 2: `r params$lab_cat` Surveillance"
+date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
+output: html_document
+
+description: "This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county). Time periods less than or equal to 60 days will return daily timeseries, greater than 60 days and less than 1 year will return MMWR week timeseries, and greater than 1 year will return monthly timeseries. Please knit the document with selections for all input parameters."
+
+params:
+  username:
+    label: "NSSP Username:"
+    value: ""
+    input: text
+    placeholder: "username"
+  password:
+    label: "NSSP Password:"
+    value: ""
+    input: password
+    placeholder: "password"
+  start_date:
+    label: "Enter Start Date:"
+    value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
+    input: date
+  end_date:
+    label: "Enter End Date:"
+    value: !r Sys.Date()
+    input: date
+  lab_cat:
+    label: "Select Lab Category 2"
+    value: "Blood Testing: Genetic Testing"
+    input: select
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "lab_pathogen_trend", "skeleton", "lab_categories.rds"), destfile = fl); dplyr::pull(dplyr::filter(readRDS(fl), !lab_cat1 %in% c("Antibiotic Susceptibility", "Cancer", "Microbial Culture Testing", "Microbial Susceptibility", "Microbial Testing")), lab_cat2_display)
+    multiple: no
+  test_type:
+    label: "Select Test Type(s)"
+    value: All
+    choices: [All, Antibody, Antigen, MIC, NAAT, Unclassified]
+    input: select
+    multiple: yes
+  per_direction:
+    label: "Select Percent Calculation"
+    value: "Percent of Tests Positive"
+    choices:
+     - "Percent of Tests Positive"
+     - "Percent of Tests Negative"
+    input: select
+    multiple: no
+  region:
+    label: "Select Geographic Region:"
+    value: "All"
+    input: select
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "lab_pathogen_trend", "skeleton", "lab_sites.rds"), destfile = stn); dplyr::pull(dplyr::filter(readRDS(stn), lab_hhs_region_api == ""), site)
+    multiple: no
+  county_region:
+    label: "User Selected County (will overwrite Site selection)"
+    value: ""
+    input: text
+    placeholder: "Input a Laboratory by Results API with region selected"
+  county_label:
+    label: "Label User Selected County"
+    value: ""
+    input: text
+    placeholder: "E.g. Dekalb County, GA"
+  age_group:
+    label: "Age Group"
+    value: "Age Group (0-4, 5-17, 18-44, 45-64, 65+)"
+    input: select
+    choices: ["Age Group (0-4, 5-17, 18-44, 45-64, 65+)", "Age Group 2 (0-17, 18-25, 26-54, 55-64, 65-74, 75+)", "Age Group 3 (0-17, 18-29, 30-39, 40-49, 50-64, 65-74, 75+)", "Age Group 4 (0-11, 12-15, 16-17, 18-24, 25-39, 40-49, 50-64, 65-74, 75+)", "Age Group 5 (0-4, 5-11, 12-15, 16-17, 18-24, 25-39, 40-49, 50-64, 65-74, 75+)", "NCHS Age Groups (0-10, 11-14, 15-24, 25-34, 35-44, 45-54, 55-64, 65-74, 75-84, 85+)", "10 Year Age Groups (0-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70-79, 80+)", "School Age Groups (0-4, 5-11, 12-17, 18-25, 26-34, 35-44, 45-54, 55-64, 65+)", "CDC ILI Reporting Age Groups (0-4, 5-24, 25-49, 50-64, 65+)", "Distribute Age Groups (0-1, 2-4, 5-17, 18-44, 45-64, 65+)"]
+    multiple: no
+---
+
+<style type="text/css">
+.main-container {
+max-width: 2000px;
+margin-left: auto;
+margin-right: auto;
+}
+</style>
+
+```{r packages, warning=FALSE, message=FALSE, echo=FALSE}
+library(Rnssp)
+library(tidyverse)
+library(janitor)
+library(MMWRweek)
+library(cowplot)
+library(scales)
+library(DT)
+library(lubridate)
+
+lab_categories <- readRDS("lab_categories.rds")
+```
+
+
+```{r setup-user-profile, warning=FALSE, message=FALSE, echo=FALSE}
+userProfile <- Credentials$new(
+  username = params$username,
+  password = params$password
+)
+```
+
+
+```{r setupParameters, warning=FALSE, message=FALSE, echo=FALSE}
+# dates for testing purposes
+# end_date = Sys.Date()
+# start_date = Sys.Date()-8
+
+# dates- uncomment when running as parameterized report
+end_date <- params$end_date %>%
+  as.Date()
+start_date <- params$start_date %>%
+  as.Date()
+
+# lab start date cannot be before February 1, 2019
+if (start_date < as.Date("2019-02-01")) start_date <- as.Date("2019-02-01")
+
+# calculate number of days in user selected data time frame to determine time resolution
+days <- abs(as.numeric(start_date - end_date))
+
+# set time resolution based on number of days.
+# daily = days  <= 60
+# weekly = 60 < days <= 365
+# monthly = days > 365
+
+
+if (days <= 60) {
+  time_unit <- "daily" # start and end date stays as is for daily data
+  graph_timeframe_label <- ""
+} else if (days <= 365) {
+  # currently allows them to have a week not be a full last week. can change this
+  time_unit <- "weekly"
+  num_wks <- days / 7
+  start_date <- floor_date(start_date, unit = "1 week")
+  end_date <- ceiling_date(end_date, unit = "1 week") - 1
+
+  graph_timeframe_label <- "(1st day of MMWR week)"
+} else {
+  time_unit <- "monthly"
+  start_date <- floor_date(start_date, unit = "1 month")
+  end_date <- ceiling_date(end_date, unit = "1 month") - 1
+
+  graph_timeframe_label <- "(1st day of month)"
+}
+
+
+# use = "api" or "text"
+format_dates <- function(date, use = "api") {
+  if (use == "api") {
+    format(date, "%d%b%Y")
+  } else {
+    format(date, "%B %d, %Y")
+  }
+}
+
+
+# define age group information; default is Age Group
+stratification_var_info <- readRDS("demovars3.rds")
+stratification_var_info <- stratification_var_info %>%
+  filter(demo_param == params$age_group)
+row_api_category <- stratification_var_info %>%
+  pull(row_api_category)
+essence_variable_name <- stratification_var_info %>%
+  pull(essence_variable_name)
+stratification_graph_title <- stratification_var_info %>%
+  pull(graph_value)
+
+# define lab category
+# lab_test_name_api <- lab_categories[which(lab_categories$lab_cat2_display == params$lab_cat), ]$lab_cat2
+lab_test_name_api <- lab_categories %>%
+  filter(lab_cat2_display == params$lab_cat) %>%
+  pull(lab_cat2)
+
+lab_test_name <- params$lab_cat
+
+# define percent pos or neg for text labels
+if (params$per_direction == "Percent of Tests Positive") {
+  percent_numerator <- "pos_tests"
+  percent_numerator_label <- "Positive Specimen Volume"
+  percent_label <- "Percent Positive"
+  percent_figure_text <- "positive"
+
+  percent_value <- "positive"
+  percent_value_opp <- "negative"
+  percentivity <- "positivity"
+
+  cum_percent_numerator <- "cum_pos_tests"
+} else {
+  percent_numerator <- "neg_tests"
+  percent_numerator_label <- "Negative Specimen Volume"
+  percent_label <- "Percent Negative"
+  percent_figure_text <- "negative"
+
+  percent_value <- "negative"
+  percent_value_opp <- "positive"
+  percentivity <- "negativity"
+  cum_percent_numerator <- "cum_neg_tests"
+}
+
+
+# define site; default is national
+if (params$county_region != "") {
+  lab_hhs_region_api <- ""
+  lab_state_api <- ""
+
+  lab_county_api <- str_extract(
+    params$county_region,
+    pattern = "&labRegion=\\s*(.*?)\\s*&userId"
+  )
+  lab_county_api <- str_replace(
+    lab_county_api,
+    pattern = "&userId", replacement = ""
+  )
+
+
+  site_label_for_report_output <- params$county_label
+} else {
+  essence_site_info <- readRDS("lab_sites.rds")
+  essence_site_info <- essence_site_info %>%
+    filter(site == params$region)
+  lab_hhs_region_api <- essence_site_info$lab_hhs_region_api
+  lab_state_api <- essence_site_info$lab_state_api
+  lab_county_api <- ""
+  site_label_for_report_output <- params$region
+}
+
+# define Lab test type
+if ("All" %in% params$test_type) {
+  lab_test_type_api <- ""
+
+  test_type_filter <- c("Antibody", "Antigen", "MIC", "NAAT", "Unclassified")
+} else {
+  lab_test_type_api <- paste(
+    "&labTestType=", str_to_lower(params$test_type),
+    collapse = "", sep = ""
+  )
+  test_type_filter <- params$test_type
+}
+```
+
+```{r exitNoLabCat, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the api does not have the correct data source
+# Not sure we need this? It defaults to something?
+if (params$lab_cat == "") {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     No lab category was chosen. Please make sure to select a lab category 2."
+  )
+}
+```
+
+
+```{r exit_incorrect_api, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the api does not have the correct data source
+if (
+  sjmisc::str_contains(
+    params$county_region,
+    pattern = "&datasource=va_labresult",
+    ignore.case = TRUE, logic = "not"
+  ) == TRUE &
+    params$county_region != ""
+) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     It looks like you are trying to run this report for a county or counties.
+     Please make sure your query is a Laboratory by Result (Full Details) query.
+     If you are not trying to run this report for a county, please make sure the
+     'User Selected County' field is blank."
+  )
+}
+```
+
+```{r exit_no_region_selected, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the api does not have the correct data source
+if (
+  sjmisc::str_contains(
+    params$county_region,
+    pattern = "&datasource=va_labresult",
+    ignore.case = TRUE
+  ) == TRUE &
+    sjmisc::str_contains(
+      params$county_region,
+      pattern = "&labRegion=",
+      ignore.case = TRUE
+    ) == FALSE
+) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     It looks like you are trying to run this report for a county or counties.
+     Please make sure your ESSENCE API URL has a county selected.
+     You can check the API URL for the county information by looking for
+     the following pattern: &labRegion="
+  )
+}
+```
+
+```{r generateAPI_tbl, warning=FALSE, message=FALSE, echo=FALSE}
+url <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
+  format_dates(end_date, "api"),
+  "&labResultCategory2=",
+  str_replace_all(lab_test_name_api, " ", "%20"),
+  "&percentParam=noPercent", "&datasource=va_labresult&detector=nodetectordetector&startDate=",
+  format_dates(start_date, "api"),
+  "&dateType=eventdate&timeResolution=", time_unit,
+  "&userId=3147&aqtTarget=TableBuilder&rowFields=sex&rowFields=timeResolution",
+  row_api_category,
+  "&rowFields=labSpecialtyDescription&columnField=labResultResultCategory"
+)
+
+if (params$county_region != "") {
+  url <- paste0(url, lab_county_api)
+} else if (lab_state_api != "") {
+  url <- paste0(url, lab_state_api)
+} else {
+  url <- url
+}
+```
+
+```{r pullData_tbl, warning=FALSE, message=FALSE, echo=FALSE}
+data <- try(userProfile$get_api_data(url), silent = TRUE)
+
+
+no_results <- is.null(data)
+
+
+if (no_results) {
+  knitr::knit_exit(
+    "Render ends prematurely. There are no results for this query."
+  )
+}
+
+premature_quit_essence <- any(
+  all(class(data) == "try-error"),
+  all(dim(data) == c(0, 0))
+)
+
+
+if (premature_quit_essence) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     ESSENCE API data pull failed. Check your user credentials!"
+  )
+}
+```
+
+
+
+```{r formatData, warning=FALSE, message=FALSE, echo=FALSE}
+create_graph_dates <- function(df, time_period) {
+  if (time_period == "daily") {
+    df %>%
+      mutate(date = as.Date(timeResolution))
+  } else if (time_period == "weekly") {
+    df %>%
+      separate(timeResolution, c("year", "week"), sep = "-", remove = TRUE) %>%
+      mutate(date = MMWRweek2Date(as.numeric(year), as.numeric(week), 1))
+  } else {
+    df %>%
+      mutate(date = as.Date(paste0(timeResolution, "-01"), format = "%Y-%m-%d"))
+  }
+}
+# get correct dates and results
+# dataset 1 - daily total volume ####
+data <- create_graph_dates(data, time_unit) %>%
+  cross_join(lab_categories %>% filter(lab_cat2 == lab_test_name_api)) %>%
+  mutate(
+    labResultResultCategory = case_when(
+      lab_cat1 == "Drug Testing" &
+        labResultResultCategory == "DrugDetected" ~ "Positive",
+      lab_cat1 == "none" &
+        labResultResultCategory == "DrugDetected" ~ "Positive",
+      lab_cat1 == "Gastrointestinal Infection" &
+        labResultResultCategory == "ParasiteDetected" ~ "Positive",
+      lab_cat1 == "none" &
+        labResultResultCategory == "Resistant" ~ "Positive",
+      labResultResultCategory == "Positive" ~ "Positive",
+      lab_cat1 == "none" &
+        labResultResultCategory == "Sensitive" ~ "Negative", # negative results
+      labResultResultCategory == "Negative" ~ "Negative",
+      labResultResultCategory == "NotDetected" ~ "Negative",
+      TRUE ~ "Unknown_or_Unexpected"
+    )
+  )
+
+count_data <- data %>%
+  count(
+    date, sex, !!sym(essence_variable_name),
+    labResultResultCategory,
+    wt = count,
+    name = "count"
+  ) %>%
+  pivot_wider(
+    names_from = labResultResultCategory,
+    values_from = count,
+    values_fill = 0
+  ) %>%
+  rename(
+    "neg_tests" = "Negative",
+    "pos_tests" = "Positive"
+  ) %>%
+  mutate(
+    test_vol = neg_tests + pos_tests,
+    percent = 100 * (!!as.name(percent_numerator) / test_vol),
+    timeperiod = time_unit
+  )
+
+# dataset 2 - demographic stratification completeness ####
+complete_data <- data %>%
+  pivot_longer(cols = c(!!sym(essence_variable_name), sex), names_to = "var") %>%
+  mutate(
+    unknown = if_else(
+      value %in% c("Unknown", "Not Reported"), "not_complete", "complete"
+    )
+  ) %>%
+  count(var, unknown, wt = count) %>%
+  pivot_wider(names_from = unknown, values_from = n) %>%
+  mutate(
+    total = complete + not_complete,
+    percent_complete = as.numeric(sprintf("%.2f", 100 * (complete / total))),
+    var = str_to_sentence(var)
+  ) %>%
+  mutate(
+    total = comma(total),
+    complete = comma(complete),
+    not_complete = comma(not_complete)
+  ) %>%
+  select(var, total, complete, not_complete, percent_complete) %>%
+  rename(
+    "Variable" = "var",
+    "Total Specimens" = "total",
+    "Complete" = "complete",
+    "Not Complete" = "not_complete",
+    "Percent of Specimens Complete" = "percent_complete"
+  )
+
+# dataset 3- provider type ####
+provider_data <- data %>%
+  count(labSpecialtyDescription, labResultResultCategory, wt = count) %>%
+  pivot_wider(
+    names_from = labResultResultCategory,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  rename(
+    "neg_tests" = "Negative",
+    "pos_tests" = "Positive"
+  ) %>%
+  mutate(
+    test_vol = neg_tests + pos_tests,
+    percent = 100 * (!!as.name(percent_numerator) / test_vol)
+  ) %>%
+  arrange(desc(pos_tests)) %>%
+  select(labSpecialtyDescription, test_vol, !!as.name(percent_numerator), percent) %>%
+  mutate(percent = as.numeric(sprintf("%.2f", percent))) %>%
+  rename(
+    "Specialty Code Description" = "labSpecialtyDescription",
+    "Specimen Volume" = "test_vol",
+    "{percent_numerator_label}" := !!as.name(percent_numerator),
+    "{percent_label}" := percent
+  )
+```
+
+```{r functions, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+color_pal <- c("Negative" = "#c8d7df", "Positive" = "#26C6DA")
+
+# function to group by and summarize the data
+sum_data <- function(df, ...) {
+  facet_var <- enquos(...)
+
+  df %>%
+    dplyr::group_by(!!!facet_var, .drop = FALSE) %>% # group by facetted vars
+    summarise(
+      neg_tests = sum(neg_tests),
+      pos_tests = sum(pos_tests)
+    ) %>%
+    mutate(
+      test_vol = neg_tests + pos_tests,
+      percent = 100 * (!!as.name(percent_numerator) / test_vol)
+    )
+}
+
+set_date_scales <- function(time_resolution, graph_space, date_vector) {
+  num_dates <- length(unique(date_vector))
+
+  if (time_resolution == "weekly") {
+    if (num_dates <= 15) {
+      x_breaks <- unique(date_vector)
+    } else if (num_dates <= 28) {
+      x_breaks <- unique(date_vector)[c(TRUE, FALSE)]
+    } else {
+      x_breaks <- unique(date_vector)[c(TRUE, FALSE, FALSE)]
+    }
+  } else if (num_dates >= 15 & graph_space == "narrow") {
+    if (time_resolution == "monthly") {
+      x_breaks <- breaks_pretty(10)
+    } else {
+      x_breaks <- breaks_pretty(15)
+    }
+  } else if (num_dates >= 30 & graph_space == "wide") {
+    x_breaks <- breaks_pretty(30)
+  } else {
+    x_breaks <- breaks_pretty(num_dates)
+  }
+  return(x_breaks)
+}
+
+
+# function to create the bar graph with percent line
+bar_percent_pos_graph <- function(df, time_unit, graph_space = "wide", ...) {
+  base_graph <- df %>%
+    ggplot(aes(x = date)) +
+    geom_col(aes(y = test_vol), fill = "gray90", color = "black") +
+    geom_line(aes(y = percent / y_coeff), color = "#275A77") +
+    geom_point(aes(y = percent / y_coeff), color = "#275A77", size = 2)
+
+  strat_title <- ", Lab A"
+
+  if (!missing(...)) {
+    facet_var <- enquos(...)
+    base_graph <- base_graph +
+      facet_wrap(vars(!!!facet_var),
+        scales = "fixed",
+        ncol = 2
+      )
+
+    strat_title <- paste0(" by ", str_to_title(facet_var), ", Lab A")
+  }
+
+  total_test_vol <- sum(df$test_vol)
+
+  if (total_test_vol > 0) {
+    # calculate y-axis coefficient
+    y_coeff <- 100 / ceiling(max(df$test_vol))
+
+    # plot output
+    plot <- base_graph +
+      scale_x_date(
+        # breaks = breaks_pretty(12),
+        breaks = set_date_scales(time_unit, graph_space, df$date),
+        # limits = c(min(df$date)-1, max(df$date)+1),
+        labels = label_date_short(),
+        name = paste0("Result date ", graph_timeframe_label)
+      ) +
+      scale_y_continuous(
+        # Features of the first axis
+        name = "Count of specimens (bars)", label = comma,
+        # Add a second axis and specify its features
+        sec.axis = sec_axis(
+          ~ . * y_coeff,
+          name = paste0("Percent of specimens ", percent_figure_text, " (line)")
+        )
+      ) +
+      labs(
+        title = str_wrap(
+          paste0(
+            str_to_sentence(time_unit), " Specimen Volume for ",
+            str_to_title(lab_test_name), " and Percent of Specimens ",
+            str_to_sentence(percent_figure_text), strat_title
+          ),
+          width = 100
+        )
+      ) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(size = 12, face = "bold"),
+        axis.text = element_text(size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        text = element_text(size = 12),
+        plot.title = element_text(hjust = 0.5, face = "bold"),
+        panel.spacing.x = unit(5, "mm")
+      )
+  } else {
+    plot <- ggdraw() +
+      draw_label("No test data available", size = 12, fontface = "bold")
+  }
+
+  return(plot)
+}
+```
+
+
+# Introduction
+
+The data included in this report are from the National Syndromic Surveillance Program (NSSP). Data are provided by a large commercial laboratory via electronic HL7 message at the time of order. Results arrive twice daily. Tests ordered but not performed were excluded from this analysis. These data are collected by specimen (accession) ID. Patient IDs are not available, and therefore, patient deduplication or linkage over time is not possible. As a result, persons with multiple specimens will be represented multiple times in these data. For more information on laboratory test and result categorizations, you can reference the <a href="https://www.cdc.gov/nssp/technical-pubs-and-standards.html#Dictionaries" target="_blank">Laboratory User Table</a>. For further questions please email NSSP at [nssp@cdc.gov](mailto:nssp@cdc.gov).
+
+# Data Query
+
+**Data Source**: Laboratory by Result (Full Details): Lab A
+
+**Time Period**: Laboratory tests from `r format_dates(start_date, "text")` to `r format_dates(end_date, "text")`. Date is on a `r time_unit` time resolution. 
+
+**Region**: `r site_label_for_report_output`
+
+**Test Type**: Test Types include `r paste0("(", paste0(test_type_filter, collapse =", "), ")")`
+
+# Testing Volume and `r percent_label`
+
+The following graphs represent testing volume and `r str_to_lower(percent_label)`. Data plotted are by date of test result. `r str_to_sentence(percent_label)` is calculated as (number of `r percent_value` specimens)/(number of positive+negative specimens) by day of reported test result. A percent `r percentivity` of 1% means that 1 out of every 100 reported tests is `r percent_value`, or that there are 100 `r percent_value`and `r percent_value_opp` results reported specimens run for each `r percent_value` test. The totals or `r str_to_lower(percent_label)` does not include test results that are equivocal or inconclusive. Completeness of stratification variables is available at the bottom of the report.
+
+
+## Overall
+
+```{r test-vol-overall, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=5, fig.align = 'center'}
+count_data %>%
+  sum_data(date) %>%
+  ungroup() %>%
+  bar_percent_pos_graph(time_unit, "wide")
+```
+
+<details>
+
+<summary>Click to expand table</summary>
+
+```{r test-vol-overall-table, warning=FALSE, message=FALSE, echo=FALSE}
+count_data %>%
+  sum_data(date) %>%
+  ungroup() %>%
+  mutate_at(vars(test_vol, pos_tests), ~ replace_na(., 0)) %>%
+  mutate(percent = percent / 100) %>%
+  rename(
+    "Specimen Volume" = "test_vol",
+    "Negative Specimen Volume" = neg_tests,
+    "Positive Specimen Volume" = pos_tests,
+    "{percent_label}" := percent
+  ) %>%
+  rename_with(str_to_title) %>%
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(
+        list(extend = "csv", text = "Download Data to .CSV")
+      ),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "both")
+      )
+    ),
+    rownames = FALSE,
+    filter = "top",
+    class = "cell-border stripe"
+  ) %>%
+  formatPercentage(percent_label, 2)
+```
+
+</details>
+
+## By Age
+
+```{r test-vol-age, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=10, fig.align = 'center'}
+count_data %>%
+  sum_data(date, !!as.symbol(essence_variable_name)) %>%
+  ungroup() %>%
+  filter(!!as.symbol(essence_variable_name) != "Unknown") %>%
+  bar_percent_pos_graph(time_unit, "narrow", !!as.symbol(essence_variable_name)) +
+  labs(
+    title = str_wrap(
+      paste0(
+        str_to_sentence(time_unit),
+        " Specimen Volume for ", str_to_title(lab_test_name),
+        " and Percent of Specimens ", str_to_sentence(percent_figure_text),
+        " by ", stratification_graph_title,
+        ", Lab A"
+      ),
+      width = 100
+    )
+  )
+```
+
+<details>
+
+<summary>Click to expand table</summary>
+
+```{r test-vol-age-table, warning=FALSE, message=FALSE, echo=FALSE}
+count_data %>%
+  sum_data(date, !!as.symbol(essence_variable_name)) %>%
+  ungroup() %>%
+  filter(!!as.symbol(essence_variable_name) != "Unknown") %>%
+  mutate_at(vars(test_vol, pos_tests), ~ replace_na(., 0)) %>%
+  mutate(percent = percent / 100) %>%
+  rename(
+    "Specimen Volume" = "test_vol",
+    "Negative Specimen Volume" = neg_tests,
+    "Positive Specimen Volume" = pos_tests,
+    "{percent_label}" := percent
+  ) %>%
+  rename_with(str_to_title) %>%
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      )),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "both")
+      )
+    ),
+    rownames = FALSE,
+    filter = "top",
+    class = "cell-border stripe"
+  ) %>%
+  formatPercentage(percent_label, 2)
+```
+
+</details> 
+
+## By Sex
+
+```{r test-vol-sex, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=5, fig.align = 'center'}
+count_data %>%
+  sum_data(date, sex) %>%
+  ungroup() %>%
+  filter(!sex %in% c("Unknown", "Not Reported")) %>%
+  bar_percent_pos_graph(time_unit, "narrow", sex) +
+  labs(
+    title = str_wrap(
+      paste0(
+        str_to_sentence(time_unit),
+        " Specimen Volume for ", str_to_title(lab_test_name),
+        " and Percent of Specimens ", str_to_sentence(percent_figure_text),
+        " by Sex, Lab A"
+      ),
+      width = 100
+    )
+  )
+```
+
+<details>
+
+<summary>Click to expand table</summary>
+
+```{r test-vol-sex-table, warning=FALSE, message=FALSE, echo=FALSE}
+count_data %>%
+  sum_data(date, sex) %>%
+  ungroup() %>%
+  filter(!sex %in% c("Unknown", "Not Reported")) %>%
+  mutate_at(vars(test_vol, pos_tests), ~ replace_na(., 0)) %>%
+  mutate(percent = percent / 100) %>%
+  rename(
+    "Specimen Volume" = "test_vol",
+    "Negative Specimen Volume" = neg_tests,
+    "Positive Specimen Volume" = pos_tests,
+    "{percent_label}" := percent
+  ) %>%
+  rename_with(str_to_title) %>%
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      )),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "both")
+      )
+    ),
+    rownames = FALSE,
+    filter = "top",
+    class = "cell-border stripe"
+  ) %>%
+  formatPercentage(percent_label, 2)
+```
+
+</details>
+
+# Cumulative Volume and `r percent_label`
+
+```{r, cum-volume-graph, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=5, fig.align = 'center'}
+# use cumsum but keep variable names the same to be able to use the same graph
+cum_nat_vol_data <- count_data %>%
+  sum_data(date) %>%
+  mutate(
+    neg_tests = cumsum(neg_tests),
+    pos_tests = cumsum(pos_tests)
+  ) %>%
+  mutate(
+    test_vol = neg_tests + pos_tests,
+    percent = 100 * (!!as.name(percent_numerator) / test_vol)
+  )
+
+y_coeff <- 100 / ceiling(max(cum_nat_vol_data$test_vol))
+
+total_test_vol <- sum(cum_nat_vol_data$test_vol)
+
+if (total_test_vol > 0) {
+  cum_nat_vol_data %>%
+    bar_percent_pos_graph(time_unit) +
+    scale_y_continuous(
+      # Features of the first axis
+      name = "Cumulative count of specimens (bars)", label = comma,
+      # Add a second axis and specify its features
+      sec.axis = sec_axis(
+        ~ . * y_coeff,
+        name = "Cumulative percent of specimens positive (line)"
+      )
+    ) +
+    labs(
+      title = str_wrap(
+        paste0(
+          "Cumulative Specimen Volume for ",
+          str_to_title(lab_test_name), " and Percent of Specimens ",
+          str_to_sentence(percent_figure_text),
+          ", Lab A"
+        ),
+        width = 80
+      )
+    )
+} else {
+  ggdraw() + draw_label("No test data available", size = 12, fontface = "bold")
+}
+```
+
+
+# Completeness
+
+The following table presents the completeness of key patient demographic variables. This completeness is for the dates present in the testing volume and percent positive graphs. Not complete variables include NULL and “Unknown” categories.  
+```{r, completeness-table, message=FALSE, warning=FALSE, echo=FALSE}
+complete_data %>%
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      )),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "both")
+      ),
+      columnDefs = list(list(className = "dt-center", targets = c(1:4)))
+    ),
+    rownames = FALSE,
+    filter = "top",
+    class = "cell-border stripe"
+  )
+```
+
+# Provider Type
+
+The following table presents the counts of selected testing ordered by specific provider types. These provider types are self-reported by the provider when they create an account with Lab A. These provider types are not linked to NPI, and are unique to Lab A.  
+
+```{r provider, warning=FALSE, message=FALSE, echo=FALSE}
+# Total test count, positive count, and percent by provider type, as available in the Lab A data.
+provider_data %>%
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      )),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "both")
+      ),
+      columnDefs = list(list(className = "dt-center", targets = c(1:3)))
+    ),
+    rownames = FALSE,
+    filter = "top",
+    class = "cell-border stripe"
+  )
+```
