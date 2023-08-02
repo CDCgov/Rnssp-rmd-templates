@@ -314,3 +314,39 @@ The State Data Quality Report template is available.
 This template summarizes data quality metrics, including timeliness, completeness, and validity. It Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
 
 </details>
+
+## Lab Pathogen Surveillance Report template (`lab_pathogen_trend`)
+
+<details open>
+
+<summary>8/02/2023</summary>
+The Lab Pathogen Surveillance Report template is available.
+
+
+This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory2 options in the ESSENCE Laboratory by Results data source.
+
+</details>
+
+## Lab Reason for Testing Report template (`lab_testing_reason`)
+
+<details open>
+
+<summary>8/02/2023</summary>
+The Lab Reason for Testing Report template is available.
+
+
+This template summarizes the types of tests and patient demographics of a user defined reason for testing query. Users are able to select the geographic region (national, HHS region, state, or county), time frames, and reason for testing. 
+
+</details>
+
+## Lab Year Over Year Trends Report template (`lab_yoy_trend`)
+
+<details open>
+
+<summary>8/02/2023</summary>
+The Lab Year Over Year Trends Report template is available.
+
+
+This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory 2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county). 
+
+</details>
