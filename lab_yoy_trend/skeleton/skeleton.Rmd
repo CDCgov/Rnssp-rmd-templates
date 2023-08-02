@@ -1,0 +1,427 @@
+---
+title: "Weekly Testing Volume"
+date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: 
+      collapsed: true
+      smooth_scroll: false
+
+description: "This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory 2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county). Please knit the document with selections for all input parameters."
+
+params:
+  username:
+    label: 'NSSP Username:'
+    value: ''
+    input: text
+    placeholder: "username"
+  password:
+    label: 'NSSP Password:'
+    value: ''
+    input: password
+    placeholder: "password"
+  start_date:
+    label: 'Enter Start Date: (cutoff: 2019-02-01)'
+    value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
+    input: date
+    min: !r as.Date("2019-02-01")
+    max: !r Sys.Date()
+  end_date:
+    label: 'Enter End Date:'
+    value: !r Sys.Date()
+    input: date
+    max: !r Sys.Date()
+  lab_cat1:
+    label: "Select Laboratory Category 1 Categories"
+    value: "All"
+    input: select
+    multiple: yes
+    choices:
+     - "All"
+     - "Drug Testing"
+     - "Gastrointestinal Infection"
+     - "Hepatitis"
+     - "Infectious Disease"
+     - "Respiratory Disease"
+     - "STD"
+     - "Vector-Borne Disease"
+  region:
+    label: 'Select Geographic Region:'
+    value: "All"
+    input: select
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "lab_yoy_trend", "skeleton", "lab_sites.rds"), destfile = stn); dplyr::pull(dplyr::filter(readRDS(stn), lab_hhs_region_api == ""), site)
+  county_region:
+    label: "User Selected County (will overwrite geographic region selection)"
+    value: ''
+    input: text
+    placeholder: "Input a Laboratory by Results API with region selected"
+  county_label:
+    label: "Label User Selected County"
+    value: ''
+    input: text
+    placeholder: "E.g. Dekalb County, GA"
+---
+
+<style type="text/css">
+.main-container {
+max-width: 2100px;
+margin-left: auto;
+margin-right: auto;
+}
+</style>
+
+```{r setup_workspace, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# removed lab cat 1s: "Antibiotic Susceptibility", "Antifungal Susceptibility", "Blood Testing", "Cancer", "Microbial Susceptibility", "Microbial Testing"
+library(Rnssp)
+library(tidyverse)
+library(cowplot)
+library(scales)
+library(viridis)
+library(MMWRweek)
+library(distill)
+library(sjmisc)
+```
+
+```{r setup_user_profile, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+userProfile <- Credentials$new(
+  username = params$username,
+  password = params$password
+)
+```
+
+```{r setup_parameters, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# define dates by MMWR week
+report_end_date <- params$end_date %>%
+  as.Date()
+
+report_end_date <- MMWRweek2Date(
+  MMWRweek(report_end_date)$MMWRyear, MMWRweek(report_end_date)$MMWRweek, 7
+)
+
+api_end_date <- report_end_date %>%
+  as.Date() %>%
+  format(., "%d%b%Y")
+end_date_for_text <- report_end_date %>%
+  as.Date() %>%
+  format(., "%B %d, %Y")
+
+report_start_date <- params$start_date %>%
+  as.Date()
+report_start_date <- MMWRweek2Date(
+  MMWRweek(report_start_date)$MMWRyear, MMWRweek(report_start_date)$MMWRweek, 7
+)
+
+api_start_date <- report_start_date %>%
+  as.Date() %>%
+  format(., "%d%b%Y")
+start_date_for_text <- report_start_date %>%
+  as.Date() %>%
+  format(., "%B %d, %Y")
+
+# define site; default is national
+if (params$county_region != "") {
+  site_info <- params$site_facility_label
+  lab_hhs_region_api <- ""
+  lab_state_api <- ""
+
+  lab_county_api <- str_extract(
+    params$county_region,
+    pattern = "&labRegion=\\s*(.*?)\\s*&userId"
+  )
+  lab_county_api <- str_replace(
+    lab_county_api,
+    pattern = "&userId", replacement = ""
+  )
+
+  site_label_for_report_output <- params$county_label
+} else {
+  essence_site_info <- readRDS("lab_sites.rds")
+  essence_site_info <- essence_site_info %>%
+    filter(site == params$region)
+  lab_hhs_region_api <- essence_site_info$lab_hhs_region_api
+  lab_state_api <- essence_site_info$lab_state_api
+  lab_county_api <- ""
+  site_label_for_report_output <- params$region
+}
+
+# define lab category 1 list if all selected
+if (params$lab_cat1 == "All") {
+  lab_cat1_list <- c(
+    "Drug Testing", "Gastrointestinal Infection", "Hepatitis",
+    "Infectious Disease", "Respiratory Disease", "STD", "Vector-Borne Disease"
+  )
+} else {
+  lab_cat1_list <- params$lab_cat1
+}
+```
+
+```{r exit_incorrect_api, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the api does not have the correct data source
+if (
+  str_contains(
+    params$county_region,
+    pattern = "&datasource=va_labresult",
+    ignore.case = TRUE,
+    logic = "not"
+  ) == TRUE &
+    params$county_region != ""
+) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     It looks like you are trying to run this report for a county or counties.
+     Please make sure your query is a Laboratory by Result (Full Details) query.
+     If you are not trying to run this report for a county, please make sure
+     the 'User Selected County' field is blank."
+  )
+}
+```
+
+```{r exit_no_region_selected, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the api does not have the correct data source
+if (
+  str_contains(
+    params$county_region,
+    pattern = "&datasource=va_labresult",
+    ignore.case = TRUE
+  ) == TRUE &
+    str_contains(
+      params$county_region,
+      pattern = "&labRegion=",
+      ignore.case = TRUE
+    ) == FALSE
+) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     It looks like you are trying to run this report for a county or counties.
+     Please make sure your ESSENCE API URL has a county selected.
+     You can check the API URL for the county information by looking for
+     the following pattern: &labRegion="
+  )
+}
+```
+
+```{r generate_api_url, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+lab_api <- paste0(
+  "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
+  api_end_date,
+  "&percentParam=noPercent", lab_hhs_region_api,
+  "&datasource=va_labresult", lab_state_api,
+  "&detector=nodetectordetector&startDate=", api_start_date,
+  "&dateType=eventdate&timeResolution=weekly", lab_county_api,
+  "&userId=4092&aqtTarget=TableBuilder&rowFields=labResultCategory2&rowFields=labResultResultCategory&columnField=timeResolution"
+)
+```
+
+```{r pull_data, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+lab_data <- userProfile$get_api_data(lab_api)
+
+no_results <- is.null(lab_data)
+
+if (no_results) {
+  knitr::knit_exit(
+    "Render ends prematurely. There are no results for this query."
+  )
+}
+premature_quit_essence <- any(
+  all(class(lab_data) == "try-error"),
+  all(dim(lab_data) == c(0, 0))
+)
+if (premature_quit_essence) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     ESSENCE API data pull failed. Check your user credentials!"
+  )
+}
+```
+
+```{r format_data, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+lab_data <- lab_data %>%
+  mutate(
+    labResultCategory2 = str_replace_all(
+      labResultCategory2,
+      pattern = "Vector-Borne Disease",
+      replacement = "Vector Borne Disease"
+    )
+  ) %>%
+  separate(timeResolution, c("year", "week"), sep = "-", remove = TRUE) %>%
+  separate(
+    labResultCategory2,
+    c("main_cat", "sub_cat"),
+    sep = ": ",
+    extra = "drop",
+    fill = "right",
+    remove = TRUE
+  ) %>%
+  mutate(
+    main_cat = str_replace_all(
+      main_cat,
+      pattern = "Vector Borne Disease",
+      replacement = "Vector-Borne Disease"
+    ),
+    main_cat = str_squish(main_cat),
+    sub_cat = str_squish(sub_cat)
+  ) %>%
+  mutate(result = case_when(
+
+    # positive results
+    main_cat == "Antibiotic Susceptibility" &
+      labResultResultCategory == "Detected" ~ "Positive",
+    main_cat == "Drug Testing" &
+      labResultResultCategory == "DrugDetected" ~ "Positive",
+    main_cat == "Antibiotic Susceptibility" &
+      labResultResultCategory == "MicrobeDetected" ~ "Positive",
+    main_cat == "Microbial Testing" &
+      labResultResultCategory == "MicrobeDetected" ~ "Positive",
+    main_cat == "Gastrointestinal Infection" &
+      labResultResultCategory == "ParasiteDetected" ~ "Positive",
+    main_cat == "Antibiotic Susceptibility" &
+      labResultResultCategory == "Resistant" ~ "Positive",
+    main_cat == "Antifungal Susceptibility" &
+      labResultResultCategory == "MicrobeDetected" ~ "Positive",
+    main_cat == "Blood Testing" &
+      labResultResultCategory == "ParasiteDetected" ~ "Positive",
+    main_cat == "Gastrointestinal Infection" &
+      labResultResultCategory == "MicrobeDetected" ~ "Positive",
+    main_cat == "Respiratory Disease" &
+      labResultResultCategory == "MicrobeDetected" ~ "Positive",
+    labResultResultCategory == "Positive" ~ "Positive",
+
+    # negative results
+    main_cat == "Antibiotic Susceptibility" &
+      labResultResultCategory == "Intermediately susceptible" ~ "Negative",
+    main_cat == "Microbial Susceptibility" &
+      labResultResultCategory == "Intermediately susceptible" ~ "Negative",
+    main_cat == "Antibiotic Susceptibility" &
+      labResultResultCategory == "Sensitive" ~ "Negative",
+    labResultResultCategory == "Negative" ~ "Negative",
+    labResultResultCategory == "NotDetected" ~ "Negative",
+    TRUE ~ "Unknown_or_Unexpected"
+  )) %>%
+  group_by(main_cat, sub_cat, year, week, result) %>%
+  summarize(n_tests = sum(count, na.rm = TRUE)) %>%
+  pivot_wider(names_from = result, values_from = n_tests, values_fill = 0) %>%
+  mutate(
+    test_volume = Positive + Negative,
+    percent_positive = 100 * (Positive / test_volume)
+  ) %>%
+  filter(main_cat %in% lab_cat1_list)
+```
+
+```{r graph_function, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=6, layout="l-page", results="asis"}
+output_function <- function(lab_main_category, lab_subcategory) {
+  lab_sub_data <- lab_data %>%
+    filter(main_cat == lab_main_category & sub_cat == lab_subcategory)
+
+  axis_coeff <- max(lab_sub_data$percent_positive, na.rm = TRUE) /
+    max(lab_sub_data$test_volume, na.rm = TRUE)
+
+  if (axis_coeff == 0) {
+    axis_coeff <- 100 / max(lab_sub_data$test_volume, na.rm = TRUE)
+  }
+
+  lab_sub_data <- lab_sub_data %>%
+    mutate(
+      adjusted_per_positive = percent_positive / axis_coeff,
+      adjusted_per_positive = case_when(
+        is.nan(adjusted_per_positive) ~ 0,
+        TRUE ~ adjusted_per_positive
+      )
+    ) %>%
+    pivot_longer(
+      c(Negative, Positive),
+      names_to = "result", values_to = "result_count"
+    )
+
+  overall_test_volume <- sum(lab_sub_data$test_volume)
+
+  if (overall_test_volume == 0) {
+    no_test_output <- ggdraw() +
+      draw_label(
+        "There were no tests for this category.",
+        fontface = "bold", size = 16
+      )
+    return(no_test_output)
+  } else {
+    volume_byyear_graph <- lab_sub_data %>%
+      ggplot(aes(x = as.numeric(week))) +
+      geom_col(
+        aes(y = result_count, fill = result),
+        position = "stack", alpha = 0.7
+      ) +
+      geom_line(
+        aes(y = adjusted_per_positive),
+        color = "black", size = 1.2, alpha = 1, show.legend = FALSE
+      ) +
+      facet_wrap(~year, ncol = 1, scales = "fixed") +
+      theme_bw() +
+      theme(
+        legend.position = "bottom",
+        strip.background = element_rect(fill = "white"),
+        strip.text = element_text(size = 12, color = "black")
+      ) +
+      scale_x_continuous(
+        name = "MMWR Week",
+        breaks = c(1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52)
+      ) +
+      scale_y_continuous(
+        name = "Testing Volume (Positive + Negative) [bars]",
+        limits = c(0, NA), labels = comma,
+        sec.axis = sec_axis(
+          ~ . * axis_coeff,
+          name = "Percent Positive (%) [line]"
+        )
+      ) +
+      scale_fill_viridis_d(
+        name = "Result", begin = 0.4, end = 0.9, option = "viridis"
+      )
+
+    return(volume_byyear_graph)
+  }
+}
+```
+
+# Introduction
+
+The data included in this report are from the National Syndromic Surveillance Program (NSSP). Data are provided by a large commercial laboratory via electronic HL7 message at the time of order. Results arrive twice daily. Tests ordered but not performed were excluded from this analysis. These data are collected by specimen (accession) ID. Patient IDs are not available, and therefore, patient deduplication or linkage over time is not possible. As a result, persons with multiple specimens will be represented multiple times in these data. For more information on laboratory test and result categorizations, you can reference the <a href="https://www.cdc.gov/nssp/technical-pubs-and-standards.html#Dictionaries" target="_blank">Laboratory User Table</a>. For further questions please email NSSP at [nssp@cdc.gov](mailto:nssp@cdc.gov).
+
+Report run on `r format(Sys.Date(), "%B %d, %Y")`. This report returns testing volume and percent positivity for the time period selected to allow for year over year trend comparisons. 
+
+**Total Tests**: Sum of the number of positive tests and negative tests. Tests with unknown or unexpected results were excluded from the sum. 
+
+```{=latex}
+$$Total Tests = Positive + Negative$$
+```
+
+**Percent Positive**: Percent positivity was calculated by dividing the number of positive tests by all tests with a valid result (positive or negative). 
+
+```{=latex}
+$$Percent Positive = \frac{Positive}{Positive + Negative}$$ 
+```
+
+# Data Query
+
+**Data Source**: Laboratory by Result (Full Details): Lab A
+
+**Time Period**: Laboratory tests from `r start_date_for_text` to `r end_date_for_text`
+
+**Region**: `r site_label_for_report_output`
+
+```{r generate_report_output, warning=FALSE, message=FALSE, echo=FALSE, fig.width=12, fig.height=15, layout="l-page", results="asis"}
+lab_category_1_list <- unique(lab_data$main_cat)
+
+for (i in 1:length(lab_category_1_list)) {
+  category1 <- lab_category_1_list[i]
+  category1_data <- lab_data %>% filter(main_cat == category1)
+  subcategories <- unique(category1_data$sub_cat)
+  cat("  \n#", category1, "  \n")
+  cat("  \n")
+
+  for (j in 1:length(subcategories)) {
+    category2 <- subcategories[j]
+    cat("  \n##", category2, "  \n")
+    print(output_function(category1, category2))
+    cat("  \n")
+  }
+}
+```

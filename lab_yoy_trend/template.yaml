@@ -1,0 +1,10 @@
+name: Lab Year Over Year Trends
+description: >
+  Generates a trend report of testing volume and the percent of 
+  tests that are positive for all Lab A LabCategory 2 
+  options in the ESSENCE Laboratory by Results data source. 
+  Original Code By: Dylan Johns & Kelly Carey. 
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true
