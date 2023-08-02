@@ -1,0 +1,11 @@
+name: Lab Reason for Testing 
+description: >
+  Summarizes the types of tests and patient demographics of a 
+  user defined reason for testing query. Users are able to 
+  select the geographic region (national, HHS region, state, or county), 
+  time frames, and reason for testing. 
+  Original Code By: Kelly Carey. 
+  Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
+  National Syndromic Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
+create_dir: true

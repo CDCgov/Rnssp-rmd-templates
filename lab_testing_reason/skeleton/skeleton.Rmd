@@ -1,0 +1,612 @@
+---
+title: "Reason(s) for Testing Summary Report"
+date: "Report Produced: `r format(Sys.Date(), format = '%m/%d/%Y')`"
+output: html_document
+
+description: "This template summarizes the types of tests and patient demographics of a user defined reason for testing query. Users are able to select the geographic region (national, HHS region, state, or county), time frames, and reason for testing. Please knit the document with selections for all input parameters."
+
+params:
+  username:
+    label: "NSSP Username:"
+    value: ""
+    input: text
+    placeholder: "username"
+  password:
+    label: "NSSP Password:"
+    value: ""
+    input: password
+    placeholder: "password"
+  start_date:
+    label: "Enter Start Date:"
+    value: !r as.Date(paste0(format(Sys.Date(), "%Y-"),"01-01"))
+    input: date
+  end_date:
+    label: "Enter End Date:"
+    value: !r Sys.Date()
+    input: date
+  region:
+    label: "Select Geographic Region:"
+    value: "All"
+    input: select
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "lab_testing_reason", "skeleton", "lab_sites.rds"), destfile = stn); dplyr::pull(dplyr::filter(readRDS(stn), lab_hhs_region_api == ""), site)
+  county_region:
+    label: "User Selected County (will overwrite Site ID selection)"
+    value: ""
+    input: text
+    placeholder: "Input a Laboratory by Results API with region selected"
+  free_text_query:
+    label: "Free Text Query"
+    value: ""
+    input: text
+    placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
+---
+
+<style type="text/css">
+.main-container {
+max-width: 2100px;
+margin-left: auto;
+margin-right: auto;
+}
+</style>
+
+Report run date: `r format(Sys.Date(), "%m/%d/%Y")`
+
+```{r setup_workspace, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+library(distill)
+library(Rnssp)
+library(tidyverse)
+library(cowplot)
+library(scales)
+library(viridis)
+library(MMWRweek)
+library(data.table)
+library(mgsub)
+library(sjmisc)
+library(DT)
+```
+
+```{r setup_user_profile, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+userProfile <- Credentials$new(
+  username = params$username,
+  password = params$password
+)
+```
+
+```{r setup_parameters, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# define date parameters
+end_date <- params$end_date %>%
+  as.Date()
+start_date <- params$start_date %>%
+  as.Date()
+
+# limit start date
+if (start_date < as.Date("2019-02-01")) {
+  start_date <- as.Date("2019-02-01")
+}
+
+# define time units
+days_diff <- as.numeric(difftime(end_date, start_date, units = "days"))
+
+if (days_diff <= 60) {
+  time_units <- "daily"
+} else if (days_diff > 60 & days_diff <= 365) {
+  time_units <- "weekly"
+} else {
+  time_units <- "monthly"
+}
+
+# region
+if (params$county_region != "") {
+  hhs_api <- ""
+  state_api <- ""
+  region_api <- str_extract(
+    params$county_region,
+    pattern = "&labRegion=\\s*(.*?)\\s*&userId"
+  )
+  region_api <- str_replace(region_api, pattern = "&userId", replacement = "")
+
+  site_label <- region_api %>%
+    str_replace(., pattern = "&labRegion=", replacement = "") %>%
+    str_replace_all(., pattern = "&labRegion=", replacement = ", ") %>%
+    str_replace_all(., pattern = "%20", replacement = " ") %>%
+    str_replace_all(., pattern = "_", replacement = " ") %>%
+    str_to_upper()
+} else {
+  site_info <- readRDS("lab_sites.rds")
+  site_info <- site_info %>%
+    filter(site == params$region)
+  hhs_api <- site_info$lab_hhs_region_api
+  state_api <- site_info$lab_state_api
+  region_api <- ""
+
+  site_label <- params$region
+}
+
+# query component
+free_text_query <- params$free_text_query
+
+api_free_text <- str_replace_all(
+  free_text_query,
+  pattern = "\\^", replacement = "%5E"
+) # %5E = ^
+api_free_text <- str_replace_all(
+  api_free_text,
+  pattern = "\\[", replacement = "%5B"
+) # %5B = [
+api_free_text <- str_replace_all(
+  api_free_text,
+  pattern = "\\]", replacement = "%5D"
+) # %5D = ]
+api_free_text <- str_replace_all(
+  api_free_text,
+  pattern = " ", replacement = "%20"
+)
+
+free_text_query <- str_replace_all(
+  free_text_query,
+  pattern = "\\^", replacement = "\\\\^"
+)
+```
+
+```{r setup_apis_load_data, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# time-chunk all data pulls in 30 day increments
+range <- seq(start_date, end_date, by = "months")
+
+lab_cat_data <- data.frame()
+lab_provider_data <- data.frame()
+patient_demo_data <- data.frame()
+
+month_list <- seq(start_date, end_date, by = "months")
+for (i in 1:length(month_list)) {
+  temp_start <- month_list[i]
+
+  if (i < length(month_list)) {
+    temp_end <- month_list[i + 1] - 1
+  } else {
+    temp_end <- end_date
+  }
+
+  temp_lab_cat_api <- paste0(
+    "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=",
+    format(temp_end, "%d%b%Y"),
+    "&percentParam=noPercent",
+    hhs_api,
+    "&datasource=va_labresult&labReasonForTestComboFreeText=",
+    api_free_text, state_api,
+    "&detector=nodetectordetector&startDate=",
+    format(temp_start, "%d%b%Y"),
+    "&dateType=eventdate&timeResolution=",
+    time_units, region_api,
+    "&userId=4092&aqtTarget=TableBuilder&rowFields=timeResolution&rowFields=labResultCategory2&columnField=labResultResultCategory"
+  )
+  temp_lab_cat_data <- userProfile$get_api_data(temp_lab_cat_api, fromCSV = TRUE)
+  lab_cat_data <- rbind(lab_cat_data, temp_lab_cat_data)
+
+  temp_lab_provider_api <- paste0(
+    "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=",
+    format(temp_end, "%d%b%Y"),
+    "&percentParam=noPercent", hhs_api,
+    "&datasource=va_labresult&labReasonForTestComboFreeText=",
+    api_free_text, state_api,
+    "&detector=nodetectordetector&startDate=", format(temp_start, "%d%b%Y"),
+    "&dateType=eventdate&timeResolution=", time_units, region_api,
+    "&userId=4092&aqtTarget=TableBuilder&rowFields=labSpecialtyDescription&rowFields=labResultCategory2&columnField=labResultResultCategory"
+  )
+  temp_lab_provider_data <- userProfile$get_api_data(
+    temp_lab_provider_api,
+    fromCSV = TRUE
+  )
+  lab_provider_data <- rbind(lab_provider_data, temp_lab_provider_data)
+
+  temp_patient_demo_api <- paste0(
+    "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=",
+    format(temp_end, "%d%b%Y"),
+    "&percentParam=noPercent", hhs_api,
+    "&datasource=va_labresult&labReasonForTestComboFreeText=",
+    api_free_text, state_api,
+    "&detector=nodetectordetector&startDate=", format(temp_start, "%d%b%Y"),
+    "&dateType=eventdate&timeResolution=", time_units, region_api,
+    "&userId=4092&aqtTarget=TableBuilder&rowFields=labResultCategory2&rowFields=age&rowFields=sex&columnField=labResultResultCategory"
+  )
+  temp_patient_demo_data <- userProfile$get_api_data(
+    temp_patient_demo_api,
+    fromCSV = TRUE
+  )
+  patient_demo_data <- rbind(patient_demo_data, temp_patient_demo_data)
+}
+
+no_results <- is.null(lab_cat_data)
+
+if (no_results) {
+  knitr::knit_exit(
+    "Render ends prematurely. There are no results for this query."
+  )
+}
+premature_quit_essence <- any(
+  all(class(lab_cat_data) == "try-error"),
+  all(dim(lab_cat_data) == c(0, 0))
+)
+if (premature_quit_essence) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     ESSENCE API data pull failed. Check your user credentials!"
+  )
+}
+```
+
+```{r generate_data_subsets, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# format data
+data_format_fun <- function(input_df) {
+  input_df <- input_df %>%
+    mutate(`Unknown Result` = as.numeric(`Unknown Result`)) %>%
+    pivot_longer(
+      AntibodyTiter:`Unknown Result`,
+      names_to = "C_Result_Test_Category",
+      values_to = "test_vol"
+    ) %>%
+    separate(
+      labResultCategory2,
+      into = c("LabResultCategory1", "LabResultCategory2"),
+      sep = ": ",
+      remove = TRUE
+    ) %>%
+    separate(
+      LabResultCategory2,
+      into = c("LabResultCategory2", "toRemove"),
+      sep = " \\(",
+      remove = TRUE
+    ) %>%
+    select(-toRemove) %>%
+    filter(
+      !LabResultCategory1 %in%
+        c(
+          "Antibiotic Susceptibility", "Antifungal Susceptibility",
+          "Blood Testing", "Cancer", "Microbial Culture Testing",
+          "Microbial Susceptibility", "Microbial Testing"
+        )
+    ) %>%
+    mutate(
+      result = case_when(
+        # positive results
+        LabResultCategory1 == "Antibiotic Susceptibility" &
+          C_Result_Test_Category == "Detected" ~ "Positive",
+        LabResultCategory1 == "Drug Testing" &
+          C_Result_Test_Category == "DrugDetected" ~ "Positive",
+        LabResultCategory1 == "Antibiotic Susceptibility" &
+          C_Result_Test_Category == "MicrobeDetected" ~ "Positive",
+        LabResultCategory1 == "Microbial Testing" &
+          C_Result_Test_Category == "MicrobeDetected" ~ "Positive",
+        LabResultCategory1 == "Gastrointestinal Infection" &
+          C_Result_Test_Category == "ParasiteDetected" ~ "Positive",
+        LabResultCategory1 == "Antibiotic Susceptibility" &
+          C_Result_Test_Category == "Resistant" ~ "Positive",
+        LabResultCategory1 == "Antifungal Susceptibility" &
+          C_Result_Test_Category == "MicrobeDetected" ~ "Positive",
+        LabResultCategory1 == "Blood Testing" &
+          C_Result_Test_Category == "ParasiteDetected" ~ "Positive",
+        LabResultCategory1 == "Gastrointestinal Infection" &
+          C_Result_Test_Category == "MicrobeDetected" ~ "Positive",
+        LabResultCategory1 == "Respiratory Disease" &
+          C_Result_Test_Category == "MicrobeDetected" ~ "Positive",
+        C_Result_Test_Category == "Positive" ~ "Positive",
+
+        # negative results
+        LabResultCategory1 == "Antibiotic Susceptibility" &
+          C_Result_Test_Category == "Intermediately susceptible" ~ "Negative",
+        LabResultCategory1 == "Microbial Susceptibility" &
+          C_Result_Test_Category == "Intermediately susceptible" ~ "Negative",
+        LabResultCategory1 == "Antibiotic Susceptibility" &
+          C_Result_Test_Category == "Sensitive" ~ "Negative",
+        C_Result_Test_Category == "Negative" ~ "Negative",
+        C_Result_Test_Category == "NotDetected" ~ "Negative",
+        TRUE ~ "Unknown_or_Unexpected"
+      )
+    )
+  return(input_df)
+}
+
+lab_cat_data <- data_format_fun(lab_cat_data)
+lab_provider_data <- data_format_fun(lab_provider_data)
+patient_demo_data <- data_format_fun(patient_demo_data)
+
+# define time units for output
+if (time_units == "daily") {
+  timeseries_data <- lab_cat_data %>%
+    mutate(graph_date = as.Date(timeResolution))
+  graph_date_label <- "Date"
+}
+
+if (time_units == "weekly") {
+  timeseries_data <- lab_cat_data %>%
+    separate(timeResolution, into = c("mmwr_year", "mmwr_week"), sep = "-") %>%
+    mutate(
+      graph_date = MMWRweek2Date(as.numeric(mmwr_year), as.numeric(mmwr_week), 1)
+    )
+  graph_date_label <- "MMWR Week (First day of week)"
+}
+
+if (time_units == "monthly") {
+  timeseries_data <- lab_cat_data %>%
+    separate(timeResolution, into = c("year", "month"), sep = "-") %>%
+    mutate(graph_date = as.Date(paste0(year, "-", month, "-1")))
+  graph_date_label <- "Month (First day of month)"
+}
+
+# generate subsets
+timeseries_data <- timeseries_data %>%
+  group_by(graph_date, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos)
+  )
+
+lab_cat1 <- lab_cat_data %>%
+  group_by(LabResultCategory1, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos)
+  ) %>%
+  filter(n_tests_ordered > 0) %>%
+  filter(LabResultCategory1 != "Unknown") %>%
+  arrange(desc(n_tests_ordered))
+
+lab_cat2 <- lab_cat_data %>%
+  group_by(LabResultCategory2, LabResultCategory1, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos)
+  ) %>%
+  filter(n_tests_ordered > 0) %>%
+  filter(LabResultCategory2 != "Unknown") %>%
+  arrange(desc(n_tests_ordered))
+
+specialty <- lab_provider_data %>%
+  group_by(labSpecialtyDescription, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos)
+  ) %>%
+  filter(n_tests_ordered > 0) %>%
+  arrange(desc(n_tests_ordered))
+
+age_grp <- patient_demo_data %>%
+  group_by(age, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos),
+    age = factor(
+      age,
+      levels = c("00-04", "05-17", "18-44", "45-64", "65+", "Unknown"),
+      labels = c("0-4", "5-17", "18-44", "45-64", "65+", "Unknown")
+    )
+  ) %>%
+  arrange(desc(n_tests_ordered))
+
+sex <- patient_demo_data %>%
+  group_by(sex, result) %>%
+  summarise(tests = sum(test_vol)) %>%
+  pivot_wider(names_from = result, values_from = tests, values_fill = 0) %>%
+  mutate(
+    n_tests_ordered = Negative + Positive + Unknown_or_Unexpected,
+    n_tests = Negative + Positive,
+    per_pos = 100 * (Positive / n_tests),
+    per_pos = case_when(is.nan(per_pos) ~ 0, TRUE ~ per_pos),
+    sex = factor(sex, levels = c("Female", "Male", "Unknown", "Not Reported"))
+  ) %>%
+  arrange(desc(n_tests_ordered))
+```
+
+### Introduction
+
+The data included in this report are from the National Syndromic Surveillance Program (NSSP). Data are provided by a large commercial laboratory via electronic HL7 message at the time of order. Results arrive twice daily. Tests ordered but not performed were excluded from this analysis. These data are collected by specimen (accession) ID. Patient IDs are not available, and therefore, patient deduplication or linkage over time is not possible. As a result, persons with multiple specimens will be represented multiple times in these data. For more information on laboratory test and result categorizations, you can reference the <a href="https://www.cdc.gov/nssp/technical-pubs-and-standards.html#Dictionaries" target="_blank">Laboratory User Table</a>. For further questions please email NSSP at [nssp@cdc.gov](mailto:nssp@cdc.gov).
+
+This report summarizes data from `r format(start_date, "%B %d, %Y")` to `r format(end_date, "%B %d, %Y")` for a user-defined query of the reasons for testing field.
+
+**User Selected Parameters**
+
+***Date Range:*** `r format(start_date, "%m/%d/%Y")` to `r format(end_date, "%m/%d/%Y")`
+
+***Region:*** `r site_label`
+
+***Query:*** `r as.character(free_text_query)`
+
+### Timeseries
+
+```{r timeseries, warning=FALSE, message=FALSE, echo=FALSE, fig.width=20, fig.height=6}
+count <- timeseries_data %>%
+  ggplot(aes(x = graph_date, y = n_tests)) +
+  geom_col(fill = "#00CCCC", color = "black") +
+  theme_bw() +
+  scale_x_date(name = graph_date_label) +
+  scale_y_continuous(name = "Tests (n)", limits = c(0, NA))
+# count
+
+percent <- timeseries_data %>%
+  ungroup() %>%
+  ggplot(aes(x = graph_date, y = per_pos)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_date(name = graph_date_label) +
+  scale_y_continuous(name = "Percent Positive (%)", limits = c(0, NA))
+# percent
+
+plot_grid(count, percent, nrow = 1)
+```
+
+### Lab Categories
+
+#### Laboratory Category 1
+
+```{r labcat1, warning=FALSE, message=FALSE, echo=FALSE}
+lab_cat1 %>%
+  mutate(LabResultCategory1 = factor(LabResultCategory1)) %>%
+  select(-Unknown_or_Unexpected, -n_tests_ordered) %>%
+  mutate(per_pos = round(per_pos, digits = 2)) %>%
+  arrange(desc(n_tests)) %>%
+  rename(
+    "Lab Result Category 1" = "LabResultCategory1",
+    "Negative (n)" = "Negative",
+    "Positive (n)" = "Positive",
+    "Total (n)" = "n_tests",
+    "Percent Positive (%)" = "per_pos"
+  ) %>%
+  datatable(
+    extensions = "Buttons",
+    rownames = FALSE,
+    escape = FALSE,
+    filter = "top",
+    class = "cell-border stripe",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      ))
+    )
+  )
+```
+
+#### Laboratory Category 2
+
+```{r labcat2, warning=FALSE, message=FALSE, echo=FALSE}
+lab_cat2 %>%
+  mutate(
+    LabResultCategory2 = factor(LabResultCategory2),
+    LabResultCategory1 = factor(LabResultCategory1)
+  ) %>%
+  select(-Unknown_or_Unexpected, -n_tests_ordered) %>%
+  mutate(per_pos = round(per_pos, digits = 2)) %>%
+  arrange(desc(n_tests)) %>%
+  rename(
+    "Lab Result Category 2" = "LabResultCategory2",
+    "Lab Result Category 1" = "LabResultCategory1",
+    "Negative (n)" = "Negative",
+    "Positive (n)" = "Positive",
+    "Total (n)" = "n_tests",
+    "Percent Positive (%)" = "per_pos"
+  ) %>%
+  datatable(
+    extensions = "Buttons",
+    rownames = FALSE,
+    escape = FALSE,
+    filter = "top",
+    class = "cell-border stripe",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      ))
+    )
+  )
+```
+
+#### Provider Specialty
+
+```{r specialty, warning=FALSE, message=FALSE, echo=FALSE}
+specialty %>%
+  mutate(labSpecialtyDescription = factor(labSpecialtyDescription)) %>%
+  select(-Unknown_or_Unexpected, -n_tests_ordered) %>%
+  mutate(per_pos = round(per_pos, digits = 2)) %>%
+  arrange(desc(n_tests)) %>%
+  rename(
+    "Provider Specialty Description" = "labSpecialtyDescription",
+    "Negative (n)" = "Negative",
+    "Positive (n)" = "Positive",
+    "Total (n)" = "n_tests",
+    "Percent Positive (%)" = "per_pos"
+  ) %>%
+  datatable(
+    extensions = "Buttons",
+    rownames = FALSE,
+    escape = FALSE,
+    filter = "top",
+    class = "cell-border stripe",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      ))
+    )
+  )
+```
+
+### Patient Demographics
+
+#### Age
+
+```{r age, warning=FALSE, message=FALSE, echo=FALSE}
+age_grp %>%
+  select(-Unknown_or_Unexpected, -n_tests_ordered) %>%
+  mutate(per_pos = round(per_pos, digits = 2)) %>%
+  arrange(desc(n_tests)) %>%
+  rename(
+    "Age Group (years)" = "age",
+    "Negative (n)" = "Negative",
+    "Positive (n)" = "Positive",
+    "Total (n)" = "n_tests",
+    "Percent Positive (%)" = "per_pos"
+  ) %>%
+  datatable(
+    extensions = "Buttons",
+    rownames = FALSE,
+    escape = FALSE,
+    filter = "top",
+    class = "cell-border stripe",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      ))
+    )
+  )
+```
+
+#### Sex
+
+```{r sex, warning=FALSE, message=FALSE, echo=FALSE}
+sex %>%
+  select(-Unknown_or_Unexpected, -n_tests_ordered) %>%
+  mutate(per_pos = round(per_pos, digits = 2)) %>%
+  arrange(desc(n_tests)) %>%
+  rename(
+    "Sex" = "sex",
+    "Negative (n)" = "Negative",
+    "Positive (n)" = "Positive",
+    "Total (n)" = "n_tests",
+    "Percent Positive (%)" = "per_pos"
+  ) %>%
+  datatable(
+    extensions = "Buttons",
+    rownames = FALSE,
+    escape = FALSE,
+    filter = "top",
+    class = "cell-border stripe",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(extend = "csv", text = "Download Data to .CSV"))
+    )
+  )
+```
