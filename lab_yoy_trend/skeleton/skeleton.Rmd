@@ -146,7 +146,7 @@ if (params$county_region != "") {
 }
 
 # define lab category 1 list if all selected
-if (params$lab_cat1 == "All") {
+if ("All" %in% params$lab_cat1) {
   lab_cat1_list <- c(
     "Drug Testing", "Gastrointestinal Infection", "Hepatitis",
     "Infectious Disease", "Respiratory Disease", "STD", "Vector-Borne Disease"
