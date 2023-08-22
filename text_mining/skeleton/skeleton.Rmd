@@ -194,7 +194,7 @@ if (nchar(params$complex_query) > 0) {
     
   } else if (params$data_source == "Facility Location (Full Details)") {
     
-    if (params$age_groups == "All Ages") {
+    if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
       if (params$site == "All") {
         url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
       } else {
@@ -208,6 +208,7 @@ if (nchar(params$complex_query) > 0) {
         str_remove_all("AgeGroup|Reporting") %>%
         str_replace_all("Distribute", "distribute") %>%
         str_replace_all("School", "school") %>%
+        str_replace_all("\\+", "-1000") %>%
         paste0("age", .)
       
       if (grepl("age\\d{1}", age_group_string)) {
@@ -340,7 +341,7 @@ if (nchar(params$complex_query) > 0) {
   
 } else {
   
-  if (params$age_groups == "All Ages") {
+  if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
     field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
     
     if (params$ccdd_query != "") {
