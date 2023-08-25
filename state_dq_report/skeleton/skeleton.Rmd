@@ -1996,7 +1996,7 @@ p2_RE <- messages %>%
       str_detect(Age_Units_Reported, '(d|m|UNK|wk|a|day|DAY|month|MONTH|unknown|UNKNOWN|week|WEEK|year|YEAR|DAYS|WEEKS|MONTHS|YEARS|days|weeks|months|years)') ~ 1,
       TRUE ~ 0),
     race_code = case_when(
-      str_detect(Race_Code, regex('(?>1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK)*?', ignore_case = TRUE)) ~ 1,
+      str_detect(Race_Code, regex((^(((1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK)(?:;)*))+)$', ignore_case = TRUE)) ~ 1,
       TRUE ~ 0),
     ethnicity_code = case_when(
       str_detect(Ethnicity_Code, regex('(2135-2|2186-5|PHC1175|UNK)', ignore_case = TRUE)) ~ 1,
