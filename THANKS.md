@@ -13,5 +13,6 @@ We would like to acknowledge the following persons for their support and contrib
 * [Kelly Carey](https://github.com/kellycarey)
 * [Sara Chronister](https://github.com/sara-chronister)
 * [Roseric Azondekon](https://github.com/rosericazondekon)
+* [Andrew Farrey](https://github.com/andrew-farrey)
 * The [National Syndromic Surveillance Program (NSSP)](https://www.cdc.gov/nssp/index.html)
 * and the [NSSP Community of Practice](https://nsspcommunityofpractice.org/)

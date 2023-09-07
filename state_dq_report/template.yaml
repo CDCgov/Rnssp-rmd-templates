@@ -1,7 +1,7 @@
 name: State Data Quality Report
 description: >
   This template summarizes data quality metrics, including 
-  timeliness, completeness, and validity. 
+  timeliness, completeness, and validity. Template updated 8/25/2023.
   It currently includes NSSP Priority 1 & NSSP Priority 2 elements. 
   Original Code By: Andrew Farrey (Kentucky Injury Prevention and Research Center). 
   Adapted to the Rnssp Package by: Gbedegnon Roseric Azondekon. 
