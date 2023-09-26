@@ -20,7 +20,7 @@ params:
     label: "Select Site Name"
     value: "Kentucky"
     input: select
-    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://github.com", "andrew-farrey", "Rnssp-rmd-templates", "raw", "master", "state_dq_report", "skeleton", "nssp_sites.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "state_dq_report", "skeleton", "nssp_sites.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
     multiple: no
    start_date:
     label: "Start Date: "
