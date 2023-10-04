@@ -1995,14 +1995,14 @@ p2_RE <- messages %>%
     age_units_reported = case_when(
       str_detect(Age_Units_Reported, '(d|m|UNK|wk|a|day|DAY|month|MONTH|unknown|UNKNOWN|week|WEEK|year|YEAR|DAYS|WEEKS|MONTHS|YEARS|days|weeks|months|years)') ~ 1,
       TRUE ~ 0),
-    race_code = case_when(
-      str_detect(Race_Code, regex((^(((1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK)(?:;)*))+)$', ignore_case = TRUE)) ~ 1,
+   race_code = case_when(
+      str_detect(Race_Code, regex('^((1002-5|2028-9|2054-5|2076-8|2131-1|2106-3|PHC1175|UNK|NI|ASKU|NASK){1}(?:;)*)+$', ignore_case = TRUE)) ~ 1,
       TRUE ~ 0),
     ethnicity_code = case_when(
-      str_detect(Ethnicity_Code, regex('(2135-2|2186-5|UNK|OTH)', ignore_case = T)) ~ 1,
+      str_detect(Ethnicity_Code, regex('(2135-2|2186-5|UNK|OTH)', ignore_case = TRUE)) ~ 1,
       TRUE ~ 0),
     ethnicity_description = case_when(
-      str_detect(Ethnicity_Description, regex('(Hispanic or Latino|Not Hispanic or Latino|unknown|other)', ignore_case = T)) ~ 1,
+      str_detect(Ethnicity_Description, regex('(Hispanic or Latino|Not Hispanic or Latino|unknown|other)', ignore_case = TRUE)) ~ 1,
       TRUE ~ 0),
     patient_city = case_when(
       !is.na(Patient_City) ~ 1,
