@@ -682,7 +682,7 @@ plotly::plot_ly(
 
 ## First Message Timeliness by Facility Table
 
-The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 24 hour grace period).
+The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 48 hour grace period).
 
 Table values are colored according to their NSSP timeliness category, with green indicating less than 24 hours, blue indicating between 24 and 48 hours, and red indicating greater than 48 hours.
 
@@ -730,7 +730,7 @@ lagsummary %>% datatable(
 
 NSSP has determined chief complaint information (the patient's stated reason for the healthcare visit) should be received within 24 to 48 hours of each patient encounter to ensure timely and informative syndromic surveillance data. Chief complaint timeliness is an unofficial, field-specific delay value calculated by comparing by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message per patient encounter with a non-null chief complaint field (C_Chief_Complaint). This metric can help identify facilities exhibiting unusually high chief complaint submission delay times, which can adversely affect syndromic surveillance data utility.
 
-The following table details the mean and median chief complaint delay per patient encounter (in hours) by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The following table details the mean and median chief complaint delay per patient encounter (in hours) by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
@@ -801,7 +801,7 @@ CClag %>%
 
 NSSP recommends that diagnosis codes for each patient encounter begin to arrive within 24 to 48 hours of when the patient encounter occurred to help ensure timely and informative syndromic surveillance data. Diagnosis code timeliness is an unofficial, field-specific delay value calculated by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message received per patient encounter with a non-null diagnosis code field (Diagnosis_Code). This metric can help to identify facilities exhibiting unusually high diagnosis code submission delay times, which can adversely affect syndromic surveillance data utility.
 
-The following table details the mean and median hourly diagnosis code delay per patient encounter by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The following table details the mean and median hourly diagnosis code delay per patient encounter by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
@@ -871,7 +871,7 @@ DXlag %>%
 
 ## Overall NSSP Priority 1 and Priority 2 Data Field Completeness
 
-The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 NSSP requires **80% completeness** for these Priority 1 and Priority 2 elements across each patient encounter. In other words, at least 80% of patient encounters should have at least one message where each required element is not null to ensure useful syndromic surveillance data.
 
@@ -1306,7 +1306,7 @@ The font color of the chief complaint percent completeness and diagnosis percent
 
 Green indicates greater than or equal to 80% completeness (NSSP's percent completeness requirement for required patient encounter fields), orange indicates percent completeness between 60%-80%, and red indicates percent completeness below 60% for that facility and metric.
 
-The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 24 hour grace period.
+The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 48 hour grace period.
 
 ```{r ccddcompleteness table, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
 
