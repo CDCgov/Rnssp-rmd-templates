@@ -77,7 +77,7 @@ library(odbc)
 
 httr::set_config(httr::config(ssl_verifypeer = 0L))
 
-# Function to calculate local time difference from UTC/GMT (NSSP RStudio/BioSense time zone)
+# Function to calculate local time difference from UTC/GMT (NSSP RStudio/BioSense time zone) (At some point, I'll need to add handling for more than one time zone in a site.)
 recastTimezone.POSIXct <- function(x, timezone) return(
   as.POSIXct(as.character(x), origin = as.POSIXct("1970-01-01"), tz = timezone))
 
@@ -233,7 +233,7 @@ con <-
   )
 
 # Pull NSSP Priority 1 & Priority 2 elements and timeliness fields
-# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; C_Patient_Class was used so patient encounters would mirror production ESSENCE as closely as possible. 
+# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; C_Patient_Class was used so patient encounters pulled would mirror production ESSENCE as closely as possible. 
 
 messages <- tbl(con, dbplyr::in_schema("dbo", paste0(sitename, '_', 'PR_Processed'))) %>% 
   dplyr::select(Feed_Name, C_Biosense_Facility_ID, C_Facility_ID, C_BioSense_ID, Visit_ID, Processed_ID, Processing_ID, C_Unique_Patient_ID, Message_ID, Treating_Facility_ID, Sending_Facility_ID, Facility_Type_Code, C_FacType_Patient_Class, C_Patient_Class, Patient_Class_Code, Admit_Date_Time, Admit_Reason_Description, C_Chief_Complaint, Chief_Complaint_Text, C_Death, C_Patient_Age, C_Patient_Age_Years, Diagnosis_Code, Diagnosis_Description, Patient_Zip, Trigger_Event, Arrived_Date, Arrived_Date_Time, C_Visit_Date, C_Visit_Date_Time, Message_Date_Time, Recorded_Date_Time, Create_Raw_Date_Time, Sending_Facility_ID_Source, Discharge_Disposition, Discharge_Date_Time, First_Patient_ID, Medical_Record_Number, Admit_Reason_Code, Chief_Complaint_Code, Diagnosis_Type, Administrative_Sex, Age_Reported, Age_Units_Reported, C_Patient_Age_Units, C_Patient_Age_Source, C_Patient_County, Ethnicity_Code, Ethnicity_Description, Patient_City, Patient_State, Patient_Country, Race_Code, Race_Description, Version_ID) %>%
@@ -327,7 +327,8 @@ The following plot displays the number of `r paste(pat.class)` facilities that a
 These facility counts represent production ESSENCE data. 
 
 ```{r facility_count, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
-# Count facilities - could change to Summary API
+
+# Count facilities - could change to Summary API. Pulls facilities reporting any visit count during the selected date range.
 url <-
   paste0(
     "https://essence.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
@@ -481,7 +482,7 @@ datatable(
 
 # Timeliness {.tabset .tabset-fade .tabset-pills}
 
-Each patient encounter (or "patient visit") reported through syndromic surveillance consists of an initial HL7 message followed by additional HL7 messages containing updates to message fields from that patient encounter. These updated messages should be sent within hours, but can exhibit longer delay times.
+Each patient encounter (or "patient visit") reported through syndromic surveillance consists of an initial HL7 message followed by additional HL7 messages containing updates to message fields from that patient encounter. Ideally, these updated messages should be sent within hours, as providers learn more about the patient and add treatment and diagnostic information to that patient's electronic health record, but frequently these update messages exhibit longer delay times.
 
 The utility of syndromic surveillance depends upon rapid availability of data, so NSSP monitors message timeliness at the site and facility level to encourage timely data submission. Overall, or "first message" timeliness is calculated on a per patient encounter basis using the **earliest**, or **first message** received from each patient encounter, and is typically reported as a mean and/or median delay in hours.
 
