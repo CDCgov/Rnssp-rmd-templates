@@ -363,3 +363,17 @@ The Lab Year Over Year Trends Report template is available.
 This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory 2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county). 
 
 </details>
+
+## ICD-10 Discharge Diagnosis Code Usage and Feature Template (`icd10_code_use`)
+
+<details open>
+
+<summary>11/21/2023</summary>
+The ICD-10 Discharge Diagnosis Code Usage and Feature template is now available.
+
+
+This template can be used to consider all discharge diagnosis codes occurring over a recent time window for a site and identify ICD-10 codes with statistically significant increases or decreases in trend. Basic demographic features such as mean and median age, and percentages
+by patient sex are reported for ICD-10 codes that are identified as having recent significant change in occurrence. Additionally, this template
+detects ICD-10 codes with significant change due to annual ICD-10 revisions imposed by CMS in October.
+
+</details>
