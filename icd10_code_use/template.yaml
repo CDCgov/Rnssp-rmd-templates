@@ -8,8 +8,8 @@ description: >
   recent significant change in occurrence. Additionally, this template
   detects ICD-10 codes with significant change due to annual ICD-10 revisions
   imposed by CMS in October.
-Original Code By: Michael Sheppard. 
-Adapted to the Rnssp Package by: Michael Sheppard. 
-National Syndromic Surveillance Program (NSSP). 
-Centers for Disease Control and Prevention (CDC).
+  Original Code By: Michael Sheppard. 
+  Adapted to the Rnssp Package by: Michael Sheppard. 
+  National Syndromic Surveillance Program (NSSP). 
+  Centers for Disease Control and Prevention (CDC).
 create_dir: true
