@@ -1,5 +1,5 @@
 ---
-title: "`r paste(params$site)` Syndromic Surveillance Data Quality Report v2"
+title: "`r paste(params$site)` Syndromic Surveillance Data Quality Report v2.1"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 description: "This is a site-level data quality report that generates coverage, timeliness, completeness, and validity metrics similar to the NSSP Data Quality dashboards. It utilizes your site's BioSense Production Processed table and the ESSENCE API to assess the data quality of patient encounters limited to the selected calculated patient class that occurred during the chosen date range. Please knit with parameters within the NSSP RStudio Workbench. This report must be run on the NSSP RStudio Workbench in order to query the BioSense platform. The default end_date parameter reflects the recommended lag time of at least two days. Note that selecting a date range longer than 90 days will result in extensive rendering time."
 output:
@@ -77,7 +77,7 @@ library(odbc)
 
 httr::set_config(httr::config(ssl_verifypeer = 0L))
 
-# Function to calculate local time difference from UTC/GMT (NSSP RStudio/BioSense time zone)
+# Function to calculate local time difference from UTC/GMT (NSSP RStudio/BioSense time zone) (At some point, I'll need to add handling for more than one time zone in a site.)
 recastTimezone.POSIXct <- function(x, timezone) return(
   as.POSIXct(as.character(x), origin = as.POSIXct("1970-01-01"), tz = timezone))
 
@@ -233,7 +233,7 @@ con <-
   )
 
 # Pull NSSP Priority 1 & Priority 2 elements and timeliness fields
-# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; C_Patient_Class was used so patient encounters would mirror production ESSENCE as closely as possible. 
+# Note: pull could be adjusted to use Patient_Class_Code or Facility_Type_Code; C_Patient_Class was used so patient encounters pulled would mirror production ESSENCE as closely as possible. 
 
 messages <- tbl(con, dbplyr::in_schema("dbo", paste0(sitename, '_', 'PR_Processed'))) %>% 
   dplyr::select(Feed_Name, C_Biosense_Facility_ID, C_Facility_ID, C_BioSense_ID, Visit_ID, Processed_ID, Processing_ID, C_Unique_Patient_ID, Message_ID, Treating_Facility_ID, Sending_Facility_ID, Facility_Type_Code, C_FacType_Patient_Class, C_Patient_Class, Patient_Class_Code, Admit_Date_Time, Admit_Reason_Description, C_Chief_Complaint, Chief_Complaint_Text, C_Death, C_Patient_Age, C_Patient_Age_Years, Diagnosis_Code, Diagnosis_Description, Patient_Zip, Trigger_Event, Arrived_Date, Arrived_Date_Time, C_Visit_Date, C_Visit_Date_Time, Message_Date_Time, Recorded_Date_Time, Create_Raw_Date_Time, Sending_Facility_ID_Source, Discharge_Disposition, Discharge_Date_Time, First_Patient_ID, Medical_Record_Number, Admit_Reason_Code, Chief_Complaint_Code, Diagnosis_Type, Administrative_Sex, Age_Reported, Age_Units_Reported, C_Patient_Age_Units, C_Patient_Age_Source, C_Patient_County, Ethnicity_Code, Ethnicity_Description, Patient_City, Patient_State, Patient_Country, Race_Code, Race_Description, Version_ID) %>%
@@ -299,13 +299,13 @@ fac <- ""
 
 #### About
 
-This report is intended to help monitor syndromic surveillance data quality by National Syndromic Surveillance Program (NSSP) participants. It assesses the data quality of production Electronic Surveillance System for the Early Notification of Community-Based Epidemics (ESSENCE) data and Health Level Seven (HL7) messages containing patient encounter data pulled from the NSSP BioSense SQL server (ESSENCE relational database back-end).
+This report is intended to help monitor syndromic surveillance data quality by National Syndromic Surveillance Program (NSSP) participants. It assesses the data quality of production Electronic Surveillance System for the Early Notification of Community-Based Epidemics (ESSENCE) data and Health Level Seven (HL7) messages containing patient encounter data pulled from the NSSP BioSense SQL server, which is often referred to as the "BioSense Platform" (the relational database that receives and processes the raw data, then updates ESSENCE).
 
 ### Introduction
 
-This report pulls and analyzes the data quality of recent, de-identified syndromic surveillance data for `r paste(params$site)`. The report pulls patient encounter data from both pre-production data housed in the`r paste0(sitename)`\_PR_Processed table, as well as production ESSENCE data using the ESSENCE application programming interface (API). Visits and messages assessed have been restricted to `r paste(pat.class)` patient encounters from active, NSSP-participating facilities occurring on/between **`r start_date_lab`** through **`r end_date_lab`**. 
+This report pulls and analyzes the data quality of recent, de-identified syndromic surveillance data for `r paste(params$site)`. The report pulls patient encounter data from both pre-production data housed in the `r paste0(sitename)`\_PR_Processed table, as well as production ESSENCE data using the ESSENCE application programming interface (API). Visits and messages assessed have been restricted to `r paste(pat.class)` patient encounters from active, NSSP-participating facilities occurring on/between **`r start_date_lab`** through **`r end_date_lab`**. 
 
-The `r paste0(sitename)`\_PR_Processed table is a back-end SQL table syndromic surveillance data occupies before reaching production NSSP ESSENCE, the national syndromic surveillance web platform. The default dates selected include a built in "grace period" of 24 hours.[^1]
+The `r paste0(sitename)`\_PR_Processed table is a back-end SQL table syndromic surveillance data occupies before reaching production NSSP ESSENCE, the national syndromic surveillance web platform. The default dates selected include a built in "grace period" of 48 hours to allow facilities more time to improve their data completeness.[^1]
 
 [^1]: Facility counts, patient counts, and message counts may vary based on the time period included in the report and when the report was run. Patient visit counts pulled from the processed table will not match visit counts pulled from ESSENCE precisely.
 
@@ -327,7 +327,8 @@ The following plot displays the number of `r paste(pat.class)` facilities that a
 These facility counts represent production ESSENCE data. 
 
 ```{r facility_count, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
-# Count facilities - could change to Summary API
+
+# Count facilities - could change to Summary API. Pulls facilities reporting any visit count during the selected date range.
 url <-
   paste0(
     "https://essence.syndromicsurveillance.org/nssp_essence/api/tableBuilder?endDate=",
@@ -481,7 +482,7 @@ datatable(
 
 # Timeliness {.tabset .tabset-fade .tabset-pills}
 
-Each patient encounter (or "patient visit") reported through syndromic surveillance consists of an initial HL7 message followed by additional HL7 messages containing updates to message fields from that patient encounter. These updated messages should be sent within hours, but can exhibit longer delay times.
+Each patient encounter (or "patient visit") reported through syndromic surveillance consists of an initial HL7 message followed by additional HL7 messages containing updates to message fields from that patient encounter. Ideally, these updated messages should be sent within hours, as providers learn more about the patient and add treatment and diagnostic information to that patient's electronic health record, but frequently these update messages exhibit longer delay times.
 
 The utility of syndromic surveillance depends upon rapid availability of data, so NSSP monitors message timeliness at the site and facility level to encourage timely data submission. Overall, or "first message" timeliness is calculated on a per patient encounter basis using the **earliest**, or **first message** received from each patient encounter, and is typically reported as a mean and/or median delay in hours.
 
@@ -682,7 +683,7 @@ plotly::plot_ly(
 
 ## First Message Timeliness by Facility Table
 
-The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 24 hour grace period).
+The following table details mean and median first message lag/delay times for patient encounters on or after `r start_date_lab` through `r end_date_lab` for currently active `r paste(params$site)` `r paste(pat.class)` facilities calculated using `r paste0(sitename)`\_PR_Processed table data (with a 48 hour grace period).
 
 Table values are colored according to their NSSP timeliness category, with green indicating less than 24 hours, blue indicating between 24 and 48 hours, and red indicating greater than 48 hours.
 
@@ -730,7 +731,7 @@ lagsummary %>% datatable(
 
 NSSP has determined chief complaint information (the patient's stated reason for the healthcare visit) should be received within 24 to 48 hours of each patient encounter to ensure timely and informative syndromic surveillance data. Chief complaint timeliness is an unofficial, field-specific delay value calculated by comparing by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message per patient encounter with a non-null chief complaint field (C_Chief_Complaint). This metric can help identify facilities exhibiting unusually high chief complaint submission delay times, which can adversely affect syndromic surveillance data utility.
 
-The following table details the mean and median chief complaint delay per patient encounter (in hours) by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The following table details the mean and median chief complaint delay per patient encounter (in hours) by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
@@ -801,7 +802,7 @@ CClag %>%
 
 NSSP recommends that diagnosis codes for each patient encounter begin to arrive within 24 to 48 hours of when the patient encounter occurred to help ensure timely and informative syndromic surveillance data. Diagnosis code timeliness is an unofficial, field-specific delay value calculated by comparing the C_Visit_Date_Time to the Arrived_Date_Time of the first HL7 message received per patient encounter with a non-null diagnosis code field (Diagnosis_Code). This metric can help to identify facilities exhibiting unusually high diagnosis code submission delay times, which can adversely affect syndromic surveillance data utility.
 
-The following table details the mean and median hourly diagnosis code delay per patient encounter by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The following table details the mean and median hourly diagnosis code delay per patient encounter by facility from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 Table values are shaded according to their NSSP timeliness category, with green values indicating 'less than 24 hours', blue values indicating 'between 24 and 48 hours', and red values indicating 'greater than 48 hours.'
 
@@ -871,7 +872,7 @@ DXlag %>%
 
 ## Overall NSSP Priority 1 and Priority 2 Data Field Completeness
 
-The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 24 hour grace period.
+The graphs below display `r paste0(params$site)`'s site-wide Priority 1 and Priority 2 data completeness metrics for `r paste(pat.class)` visits as defined by NSSP from `r start_date_lab` through `r end_date_lab` in `r paste0(sitename)`\_PR_Processed table data with a 48 hour grace period.
 
 NSSP requires **80% completeness** for these Priority 1 and Priority 2 elements across each patient encounter. In other words, at least 80% of patient encounters should have at least one message where each required element is not null to ensure useful syndromic surveillance data.
 
@@ -1306,7 +1307,7 @@ The font color of the chief complaint percent completeness and diagnosis percent
 
 Green indicates greater than or equal to 80% completeness (NSSP's percent completeness requirement for required patient encounter fields), orange indicates percent completeness between 60%-80%, and red indicates percent completeness below 60% for that facility and metric.
 
-The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 24 hour grace period.
+The table covers metrics of all `r paste(pat.class)` patients with a visit date on or after `r start_date_lab` with a 48 hour grace period.
 
 ```{r ccddcompleteness table, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
 
@@ -1398,9 +1399,9 @@ This reports presents validity as a combination of:
 
 -   the **percentage of patient encounters** (for "required but may remain empty" (RE) and "calculated required but may remain empty" (CRE) data elements) with a valid, non-null response for that data element compared to the **total number of patient encounters** with a **C_Patient_Class of `r paste(patient_class)`**.
 
-NSSP's Validity assessment methodology has been replicated where possible from the Microsoft SQL code present in the NSSP SAS Studio Data Quality on Demand (DQOD) validity assessment programs. Please note the values presented may differ from validity metrics obtained using the NSSP Data Quality Dashboards (v1 and v2) or NSSP SAS Studio Data Quality On Demand (DQOD) programs, as they do not currently filter by patient class.
+NSSP's Validity assessment methodology has been replicated where possible from the Microsoft SQL code present in the NSSP SAS Studio Data Quality on Demand (DQOD) validity assessment programs. Please note the values presented may differ somewhat from validity metrics obtained using the NSSP Data Quality Dashboards (v1 or v2) or NSSP SAS Studio Data Quality On Demand (DQOD) programs. These metrics have either been adapted to the R language from SAS code or were created for this report based on [NSSP Data Dictionary](https://www.cdc.gov/nssp/biosense/docs/NSSP-Data-Dictionary-508.xlsx) processing logic. 
 
-Message fields are considered valid if they follow the corresponding Validity Definition and/or contains a valid value from the appropriate Public Health Information Network Vocabulary Access and Distribution System (PHIN-VADS) code set (when applicable).
+Message fields are considered valid if they follow the corresponding Validity Definition and/or contains a valid value from the relevant Public Health Information Network Vocabulary Access and Distribution System (PHIN-VADS) code set (when applicable).
 
 NSSP Priority 1 and Priority 2 element validity definitions are presented in the table below (including hyperlinks to relevant code sets and NSSP documentation).
 
@@ -3238,7 +3239,7 @@ The plots below display `r paste(params$site)`'s overall chief complaint complet
 
 [^6]: [ESSENCE Data Quality Filters](https://www.cdc.gov/nssp/dqc/articles/essence-data-quality-filter.html)
 
--   The CCInformative field measures whether a given patient encounter has an informative 'chiefcomplaintparsed' (the CC of the CCDD) element at the ESSENCE patient encounter level after non-informative chief complaint (NICC) terms have been removed. See the "ESSENCE Data Quality Filter" page for the list of NICC term.
+-   The CCInformative field measures whether a given patient encounter has an informative 'chiefcomplaintparsed' (the CC of the CCDD) element at the ESSENCE patient encounter level after non-informative chief complaint (NICC) terms have been removed. See the "ESSENCE Data Quality Filter" page for the full list of NICC terms.
 
 -   The DDInformative field measures whether a given patient encounter has an informative 'discharge_diagnosis' (the DD of the CCDD, populated by the Diagnosis_Code field from the `r paste0(sitename)`\_PR_Processed table) element at the ESSENCE patient encounter level after non-informative chief complaint (NICC) terms, the phrase "null," and blank spaces have been removed.
 
