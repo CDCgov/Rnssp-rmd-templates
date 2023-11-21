@@ -1,0 +1,1430 @@
+---
+title: "`r params$doc_title`"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+params:
+  username:
+    label: "NSSP Username:"
+    value: ""
+    input: text
+    placeholder: "username"
+  password:
+    label: "NSSP Password:"
+    value: ""
+    input: password
+    placeholder: "password"
+  end_date:
+    label: "End Date (Saturdays Only):"
+    value: !r as.Date(cut(Sys.Date(), "week", start.on.monday = FALSE)) - 1
+    input: date
+  has_been_E:
+    label: "Has been Emergency: "
+    value: true
+  site:
+    label: "Site: "
+    value: "Alabama"
+    input: select
+    choices: !r stn <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "icd10_code_use", "skeleton", "nca_hosp.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
+    multiple: no
+  doc_title:
+    label: "Title:"
+    value: ICD-10 Discharge Diagnosis Code Usage and Feature Template
+    input: text
+---
+
+<style type="text/css">
+  .main-container {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>
+
+```{r setup, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(Rnssp)
+library(janitor)
+library(lubridate)
+library(ggpubr)
+library(ggsci)
+library(ggthemes)
+library(patchwork)
+library(data.table)
+library(MMWRweek)
+library(broom)
+library(reactable)
+library(htmltools)
+library(plotly)
+library(flextable)
+library(quanteda)
+library(quanteda.textmodels)
+library(quanteda.textstats)
+library(quanteda.textplots)
+```
+
+```{css, echo = FALSE}
+
+caption {
+  color:black;
+}
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+
+.term-table {
+  font-family: 'Roboto', Helvetica, Arial, sans-serif;
+  font-size: 11px;
+}
+
+.term-table a:hover {
+  text-decoration: none;
+}
+
+.header {
+  text-align: center;
+  font-size: 20px;
+}
+
+.term-table-title {
+  margin-top: 30px;
+  padding: 8px;
+  background-color: hsl(205, 100%, 5%);
+  color: hsl(0, 0%, 98%);
+  font-size: 25px;
+  font-weight: 400;
+}
+
+.term-table-tbl {
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.term-table-header {
+  border-bottom-width: 1px;
+  background-color: hsl(0, 0%, 47%);
+  color: hsl(0, 0%, 98%);
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: uppercase;
+  transition: box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.term-table-header:hover,
+.term-table-header[aria-sort="ascending"],
+.term-table-header[aria-sort="descending"] {
+  background-color: hsl(205, 100%, 5%);
+}
+
+.term-table-header[aria-sort="ascending"] {
+  box-shadow: inset 0 10px 0 -6px #efaa10 !important;
+}
+
+.term-table-header[aria-sort="descending"] {
+  box-shadow: inset 0 -10px 0 -6px #efaa10 !important;
+}
+
+.term-table input {
+  background-color: white;
+  color: black;
+}
+
+.sorted {
+  background-color: hsla(0, 0%, 60%, 0.1);
+}
+
+```
+
+```{r specification, echo = FALSE, warning = FALSE, message = FALSE}
+end_date <- params$end_date
+start_date <- floor_date(end_date - 120, unit = "weeks")
+
+# Require end date to be end of MMWR week (Saturdays only)
+saturday_end_date <- wday(end_date) == 7
+
+start_date_api <- format(start_date, "%d%b%Y")
+end_date_api <- format(params$end_date, "%d%b%Y")
+
+has_been_e <- as.numeric(params$has_been_E)
+
+site <- params$site
+
+site_id <- readRDS("nca_hosp.rds") %>%
+  filter(site_name == site) %>%
+  pull(site_id)
+```
+
+```{r knit exit, echo = FALSE, warning = FALSE, message = FALSE, eval = !saturday_end_date}
+knitr::knit_exit("Render ends prematurely.
+                 This template requires the end date to be on a Saturday (end of MMWR week). Please, refine the end date selection!")
+```
+
+```{r rnssp profile, echo = FALSE, warning = FALSE, message = FALSE}
+myProfile <- Credentials$new(
+  username = params$username,
+  password = params$password
+)
+```
+
+```{r ESSENCE API, echo = FALSE, warning = FALSE, message = FALSE}
+if (has_been_e == 1) {
+  url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date_api, "&percentParam=noPercent&site=", as.character(site_id), "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=1&field=Date&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDDCategory_flat&field=Age&field=Sex")
+} else {
+  url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date_api, "&percentParam=noPercent&site=", as.character(site_id), "&aqtTarget=DataDetails&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&field=Date&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDDCategory_flat&field=Age&field=Sex")
+}
+
+api_data <- myProfile$get_api_data(url, fromCSV = TRUE)
+
+df <- api_data %>%
+  clean_names() %>%
+  mutate(date = as.Date(date, "%m/%d/%Y"))
+```
+
+```{r tokenization, echo = FALSE, message = FALSE, warning = FALSE}
+quanteda_options(threads = 24)
+
+dd <- df %>%
+  as.data.table()
+
+records <- nrow(dd)
+
+pattern_replace <- "[;/,\\\\*-]"
+
+dd_corpus <- dd %>%
+  .[, dd_parsed := toupper(dd_parsed)] %>%
+  .[dd_parsed != "NA"] %>%
+  .[, dd_parsed := gsub(pattern_replace, " ", dd_parsed)] %>%
+  .[, dd_parsed := vapply(lapply(str_split(dd_parsed, " "), unique), paste, character(1L), collapse = " ")] %>%
+  corpus(
+    text_field = "dd_parsed"
+  ) %>%
+  tokens(
+    what = "word",
+    remove_punct = TRUE,
+    remove_symbols = TRUE,
+    remove_separators = TRUE,
+    verbose = FALSE
+  )
+
+dd_dfm <- dd_corpus %>%
+  tokens_ngrams(n = 1) %>%
+  dfm(tolower = FALSE, verbose = TRUE)
+
+dd_unigram_freq <- dd_dfm %>%
+  textstat_frequency(groups = date) %>%
+  as.data.table() %>%
+  .[, date := as.Date(group)]
+
+dd_unigram_freq_demo <- dd_dfm %>%
+  textstat_frequency(groups = interaction(age, sex, sep = "_")) %>%
+  as.data.table()
+
+visit_denom <- dd %>%
+  count(date) %>%
+  mutate(
+    week = epiweek(date),
+    year = epiyear(date),
+    mmwr_date = MMWRweek2Date(year, week)
+  ) %>%
+  group_by(mmwr_date) %>%
+  summarise(visit_total = sum(n)) %>%
+  ungroup()
+```
+
+```{r process data, echo = FALSE, warning = FALSE, message = FALSE}
+icd10 <- readRDS("icd10_ref.rds")
+
+dd_unigrams <- dd_unigram_freq %>%
+  select(
+    date,
+    code = feature,
+    frequency
+  ) %>%
+  mutate(
+    date = as.Date(date),
+    code = toupper(code)
+  ) %>%
+  group_by(date) %>%
+  mutate(id = row_number()) %>%
+  relocate(id) %>%
+  arrange(date, id) %>%
+  ungroup() %>%
+  filter(code != "S")
+
+dd_demo_standardized <- dd_unigram_freq_demo %>%
+  .[, c("age", "sex") := tstrsplit(group, "_", fixed = TRUE)] %>%
+  .[, sex := fcase(
+    sex == "F", "Female",
+    sex == "M", "Male",
+    sex %in% c("N", "U"), "Unknown"
+  )] %>%
+  .[, .(unigram = feature, n = frequency, age = age, sex = sex)] %>%
+  .[, age := fifelse(age == -1, "Unknown", age)]
+
+min_date <- min(dd_unigrams$date)
+max_date <- max(dd_unigrams$date)
+
+code_types <- dd_unigrams %>%
+  mutate(
+    type = case_when(
+      grepl("^[A-Z][0-9][A-Z0-9]", code) & nchar(code) <= 7 ~ "ICD-10",
+      grepl("^[1-9][0-9][0-9][0-9][0-9][0-9]", code) ~ "SNOMED",
+      grepl("^[0-9][0-9][0-9]", code) ~ "ICD-9",
+      TRUE ~ "Unknown"
+    ),
+    type = factor(type, levels = c("ICD-10", "SNOMED", "ICD-9", "Unknown"))
+  )
+
+dd_codes_per_week <- code_types %>%
+  select(
+    date,
+    code,
+    type
+  ) %>%
+  mutate(
+    week = epiweek(date),
+    year = epiyear(date),
+    mmwr_date = MMWRweek2Date(year, week)
+  ) %>%
+  select(
+    mmwr_date,
+    code,
+    type
+  ) %>%
+  distinct() %>%
+  group_by(mmwr_date, type) %>%
+  summarise(n_codes = n()) %>%
+  ungroup()
+```
+
+The visual below summarizes the number of unique discharge diagnosis codes by MMWR week by code class and the total number of `r site` records from NSSP-ESSENCE as of `r format(Sys.Date(), "%B %d, %Y")`. Diagnosis codes from the discharge diagnosis parsed field are grouped into classes using the following regular expressions for the initial 3 characters (ICD-10 or ICD-9) or initial 6 characters (SNOMED).
+
+  * ICD-10: \^[A-Z][0-9][A-Z0-9]
+  * SNOMED: \^[1-9][0-9][0-9][0-9][0-9][0-9]
+  * ICD-9: \^[0-9][0-9][0-9]
+  
+The regular expressions above are identical to those used to parse diagnosis codes from the original discharge diagnosis field into the ESSENCE C_DiagnosisCode_ICD10_Flat, C_DiagnosisCode_ICD9_Flat, and C_DiagnosisCode_SNOMED_Flat fields. These 3 fields are combined to form discharge diagnosis parsed (DDParsed) in NSSP-ESSENCE. Punctuation (i.e., decimals) and text (i.e., code descriptions) are not present in the discharge diagnosis parsed field as a result of this parsing.
+
+**Note**: Codes identified by these regular expressions are not necessarily valid ICD or SNOMED diagnosis codes and should be interpreted as codes/strings that simply appear as or have the same structure as valid ICD-10, ICD-9, and SNOMED codes. 
+
+```{r summary plot codes, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 4, fig.align = "center"}
+pal <- ggthemes::stata_pal()(5)
+
+week_breaks <- unique(dd_codes_per_week$mmwr_date)
+
+date_range <- paste(format(min(week_breaks), "%B %d, %Y"), "to", format(max(week_breaks) + 6, "%B %d, %Y"))
+
+p1 <- ggplot(data = dd_codes_per_week) +
+  geom_bar(aes(x = mmwr_date, y = n_codes, fill = type), position = "stack", stat = "identity") +
+  theme_minimal() +
+  scale_y_continuous(
+    limits = c(0, NA),
+    labels = scales::comma
+  ) +
+  scale_x_date(
+    breaks = week_breaks,
+    date_labels = "%b-%d"
+  ) +
+  labs(
+    x = "MMWR Week Date",
+    y = "Unique DD Codes",
+    title = "Number of Discharge Diagnosis Codes by MMWR Week"
+  ) +
+  scale_fill_manual(values = pal, name = "Diagnosis Code Class") +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+  )
+
+p2 <- ggplot(data = visit_denom) +
+  geom_bar(aes(x = mmwr_date, y = visit_total), stat = "identity", fill = pal[5]) +
+  theme_minimal() +
+  scale_y_continuous(
+    limits = c(0, NA),
+    labels = scales::comma
+  ) +
+  scale_x_date(
+    breaks = week_breaks,
+    date_labels = "%b-%d"
+  ) +
+  labs(
+    x = "MMWR Week Date",
+    y = "Weekly Encounters",
+    title = paste("Total Weekly Encounters for", site),
+    caption = paste("Data as of", format(Sys.Date(), "%B %d, %Y"))
+  ) +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    plot.caption = element_text(hjust = 0, size = 10)
+  )
+
+(p1 + p2) +
+  plot_annotation(
+    title = "Summary Visuals",
+    subtitle = date_range
+  ) &
+  theme(
+    plot.title = element_text(size = 14, face = "bold")
+  )
+```
+
+The following table provides basic summary statistics for all codes occurring in `r site` data from NSSP-ESSENCE between `r date_range` by code class. Please keep in mind that codes are grouped into code classes by matching to regular expressions defining the *expected structure* of the code type. A positive match to a code class **does not** imply that the character string is a valid diagnosis code. 
+
+```{r code totals, echo = FALSE, warning = FALSE, message = FALSE}
+code_types_unique <- code_types %>%
+  mutate(type = factor(type, levels = c("ICD-10", "SNOMED", "ICD-9", "Unknown"))) %>%
+  group_by(type) %>%
+  summarise(
+    n = n_distinct(code),
+    mean_char = mean(nchar(unique(code))),
+    mean_char = round(mean_char, 2),
+    median_char = median(nchar(unique(code))),
+    min_char = min(nchar(code)),
+    max_char = max(nchar(code))
+  ) %>%
+  ungroup() %>%
+  complete(type, fill = list(n = 0))
+
+code_types_unique %>%
+  flextable() %>%
+  autofit() %>%
+  set_header_labels(values = list(
+    type = "Code Type",
+    n = "Unique Codes",
+    mean_char = "Mean Character Length",
+    median_char = "Median Character Length",
+    min_char = "Minimum Character Length",
+    max_char = "Maximum Character Length"
+  )) %>%
+  border_inner_v(border = officer::fp_border(color = "black", width = 1)) %>%
+  align(align = "center", part = "header") %>%
+  bold(part = "header") %>%
+  fontsize(size = 9) %>%
+  fontsize(size = 10, part = "header") %>%
+  bg(bg = "#6E8E8480", part = "header") %>%
+  footnote(i = 1, j = 1, part = "header", value = as_paragraph(c("Diagnosis codes are grouped into code classes by matching to regular expressions defining the expected structure of the code type. A positive match to a code class does not imply that the character string is a valid diagnosis code.")), ref_symbols = "1") %>%
+  footnote(i = 4, j = 1, value = as_paragraph(c("ICD-10 matches with 8 or more characters are classified as \"Unknown\" since valid ICD-10 codes never exceed 7 characters.")), ref_symbols = "2") %>%
+  flextable::font(font = "Calibri", part = "all") %>%
+  fontsize(size = 9, part = "footer") %>%
+  set_caption(paste("Summary of Unique Codes Occurring in Discharge Diagnosis Parsed Between", date_range)) %>%
+  add_body_row(values = c("All", format(sum(code_types_unique$n), big.mark = ","), "", "", "", ""), colwidths = rep(1, 6), top = FALSE) %>%
+  border_inner_h(border = officer::fp_border(color = "black", width = 1)) %>%
+  border_outer(border = officer::fp_border(color = pal[5], width = 2)) %>%
+  fix_border_issues() %>%
+  flextable::border(i = 5, j = 1:5, border.right = officer::fp_border(color = "transparent")) %>%
+  bg(bg = "#6E8E8470", part = "footer") %>%
+  bg(bg = "#6E8E8470", i = 5, j = 1:6) %>%
+  flextable::border(i = 5, j = 1:6, border.bottom = officer::fp_border(color = "transparent"))
+```
+
+```{r regression models, echo = FALSE, warning = FALSE, message = FALSE}
+dd_trends <- dd_unigrams %>%
+  mutate(
+    week = epiweek(date),
+    year = epiyear(date),
+    mmwr_date = MMWRweek2Date(year, week)
+  ) %>%
+  group_by(mmwr_date, code) %>%
+  summarise(frequency = sum(frequency)) %>%
+  ungroup() %>%
+  arrange(code, mmwr_date) %>%
+  group_by(code) %>%
+  complete(mmwr_date = seq.Date(from = min_date, to = max_date, by = "week"), fill = list(frequency = 0)) %>%
+  group_by(mmwr_date) %>%
+  mutate(total = sum(frequency)) %>%
+  ungroup() %>%
+  mutate(non_count = total - frequency) %>%
+  mutate(
+    prop = (frequency / total),
+    prop = ifelse(is.infinite(prop), 0, prop),
+    prop = ifelse(is.nan(prop), 0, prop)
+  ) %>%
+  nest(data = -code) %>%
+  mutate(
+    models = map(.x = data, function(.x) {
+      n_recent <- 11
+
+      dat <- .x %>%
+        tail(n_recent)
+
+      mod <- glm(cbind(frequency, non_count) ~ mmwr_date, family = "binomial", data = dat)
+
+      mod_tidy <- broom::tidy(mod) %>%
+        filter(term == "mmwr_date")
+
+      tibble(
+        fit = c(rep(NA, nrow(.x) - n_recent), mod$fitted.values)
+      ) %>%
+        mutate(
+          statistic = mod_tidy$statistic,
+          p.value = mod_tidy$p.value
+        )
+    })
+  ) %>%
+  unnest(c(data, models))
+
+dd_significant <- dd_trends %>%
+  mutate(adjusted.p.value = p.adjust(p.value)) %>%
+  filter(adjusted.p.value < 0.01) %>%
+  arrange(adjusted.p.value) %>%
+  left_join(icd10, by = "code") %>%
+  distinct()
+```
+
+```{r create demographic tables, echo = FALSE, warning = FALSE, message = FALSE}
+summary_age_all <- dd_demo_standardized %>%
+  .[age != "Unknown"] %>%
+  .[, age := as.numeric(age)] %>%
+  .[, age_weight := n * age] %>%
+  .[, .(
+    denom = sum(n),
+    num = sum(age_weight),
+    median_age = median(rep.int(age, n))
+  ), by = "unigram"] %>%
+  .[, mean_age := (num / denom)] %>%
+  as.data.frame() %>%
+  left_join(icd10, by = c("unigram" = "code"), multiple = "first") %>%
+  select(
+    code = unigram,
+    description,
+    mean_age,
+    median_age
+  )
+
+summary_sex_all <- dd_demo_standardized %>%
+  .[, .(total_sex = sum(n)), by = c("unigram", "sex")] %>%
+  setorderv(c("unigram", "sex")) %>%
+  as.data.frame() %>%
+  mutate(sex = tolower(sex)) %>%
+  pivot_wider(names_from = sex, values_from = total_sex, values_fill = 0) %>%
+  mutate(total = female + male + unknown) %>%
+  left_join(icd10, by = c("unigram" = "code"), multiple = "first") %>%
+  rename(
+    n_female = female,
+    n_male = male,
+    n_unknown = unknown,
+    n_total = total
+  ) %>%
+  mutate(
+    pct_female = (n_female / n_total) * 100,
+    pct_male = (n_male / n_total) * 100,
+    pct_unknown = (n_unknown / n_total) * 100
+  ) %>%
+  select(
+    code = unigram,
+    description,
+    n_female,
+    pct_female,
+    n_male,
+    pct_male,
+    n_unknown,
+    pct_unknown,
+    n_all_sex = n_total
+  )
+
+icd10_chapters <- readRDS("icd10_chapters_ref.rds") %>%
+  mutate(
+    regex_match = if_else(id == 6, paste0(regex_match, "|^G20[ABC]"), regex_match)
+  )
+
+icd10_feature_table <- summary_age_all %>%
+  inner_join(summary_sex_all, by = c("code", "description")) %>%
+  arrange(code) %>%
+  fuzzyjoin::regex_left_join(icd10_chapters, by = c(code = "regex_match"))
+
+# ICD-10 FY-2024 conversion file
+code_updates <- readRDS("icd10_fy2024_conversion_ref.rds")
+
+previous_codes <- code_updates %>%
+  select(previous_clean) %>%
+  distinct(previous_clean) %>%
+  mutate(conversion_status = "Code revised for FY-2024")
+
+new_codes <- code_updates %>%
+  select(
+    current_clean,
+    current_description
+  ) %>%
+  distinct(current_clean, .keep_all = TRUE) %>%
+  mutate(conversion_status = "Updated code for FY-2024")
+
+code_updates_limited <- code_updates %>%
+  select(
+    effective_year,
+    previous_clean,
+    previous_description,
+    current_clean,
+    current_description
+  )
+
+icd10_features <- icd10_feature_table %>%
+  select(
+    -id,
+    -regex_match
+  ) %>%
+  left_join(new_codes, by = c("code" = "current_clean")) %>%
+  mutate(description = if_else(is.na(description), current_description, description)) %>%
+  relocate(c(chapter, codes), .after = description) %>%
+  select(
+    -current_description,
+    -conversion_status
+  )
+```
+
+```{r significant codes, echo = FALSE, warning = FALSE, message = FALSE}
+date_range <- paste(format(min(dd_significant$mmwr_date), "%B %d, %Y"), "to", format(max(dd_significant$mmwr_date) + 6, "%B %d, %Y"))
+
+recent_range <- dd_significant %>%
+  select(mmwr_date) %>%
+  distinct() %>%
+  tail(11) %>%
+  pull(mmwr_date)
+
+date_range_assessed <- paste(format(min(recent_range), "%B %d, %Y"), "to", format(max(recent_range) + 6, "%B %d, %Y"))
+
+records <- format(nrow(df), big.mark = ",")
+
+pal <- pal_lancet()(5)
+```
+
+### **Description**
+
+```{r generate note, echo = FALSE, warning = FALSE, message = FALSE}
+note <- if (has_been_e == 1) {
+  paste0("This report summarizes ICD-10 discharge diagnosis codes with significant increase or decrease in occurrence for a recent 11-week period from ", date_range_assessed, ". All ", site, " records (limited to Has been E = \"Yes\") in this date range were pulled from NSSP-ESSENCE using the data details API, resulting in ", records, "  total records. ")
+} else {
+  paste0("This report summarizes ICD-10 discharge diagnosis codes with significant increase or decrease in occurrence for a recent 11-week period from ", date_range_assessed, ". All ", site, " records (not limited to Has been E = \"Yes\") in this date range were pulled from NSSP-ESSENCE using the data details API, resulting in ", records, "  total records. ")
+}
+```
+
+`r note` Discharge diagnoses are tokenized into unigrams from the *Discharge Diagnosis Parsed* field using the `quanteda` library. Discharge diagnosis unigram frequencies are computed on a weekly time resolution. To identify codes with overall significant decrease or increase in occurrence, binomial regression models are fit to each unigram's time series of weekly usage/occurrence proportions (number of unigram occurrences in week divided by total frequency of all unigrams in week). Discharge diagnosis codes with an adjusted p-value less than 0.01 are considered to have statistically significant change in occurrence and are binned into categories of: (1) significant increase if the sign of the time term in the model is positive; and (2). significant decrease if the sign of the time term in the model is negative. Diagnosis codes with high frequencies of occurrences and minuscule fluctuations often result in highly significant p-values. To eliminate such codes, an additional requirement of having $\leq$ -25% modeled change (for decreasing codes) or $\geq$ 25% modeled change (for increasing codes) is imposed.
+
+**Note: Tables are filtered to valid ICD-10 codes only. Each table is sorted in decreasing order of significance.** The sparkline trends included in the tables in this report include weekly proportions for a longer date range spanning `r date_range`.
+
+### **ICD-10 Codes with Significant Increase in Occurrence from `r date_range_assessed`**
+
+```{r increasing usage, echo = FALSE, warning = FALSE, message = FALSE}
+dd_increase <- dd_significant %>%
+  filter(statistic > 0) %>%
+  left_join(new_codes, by = c("code" = "current_clean")) %>%
+  mutate(
+    filter = case_when(
+      !is.na(current_description) ~ FALSE,
+      is.na(description) ~ TRUE,
+      description == "" ~ TRUE,
+      !is.na(description) ~ FALSE
+    )
+  ) %>%
+  filter(!filter) %>%
+  mutate(
+    description = ifelse(description == "" | is.na(description), current_description, description),
+    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2024", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2024", "No revision detected for FY-2024"))
+  ) %>%
+  select(
+    code,
+    conversion_status,
+    description,
+    mmwr_date,
+    frequency,
+    prop,
+    fit,
+    statistic,
+    adjusted.p.value
+  ) %>%
+  group_by(code) %>%
+  mutate(
+    frequency = sum(frequency),
+    date = mmwr_date,
+    mmwr_date = last(mmwr_date)
+  ) %>%
+  arrange(-statistic) %>%
+  mutate(
+    frequency = format(frequency, big.mark = ","),
+    statistic = round(statistic, 2),
+    adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
+  ) %>%
+  mutate(
+    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
+  ) %>%
+  group_by(code) %>%
+  mutate(
+    fit_ref = first(na.omit(fit)),
+    fit_test = last(na.omit(fit)),
+    pct_change = ((fit_test - fit_ref) / fit_ref) * 100
+  ) %>%
+  ungroup() %>%
+  filter(pct_change >= 25) %>%
+  nest(data = c(date, prop, fit)) %>%
+  mutate(sparkline = NA) %>%
+  select(
+    code,
+    conversion_status,
+    mmwr_date,
+    frequency,
+    statistic,
+    adjusted.p.value,
+    description,
+    data,
+    sparkline,
+    ts_url
+  ) %>%
+  left_join(icd10_features, by = c("code", "description")) %>%
+  mutate(chapter = paste(chapter, codes)) %>%
+  select(-codes) %>%
+  relocate(chapter, .after = code) %>%
+  mutate(
+    pct_female = pct_female / 100,
+    pct_male = pct_male / 100
+  )
+
+dd_increase_shift <- dd_increase %>%
+  filter(conversion_status == "Updated code for FY-2024") %>%
+  left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
+  arrange(code)
+```
+
+*In total, `r nrow(dd_increase)` ICD-10 discharge diagnosis unigrams were found to have an overall significant increasing trend for this date range.*
+
+**Considerations:**
+
+  * Unigrams with larger overall counts have a tendency to have highly significant p-values and less obvious increases in trend. 
+  * Trends are assessed over the entire date range to the right of the solid vertical line. Classifications of significant increase should thus be interpreted as an *overall* increase for the time period assessed rather than for the entire date range presented in each sparkline or the most recent week. 
+  * The dashed blue line represents the fit of the binomial regression model to the date range assessed. 
+  * p-values are *adjusted* using the Holm-Bonferroni correction in which the original p-values for $m$ total tests are sorted from lowest to highest and multiplied by $m, m-1, \dots, 1$, respectively. The final adjusted p-values are assigned by taking the cumulative maximum and mapping this value back to the corresponding test. In the event that the adjusted value exceeds 1, the final adjusted p-value is set to 1. More details on the Holm-Bonferroni correction can be found [here](https://personal.utdallas.edu/~herve/abdi-Holm2010-pretty.pdf).
+  * The denominators used in the weekly proportion calculations represent the summed total frequency across all discharge diagnosis unigrams occurring in that week rather than total encounters. The weekly proportions for a discharge diagnosis code will therefore differ from the weekly percentages displayed in the corresponding ESSENCE time series made available by the embedded URL. 
+  * The "Overall Frequency" column contains the total number of occurrences of each ICD-10 code over the entire time period represented in the sparklines.
+
+```{r increasing usage table, echo = FALSE, warning = FALSE, message = FALSE}
+add_vline <- function(x = recent_range[1]) {
+  list(
+    type = "line",
+    y0 = 0,
+    y1 = 1,
+    yref = "paper",
+    x0 = x,
+    x1 = x,
+    line = list(color = "black", dash = "twodash", width = 0.5)
+  )
+}
+
+margins <- list(
+  l = 0,
+  r = 0,
+  b = 0,
+  t = 0
+)
+
+tbl_increase <- dd_increase %>%
+  select(
+    -statistic,
+    -adjusted.p.value,
+    -n_all_sex,
+    -n_female,
+    -n_male,
+    -n_unknown,
+    -pct_unknown,
+    -mmwr_date
+  ) %>%
+  mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
+  relocate(description, .after = code) %>%
+  relocate(c(mean_age, median_age, pct_female, pct_male), .after = frequency) %>%
+  reactable(
+    pagination = FALSE,
+    borderless = FALSE,
+    defaultColDef = colDef(
+      sortNALast = TRUE,
+      minWidth = 50,
+      class = JS("function(rowInfo, colInfo, state) {
+        // Highlight sorted columns
+        for (var i = 0; i < state.sorted.length; i++) {
+          if (state.sorted[i].id === colInfo.id) {
+            return 'sorted'
+          }
+        }
+      }"),
+      headerClass = "term-table-header"
+    ),
+    columns = list(
+      code = colDef(
+        name = "ICD-10 Code",
+        width = 80
+      ),
+      description = colDef(
+        name = "Description"
+      ),
+      conversion_status = colDef(
+        name = "Conversion Status",
+        width = 100
+      ),
+      frequency = colDef(
+        name = "Overall Frequency",
+        format = colFormat(separators = TRUE),
+        width = 100,
+        align = "left"
+      ),
+      mean_age = colDef(
+        name = "Mean Age",
+        format = colFormat(digits = 2),
+        width = 60,
+        align = "left"
+      ),
+      median_age = colDef(
+        name = "Median Age",
+        format = colFormat(digits = 0),
+        width = 60,
+        align = "left"
+      ),
+      pct_female = colDef(
+        name = "Percent Female",
+        format = colFormat(digits = 2, percent = TRUE),
+        width = 70,
+        align = "left"
+      ),
+      pct_male = colDef(
+        name = "Percent Male",
+        format = colFormat(digits = 2, percent = TRUE),
+        width = 70,
+        align = "left"
+      ),
+      data = colDef(show = FALSE),
+      sparkline = colDef(
+        name = "Sparkline",
+        cell = function(value, index) {
+          .dat <- dd_increase$data[[index]]
+
+          .fig <- plot_ly(.dat) %>%
+            add_trace(
+              x = ~date,
+              y = ~prop,
+              line = list(color = "#00468B", width = 1.0),
+              fill = "tozeroy",
+              fillcolor = "rgba(0, 70, 139, 0.20)",
+              mode = "lines",
+              type = "scatter",
+              hoverinfo = "text",
+              showlegend = FALSE,
+              text = ~ paste(
+                "<br>Date:</b>", date,
+                "<br>Proportion:</b>", format(prop, digits = 2, scientific = TRUE)
+              )
+            ) %>%
+            add_trace(
+              x = ~date,
+              y = ~fit,
+              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              mode = "lines",
+              type = "scatter",
+              showlegend = FALSE,
+              hoverinfo = "none"
+            ) %>%
+            layout(
+              xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+              yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+              width = 140,
+              height = 60,
+              plot_bgcolor = "rgba(0, 0, 0, 0)",
+              paper_bgcolor = "rgba(0, 0, 0, 0)",
+              hoverlabel = list(font = list(size = 9, align = "left")),
+              shapes = list(add_vline(recent_range[1])),
+              margin = margins
+            ) %>%
+            config(displayModeBar = FALSE)
+
+          div(.fig, style = "height:50px;", align = "left")
+        },
+        width = 150,
+        align = "left"
+      ),
+      ts_url = colDef(
+        name = "ESSENCE Time Series URL",
+        cell = function(value) {
+          htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+        },
+        align = "center",
+        width = 100
+      )
+    ),
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
+    height = "750px"
+  )
+
+div(
+  class = "term-table",
+  div(class = "term-table-title", "Increasing ICD-10 Diagnoses"),
+  tbl_increase
+)
+```
+
+### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2024**
+
+The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2024. Updated 2024 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2023 through September 30, 2024. These codes were identified by joining to a reference file derived from the 2024 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes/2024-icd-10-cm). This reference file contains the following fields: 
+
+  * Code Set
+  * Effective Year
+  * Previous Code Original (with decimals)
+  * Previous Code Clean (decimals removed)
+  * Previous Description
+  * Current Code Original (with decimals)
+  * Current Code Clean (decimals removed)
+  * Current Description
+  
+The sparklines in the following table represent trends for updated FY-2024 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2024 code revisions are detected.
+
+```{r increasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
+tbl_increase_detailed <- dd_increase %>%
+  mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
+  filter(conversion_status == "Updated code for FY-2024") %>%
+  left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
+  select(
+    conversion_status,
+    effective_year,
+    code,
+    current_description,
+    previous_clean,
+    previous_description,
+    data,
+    sparkline,
+    ts_url
+  ) %>%
+  arrange(code) %>%
+  reactable(
+    pagination = FALSE,
+    borderless = FALSE,
+    defaultColDef = colDef(
+      sortNALast = TRUE,
+      minWidth = 50,
+      class = JS("function(rowInfo, colInfo, state) {
+        // Highlight sorted columns
+        for (var i = 0; i < state.sorted.length; i++) {
+          if (state.sorted[i].id === colInfo.id) {
+            return 'sorted'
+          }
+        }
+      }"),
+      headerClass = "term-table-header"
+    ),
+    columns = list(
+      conversion_status = colDef(
+        name = "Conversion Status",
+        width = 100
+      ),
+      effective_year = colDef(
+        name = "Effective Year",
+        width = 100
+      ),
+      code = colDef(
+        name = "Updated ICD-10 Code for FY-2024",
+        width = 100
+      ),
+      current_description = colDef(
+        name = "Updated ICD-10 Code Description"
+      ),
+      previous_clean = colDef(
+        name = "Previous ICD-10 Code",
+        width = 100
+      ),
+      previous_description = colDef(
+        name = "Previous ICD-10 Code Description"
+      ),
+      data = colDef(show = FALSE),
+      sparkline = colDef(
+        name = "Sparkline",
+        cell = function(value, index) {
+          .dat <- dd_increase_shift$data[[index]]
+
+          .fig <- plot_ly(.dat) %>%
+            add_trace(
+              x = ~date,
+              y = ~prop,
+              line = list(color = "#00468B", width = 1.0),
+              fill = "tozeroy",
+              fillcolor = "rgba(0, 70, 139, 0.20)",
+              mode = "lines",
+              type = "scatter",
+              hoverinfo = "text",
+              showlegend = FALSE,
+              text = ~ paste(
+                "<br>Date:</b>", date,
+                "<br>Proportion:</b>", format(prop, digits = 2, scientific = TRUE)
+              )
+            ) %>%
+            add_trace(
+              x = ~date,
+              y = ~fit,
+              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              mode = "lines",
+              type = "scatter",
+              showlegend = FALSE,
+              hoverinfo = "none"
+            ) %>%
+            layout(
+              xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+              yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+              width = 140,
+              height = 60,
+              plot_bgcolor = "rgba(0, 0, 0, 0)",
+              paper_bgcolor = "rgba(0, 0, 0, 0)",
+              hoverlabel = list(font = list(size = 9, align = "left")),
+              shapes = list(add_vline(recent_range[1])),
+              margin = margins
+            ) %>%
+            config(displayModeBar = FALSE)
+
+          div(.fig, style = "height:50px;", align = "left")
+        },
+        width = 150,
+        align = "left"
+      ),
+      ts_url = colDef(
+        name = "ESSENCE Time Series URL",
+        cell = function(value) {
+          htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+        },
+        align = "center",
+        width = 100
+      )
+    ),
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE
+  )
+
+div(
+  class = "term-table",
+  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2024"),
+  tbl_increase_detailed
+)
+```
+
+### **ICD-10 Codes with Significant Decrease in Occurrence from `r date_range_assessed`**
+
+```{r decreasing usage, echo = FALSE, warning = FALSE, message = FALSE}
+start_date <- format(min(dd_significant$mmwr_date), "%d%b%Y")
+end_date <- format(max(dd_significant$mmwr_date) + 6, "%d%b%Y")
+
+dd_decrease <- dd_significant %>%
+  filter(statistic < 0) %>%
+  filter(!is.na(description)) %>%
+  filter(description != "") %>%
+  select(
+    code,
+    description,
+    mmwr_date,
+    frequency,
+    prop,
+    fit,
+    statistic,
+    adjusted.p.value
+  ) %>%
+  group_by(code) %>%
+  mutate(
+    frequency = sum(frequency),
+    date = mmwr_date,
+    mmwr_date = last(mmwr_date)
+  ) %>%
+  arrange(statistic) %>%
+  mutate(
+    frequency = format(frequency, big.mark = ","),
+    statistic = round(statistic, 2),
+    adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
+  ) %>%
+  mutate(
+    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
+  ) %>%
+  group_by(code) %>%
+  mutate(
+    fit_ref = first(na.omit(fit)),
+    fit_test = last(na.omit(fit)),
+    pct_change = ((fit_test - fit_ref) / fit_ref) * 100
+  ) %>%
+  ungroup() %>%
+  filter(pct_change <= -25) %>%
+  nest(data = c(date, prop, fit)) %>%
+  mutate(sparkline = NA) %>%
+  left_join(previous_codes, by = c("code" = "previous_clean")) %>%
+  select(
+    code,
+    conversion_status,
+    mmwr_date,
+    frequency,
+    statistic,
+    adjusted.p.value,
+    description,
+    data,
+    sparkline,
+    ts_url
+  ) %>%
+  mutate(
+    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2024", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2024", "No revision detected for FY-2024"))
+  ) %>%
+  left_join(icd10_features, by = c("code", "description")) %>%
+  mutate(chapter = paste(chapter, codes)) %>%
+  select(-codes) %>%
+  relocate(chapter, .after = code) %>%
+  mutate(
+    pct_female = pct_female / 100,
+    pct_male = pct_male / 100
+  )
+
+dd_decrease_shift <- dd_decrease %>%
+  filter(conversion_status == "Code revised for FY-2024") %>%
+  left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
+  group_by(code) %>%
+  mutate(option = row_number()) %>%
+  ungroup() %>%
+  arrange(code, option)
+```
+
+*In total, `r nrow(dd_decrease)` ICD-10 discharge diagnosis unigrams were found to have an overall significant decreasing trend for this date range.*
+
+**Considerations:**
+
+  * Unigrams with larger overall counts have a tendency to have highly significant p-values and less obvious decreases in trend. 
+  * Trends are assessed over the entire date range to the right of the solid vertical line. Classifications of significant decrease should thus be interpreted as an *overall* decrease for the time period assessed rather than for the entire date range presented in each sparkline or the most recent week. 
+  * The dashed blue line represents the fit of the binomial regression model to the date range assessed. 
+  * p-values are *adjusted* using the Holm-Bonferroni correction in which the original p-values for $m$ total tests are sorted from lowest to highest and multiplied by $m, m-1, \dots, 1$, respectively. The final adjusted p-values are assigned by taking the cumulative maximum and mapping this value back to the corresponding test. In the event that the adjusted value exceeds 1, the final adjusted p-value is set to 1. More details on the Holm-Bonferroni correction can be found [here](https://personal.utdallas.edu/~herve/abdi-Holm2010-pretty.pdf).
+  * The denominators used in the weekly proportion calculations represent the summed total frequency across all discharge diagnosis unigrams occurring in that week rather than total encounters. The weekly proportions for a discharge diagnosis code will therefore differ from the weekly percentages displayed in the corresponding ESSENCE time series made available by the embedded URL. 
+  * The "Overall Frequency" column contains the total number of occurrences of each ICD-10 code over the entire time period represented in the sparklines.
+
+```{r decreasing usage table, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
+add_vline <- function(x = recent_range[1]) {
+  list(
+    type = "line",
+    y0 = 0,
+    y1 = 1,
+    yref = "paper",
+    x0 = x,
+    x1 = x,
+    line = list(color = "black", dash = "twodash", width = 0.5)
+  )
+}
+
+margins <- list(
+  l = 0,
+  r = 0,
+  b = 0,
+  t = 0
+)
+
+tbl_decrease <- dd_decrease %>%
+  select(
+    -statistic,
+    -adjusted.p.value,
+    -n_all_sex,
+    -n_female,
+    -n_male,
+    -n_unknown,
+    -pct_unknown,
+    -mmwr_date
+  ) %>%
+  mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
+  relocate(description, .after = code) %>%
+  relocate(c(mean_age, median_age, pct_female, pct_male), .after = frequency) %>%
+  reactable(
+    pagination = FALSE,
+    borderless = FALSE,
+    defaultColDef = colDef(
+      sortNALast = TRUE,
+      minWidth = 50,
+      class = JS("function(rowInfo, colInfo, state) {
+        // Highlight sorted columns
+        for (var i = 0; i < state.sorted.length; i++) {
+          if (state.sorted[i].id === colInfo.id) {
+            return 'sorted'
+          }
+        }
+      }"),
+      headerClass = "term-table-header"
+    ),
+    columns = list(
+      code = colDef(
+        name = "ICD-10 Code",
+        width = 80
+      ),
+      description = colDef(
+        name = "Description"
+      ),
+      conversion_status = colDef(
+        name = "Conversion Status",
+        width = 100
+      ),
+      frequency = colDef(
+        name = "Overall Frequency",
+        format = colFormat(separators = TRUE),
+        width = 100,
+        align = "left"
+      ),
+      mean_age = colDef(
+        name = "Mean Age",
+        format = colFormat(digits = 2),
+        width = 60,
+        align = "left"
+      ),
+      median_age = colDef(
+        name = "Median Age",
+        format = colFormat(digits = 0),
+        width = 60,
+        align = "left"
+      ),
+      pct_female = colDef(
+        name = "Percent Female",
+        format = colFormat(digits = 2, percent = TRUE),
+        width = 70,
+        align = "left"
+      ),
+      pct_male = colDef(
+        name = "Percent Male",
+        format = colFormat(digits = 2, percent = TRUE),
+        width = 70,
+        align = "left"
+      ),
+      data = colDef(show = FALSE),
+      sparkline = colDef(
+        name = "Sparkline",
+        cell = function(value, index) {
+          .dat <- dd_decrease$data[[index]]
+
+          .fig <- plot_ly(.dat) %>%
+            add_trace(
+              x = ~date,
+              y = ~prop,
+              line = list(color = "#00468B", width = 1.0),
+              fill = "tozeroy",
+              fillcolor = "rgba(0, 70, 139, 0.20)",
+              mode = "lines",
+              type = "scatter",
+              hoverinfo = "text",
+              showlegend = FALSE,
+              text = ~ paste(
+                "<br>Date:</b>", date,
+                "<br>Proportion:</b>", format(prop, digits = 2, scientific = TRUE)
+              )
+            ) %>%
+            add_trace(
+              x = ~date,
+              y = ~fit,
+              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              mode = "lines",
+              type = "scatter",
+              showlegend = FALSE,
+              hoverinfo = "none"
+            ) %>%
+            layout(
+              xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+              yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+              width = 140,
+              height = 60,
+              plot_bgcolor = "rgba(0, 0, 0, 0)",
+              paper_bgcolor = "rgba(0, 0, 0, 0)",
+              hoverlabel = list(font = list(size = 9, align = "left")),
+              shapes = list(add_vline(recent_range[1])),
+              margin = margins
+            ) %>%
+            config(displayModeBar = FALSE)
+
+          div(.fig, style = "height:50px;", align = "left")
+        },
+        width = 150,
+        align = "left"
+      ),
+      ts_url = colDef(
+        name = "ESSENCE Time Series URL",
+        cell = function(value) {
+          htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+        },
+        align = "center",
+        width = 100
+      )
+    ),
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
+    height = "750px"
+  )
+
+div(
+  class = "term-table",
+  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses"),
+  tbl_decrease
+)
+```
+
+### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2024**
+
+The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2024. Updated 2024 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2023 through September 30, 2024. These codes were identified by joining to a reference file derived from the 2024 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes/2024-icd-10-cm). This reference file contains the following fields: 
+
+  * Code Set
+  * Effective Year
+  * Previous Code Original (with decimals)
+  * Previous Code Clean (decimals removed)
+  * Previous Description
+  * Current Code Original (with decimals)
+  * Current Code Clean (decimals removed)
+  * Current Description
+  
+Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2024 discharge diagnoses. As an example, FY-2024 revisions for the D319 code for benign neoplasm of ill-defined sites within the digestive system include the following 2 options: 
+
+  1. D1391: Familial adenomatous polyposis
+  2. D1399: Benign neoplasm of ill-defined sites within the digestive system
+  
+The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2024 code revisions are detected.
+
+```{r decreasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
+tbl_decrease_detailed <- dd_decrease %>%
+  mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
+  filter(conversion_status == "Code revised for FY-2024") %>%
+  left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
+  select(
+    conversion_status,
+    effective_year,
+    code,
+    previous_description,
+    current_clean,
+    current_description,
+    data,
+    sparkline,
+    ts_url
+  ) %>%
+  group_by(code) %>%
+  mutate(option = row_number()) %>%
+  ungroup() %>%
+  arrange(code, option) %>%
+  relocate(option, .after = current_description) %>%
+  reactable(
+    pagination = FALSE,
+    borderless = FALSE,
+    defaultColDef = colDef(
+      sortNALast = TRUE,
+      minWidth = 50,
+      class = JS("function(rowInfo, colInfo, state) {
+        // Highlight sorted columns
+        for (var i = 0; i < state.sorted.length; i++) {
+          if (state.sorted[i].id === colInfo.id) {
+            return 'sorted'
+          }
+        }
+      }"),
+      headerClass = "term-table-header"
+    ),
+    columns = list(
+      conversion_status = colDef(
+        name = "Conversion Status",
+        width = 100
+      ),
+      effective_year = colDef(
+        name = "Effective Year",
+        width = 100
+      ),
+      code = colDef(
+        name = "Previous ICD-10 Code",
+        width = 100
+      ),
+      previous_description = colDef(
+        name = "Previous ICD-10 Code Description"
+      ),
+      current_clean = colDef(
+        name = "Updated ICD-10 Code for FY-2024",
+        width = 100
+      ),
+      current_description = colDef(
+        name = "Updated ICD-10 Code Description"
+      ),
+      option = colDef(
+        name = "Conversion Option",
+        width = 100
+      ),
+      data = colDef(show = FALSE),
+      sparkline = colDef(
+        name = "Sparkline",
+        cell = function(value, index) {
+          .dat <- dd_decrease_shift$data[[index]]
+
+          .fig <- plot_ly(.dat) %>%
+            add_trace(
+              x = ~date,
+              y = ~prop,
+              line = list(color = "#00468B", width = 1.0),
+              fill = "tozeroy",
+              fillcolor = "rgba(0, 70, 139, 0.20)",
+              mode = "lines",
+              type = "scatter",
+              hoverinfo = "text",
+              showlegend = FALSE,
+              text = ~ paste(
+                "<br>Date:</b>", date,
+                "<br>Proportion:</b>", format(prop, digits = 2, scientific = TRUE)
+              )
+            ) %>%
+            add_trace(
+              x = ~date,
+              y = ~fit,
+              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              mode = "lines",
+              type = "scatter",
+              showlegend = FALSE,
+              hoverinfo = "none"
+            ) %>%
+            layout(
+              xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+              yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+              width = 140,
+              height = 60,
+              plot_bgcolor = "rgba(0, 0, 0, 0)",
+              paper_bgcolor = "rgba(0, 0, 0, 0)",
+              hoverlabel = list(font = list(size = 9, align = "left")),
+              shapes = list(add_vline(recent_range[1])),
+              margin = margins
+            ) %>%
+            config(displayModeBar = FALSE)
+
+          div(.fig, style = "height:50px;", align = "left")
+        },
+        width = 150,
+        align = "left"
+      ),
+      ts_url = colDef(
+        name = "ESSENCE Time Series URL",
+        cell = function(value) {
+          htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+        },
+        align = "center",
+        width = 100
+      )
+    ),
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE
+  )
+
+div(
+  class = "term-table",
+  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2024"),
+  tbl_decrease_detailed
+)
+```
