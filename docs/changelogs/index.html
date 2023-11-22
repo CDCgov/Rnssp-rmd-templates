@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>Change Logs :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1690990971 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1690990971 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1690990971></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1700665931 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1700665931 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1700665931></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/changelogs/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1690990971></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1690990971></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1700665931></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1700665931></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1690990971></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1700665931></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -161,6 +161,12 @@ Lab Year Over Year Trends
 <i class="fas fa-check read-icon"></i>
 </a>
 </li>
+<li data-nav-id=/Rnssp-rmd-templates/templates/icd10codeuse/ title="ICD-10 Discharge Diagnosis Code Usage and Feature Template" class=dd-item>
+<a href=/Rnssp-rmd-templates/templates/icd10codeuse/>
+ICD-10 Discharge Diagnosis Code Usage and Feature Template
+<i class="fas fa-check read-icon"></i>
+</a>
+</li>
 </ul>
 </li>
 <li data-nav-id=/Rnssp-rmd-templates/post/ title=Posts class=dd-item>
@@ -257,6 +263,7 @@ How to Pull CCDD Category List from NSSP-ESSENCE
 <li><a href=#lab-pathogen-surveillance-template-lab_pathogen_trend>Lab Pathogen Surveillance template (<code>lab_pathogen_trend</code>)</a></li>
 <li><a href=#lab-reason-for-testing-template-lab_testing_reason>Lab Reason for Testing template (<code>lab_testing_reason</code>)</a></li>
 <li><a href=#lab-year-over-year-trends-template-lab_yoy_trend>Lab Year Over Year Trends template (<code>lab_yoy_trend</code>)</a></li>
+<li><a href=#icd-10-discharge-diagnosis-code-usage-and-feature-template-icd10_code_use>ICD-10 Discharge Diagnosis Code Usage and Feature Template (<code>icd10_code_use</code>)</a></li>
 </ul>
 </nav>
 </div>
@@ -774,6 +781,19 @@ Change Logs
 <p>This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory 2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county).</p>
 </div>
 </div>
+<h2 id=icd-10-discharge-diagnosis-code-usage-and-feature-template-icd10_code_use>ICD-10 Discharge Diagnosis Code Usage and Feature Template (<code>icd10_code_use</code>)</h2>
+<div class=expand>
+<div class=expand-label style=cursor:pointer onclick="$h=$(this),$h.next('div').slideToggle(100,function(){$h.children('i').attr('class',function(){return $h.next('div').is(':visible')?'fas fa-chevron-down':'fas fa-chevron-right'})})">
+<i style=font-size:x-small class="fas fa-chevron-right"></i>
+<span>
+11/21/2023
+</span>
+</div>
+<div class=expand-content style=display:none>
+<p>The ICD-10 Discharge Diagnosis Code Usage and Feature Template is available.</p>
+<p>This template generates an HTML file with sparkline tables displaying ICD-10 discharge diagnosis codes identified as having recent statistically significant increases or decreases in trend. Data pulled are all encounters for a site and are not limited to a specific CCDD Category, syndrome, or query. Users are able to select an end date, their site, and specify whether or not they want to limit to visits where Has Been Emergency is Yes.</p>
+</div>
+</div>
 <footer class=footline>
 </footer>
 </div>
@@ -785,16 +805,16 @@ Change Logs
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1690990971></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1700665931></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1690990971></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1690990971></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1700665931></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1700665931></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>

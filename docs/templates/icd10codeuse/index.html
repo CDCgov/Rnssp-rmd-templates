@@ -8,7 +8,7 @@
 <link rel=icon href=/Rnssp-rmd-templates/images/favicon.png type=image/png>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
-<title>remove :: Documentation for Rnssp R Markdown Templates</title>
+<title>ICD-10 Discharge Diagnosis Code Usage and Feature Template :: Documentation for Rnssp R Markdown Templates</title>
 <link href=/Rnssp-rmd-templates/css/nucleus.css?1700665931 rel=stylesheet>
 <link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1700665931 rel=stylesheet>
 <link href=/Rnssp-rmd-templates/css/hybrid.css?1700665931 rel=stylesheet>
@@ -23,7 +23,7 @@
 <script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1700665931></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
-<body data-url=/Rnssp-rmd-templates/tags/remove/>
+<body data-url=/Rnssp-rmd-templates/templates/icd10codeuse/>
 <nav id=sidebar class=showVisitedLinks>
 <div id=header-wrapper>
 <div id=header>
@@ -89,7 +89,8 @@ Manage templates with Rnssp addins
 </li>
 </ul>
 </li>
-<li data-nav-id=/Rnssp-rmd-templates/templates/ title="Available Templates" class=dd-item>
+<li data-nav-id=/Rnssp-rmd-templates/templates/ title="Available Templates" class="dd-item
+parent">
 <a href=/Rnssp-rmd-templates/templates/>
 Available Templates
 <i class="fas fa-check read-icon"></i>
@@ -161,7 +162,9 @@ Lab Year Over Year Trends
 <i class="fas fa-check read-icon"></i>
 </a>
 </li>
-<li data-nav-id=/Rnssp-rmd-templates/templates/icd10codeuse/ title="ICD-10 Discharge Diagnosis Code Usage and Feature Template" class=dd-item>
+<li data-nav-id=/Rnssp-rmd-templates/templates/icd10codeuse/ title="ICD-10 Discharge Diagnosis Code Usage and Feature Template" class="dd-item
+parent
+active">
 <a href=/Rnssp-rmd-templates/templates/icd10codeuse/>
 ICD-10 Discharge Diagnosis Code Usage and Feature Template
 <i class="fas fa-check read-icon"></i>
@@ -231,6 +234,12 @@ How to Pull CCDD Category List from NSSP-ESSENCE
 <div class="padding highlightable">
 <div>
 <div id=top-bar>
+<div id=top-github-link>
+<a class=github-link title="Edit this page" href=https://github.com/cdcent/Rnssp-templates-docs/edit/master/content/templates/icd10codeuse/_index.en.md target=blank>
+<i class="fas fa-code-branch"></i>
+<span id=top-github-link-text>Edit this page</span>
+</a>
+</div>
 <div id=breadcrumbs itemscope itemtype=http://data-vocabulary.org/Breadcrumb>
 <span id=sidebar-toggle-span>
 <a href=# id=sidebar-toggle data-sidebar-toggle>
@@ -239,32 +248,96 @@ How to Pull CCDD Category List from NSSP-ESSENCE
 </span>
 <span id=toc-menu><i class="fas fa-list-alt"></i></span>
 <span class=links>
-<a href=/Rnssp-rmd-templates/>Rnssp RMD Templates</a> > <a href=/Rnssp-rmd-templates/tags/>Tags</a> > remove
+<a href=/Rnssp-rmd-templates/>Rnssp RMD Templates</a> > <a href=/Rnssp-rmd-templates/templates/>Available Templates</a> > ICD-10 Discharge Diagnosis Code Usage and Feature Template
 </span>
 </div>
 <div class=progress>
 <div class=wrapper>
+<nav id=TableOfContents>
+<ul>
+<li><a href=#detailed-description>Detailed Description</a></li>
+<li><a href=#user-inputs>User Inputs</a></li>
+<li><a href=#output>Output</a></li>
+<li><a href=#add-this-template>Add this template</a></li>
+<li><a href=#remove-this-template>Remove this template</a></li>
+</ul>
+</nav>
 </div>
 </div>
 </div>
 </div>
 <div id=head-tags>
+<div class=tags>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/icd10>icd10</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/discharge-diagnosis>discharge diagnosis</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/trend-analysis>trend analysis</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/glm>glm</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/asyndromic>asyndromic</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/nssp>nssp</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/essence>essence</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/emergency>emergency</a>
+<a class=tag-link href=/Rnssp-rmd-templates/tags/department>department</a>
+</div>
 </div>
 <div id=body-inner>
 <h1>
-tag ::
-remove
+ICD-10 Discharge Diagnosis Code Usage and Feature Template
 </h1>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=color:#f92672>name</span>: <span style=color:#ae81ff>icd10_code_use</span>
+<span style=color:#f92672>fullname</span>: <span style=color:#ae81ff>ICD-10 Discharge Diagnosis Code Usage and Feature Template</span>
+<span style=color:#f92672>description</span>: &gt;<span style=color:#e6db74>
+</span><span style=color:#e6db74>  This template can be used to consider all discharge diagnosis codes
+</span><span style=color:#e6db74>  occurring over a recent time window for a site and identify ICD-10
+</span><span style=color:#e6db74>  codes with statistically significant increases or decreases in trend. 
+</span><span style=color:#e6db74>  Basic demographic features such as mean and median age, and percentages
+</span><span style=color:#e6db74>  by patient sex are reported for ICD-10 codes that are identified as having
+</span><span style=color:#e6db74>  recent significant change in occurrence. Additionally, this template
+</span><span style=color:#e6db74>  detects ICD-10 codes with significant change due to annual ICD-10 revisions
+</span><span style=color:#e6db74>  imposed by CMS in October.
+</span><span style=color:#e6db74>  Original Code By: Michael Sheppard. 
+</span><span style=color:#e6db74>  Adapted to the Rnssp Package by: Michael Sheppard. 
+</span><span style=color:#e6db74>  National Syndromic Surveillance Program (NSSP). 
+</span><span style=color:#e6db74>  Centers for Disease Control and Prevention (CDC). </span>  
+<span style=color:#f92672>create_dir</span>: <span style=color:#66d9ef>true</span>
+</code></pre></div><hr>
+<h2 id=detailed-description>Detailed Description</h2>
+<p>This template supports asyndromic surveillance by considering all ICD-10 discharge diagnosis codes occuring in a site&rsquo;s emergency department records over a recent time window and identifying codes with statistically significant increases or decreases in trend over an 11-week period. The data pulled does not limit to a specific CCDD Category, syndrome, or query and includes all records occurring in the date range specified by the user. The report includes a summary of discharge diagnosis code types received (i.e., ICD-10, ICD-9, or SNOMED), summary statistics reporting on total unique codes, mean and median character length, and weekly trends of unique code types. The main section of this report includes HTML sparkline tables displaying weekly trends for codes identified as having significant increases/decreases, ESSENCE time series URL links, and associated demographic features. Features include overall code frequencies, mean and median age, and patient sex breakdowns. Please note that the sparklines represent discharge diagnosis unigram trends that are calculated by dividng the weekly number of occurrences of a code by the total summed frequency of all codes occurring in that week. The trends will therefore mirror trends in the ESSENCE time series figure (after clicking on the URL), however the numeric values will not match as the ESSENCE time series displays the percentage of ED visits in which the code occurred. Lastly, this template includes a summary of ICD-10 discharge diagnosis codes that were identified as having significant increases or decreases due to ICD-10 code revisions imposed by CMS in October of each year. Users can define an end date that is constrained to occur on a Saturday (end of an MMWR week) to include a full week&rsquo;s worth of data for the ending week. The start date will automatically be populated as 17 weeks earlier than the end week to include 18 total weeks of data. Keep in mind that trend significance is only assessed for the last 11 weeks of this 18-week period. Lastly, users will choose their site and indicate whether or not they want to limit to records where Has Been E is Yes.</p>
+<hr>
+<h2 id=user-inputs>User Inputs</h2>
 <ul>
-<li><a href=/Rnssp-rmd-templates/usage/removetemplate/>Remove a template</a></li>
-<li><a href=/Rnssp-rmd-templates/usage/templatemanager/>Manage templates with Rnssp addins</a></li>
+<li>NSSP Username: AMC and ESSENCE account username</li>
+<li>NSSP Password: AMC and ESSENCE account password</li>
+<li>End Date: Saturday end date of the last week to include</li>
+<li>Has been Emergency: Checked by default to limit to ED encounters. If unchecked, records from other facility types (i.e., urgent care visits) will be included.</li>
+<li>Site: Site name</li>
+<li>Title: Customized title, otherwise set to ICD-10 Discharge Diagnosis Code Usage and Feature Template by default</li>
 </ul>
+<hr>
+<h2 id=output>Output</h2>
+<p>When knit with parameters, this template generates a report in HTML format.</p>
+<hr>
+<h2 id=add-this-template>Add this template</h2>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-r data-lang=r><span style=color:#75715e># Add `icd10_code_use` to my existing Rnssp installation</span>
+Rnssp<span style=color:#f92672>::</span><span style=color:#a6e22e>add_rmd_template</span>(<span style=color:#e6db74>&#34;icd10_code_use&#34;</span>)
+</code></pre></div><hr>
+<h2 id=remove-this-template>Remove this template</h2>
+<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-r data-lang=r><span style=color:#75715e># Remove `icd10_code_use` from my existing Rnssp installation</span>
+Rnssp<span style=color:#f92672>::</span><span style=color:#a6e22e>remove_rmd_template</span>(<span style=color:#e6db74>&#34;icd10_code_use&#34;</span>)
+</code></pre></div><hr>
+<p><a href=https://cdcgov.github.io/Rnssp-rmd-templates/changelogs/#icd-10-discharge-diagnosis-code-usage-and-feature-template-icd10_code_use><strong>Latest Update!</strong></a></p>
+<p><em>For questions, ideas for improvement/collaboration, or attribution, please submit an issue <a href=https://github.com/CDCgov/Rnssp-rmd-templates/issues>here</a>.</em></p>
+<hr>
+<a href=https://github.com/CDCgov/Rnssp-rmd-templates/raw/master/zip/icd10_code_use.zip target=_blank class="btn btn-default">
+<i class="fas fa-download"></i>
+Download this template
+</a>
 <footer class=footline>
 </footer>
 </div>
 </div>
 <div id=navigation>
-<a class="nav nav-next" href=/Rnssp-rmd-templates/usage/ title=Usage style=margin-right:0><i class="fa fa-chevron-right"></i></a>
+<a class="nav nav-prev" href=/Rnssp-rmd-templates/templates/labyoytrend/ title="Lab Year Over Year Trends"> <i class="fa fa-chevron-left"></i></a>
+<a class="nav nav-next" href=/Rnssp-rmd-templates/post/ title=Posts style=margin-right:0><i class="fa fa-chevron-right"></i></a>
 </div>
 </section>
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
