@@ -331,12 +331,16 @@ This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (
 <details>
 
 <summary>9/1/2023</summary>
-The State Data Quality Report template has been updated. This version:
+The State Data Quality Report template has been updated. In this version:
 
 * Table cell conditional logic has been corrected.
+
 * Tables have been updated to use either the [DT](https://rstudio.github.io/DT/) or [reactable](https://glin.github.io/reactable/index.html) R packages.
+
 * An NSSP-themed color palette has been added.
+
 * The regular expression that assesses Race_Code validity has been corrected (the previous version did not throw an error when a non-code value was received after a valid code value).
+
 * The regular expressions that assess Ethnicity_Code and Ethnicity_Description validity have been corrected to use the correct "UNK" and "OTH" values.
 
 </details>
