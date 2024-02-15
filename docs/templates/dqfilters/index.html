@@ -9,18 +9,18 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SXTC7PZ2HK"></script>
 <script>var doNotTrack=!1;if(!doNotTrack){window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date),gtag('config','G-SXTC7PZ2HK',{anonymize_ip:!1})}</script>
 <title>Data Quality Filter Matrix :: Documentation for Rnssp R Markdown Templates</title>
-<link href=/Rnssp-rmd-templates/css/nucleus.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hybrid.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/auto-complete.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/tabs.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1700667149 rel=stylesheet>
-<link href=/Rnssp-rmd-templates/css/theme-blue.css?1700667149 rel=stylesheet>
-<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1700667149></script>
+<link href=/Rnssp-rmd-templates/css/nucleus.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/fontawesome-all.min.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hybrid.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/featherlight.min.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/perfect-scrollbar.min.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/auto-complete.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/atom-one-dark-reasonable.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/tabs.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/hugo-theme.css?1708014690 rel=stylesheet>
+<link href=/Rnssp-rmd-templates/css/theme-blue.css?1708014690 rel=stylesheet>
+<script src=/Rnssp-rmd-templates/js/jquery-3.3.1.min.js?1708014690></script>
 <style>:root #header+#content>#left>#rlblock_left{display:none!important}</style>
 </head>
 <body data-url=/Rnssp-rmd-templates/templates/dqfilters/>
@@ -38,10 +38,10 @@
 <input data-search-input id=search-by type=search placeholder=Search...>
 <span data-search-clear><i class="fas fa-times"></i></span>
 </div>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1700667149></script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1700667149></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/lunr.min.js?1708014690></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/auto-complete.js?1708014690></script>
 <script type=text/javascript>var baseurl="https://cdcgov.github.io/Rnssp-rmd-templates/"</script>
-<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1700667149></script>
+<script type=text/javascript src=/Rnssp-rmd-templates/js/search.js?1708014690></script>
 </div>
 <div class=highlightable>
 <ul class=topics>
@@ -293,15 +293,18 @@ Data Quality Filter Matrix
 <span style=color:#f92672>create_dir</span>: <span style=color:#66d9ef>true</span>
 </code></pre></div><hr>
 <h2 id=detailed-description>Detailed Description</h2>
-<p>This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjuction with one another.</p>
-<p>Matrices summarize the weekly number of facilities reporting data and the overall visit volume for each data quality filter duration (current year, one year back, two years back, three years back, and four years back) for DDI cutpoints of 70%, 75%, and 80%, and CoV (HasBeenE) cut points of 30, 35, 40, and 45.</p>
+<p>This template summarizes the Discharge Diagnosis Informative Avg Weekly Percent (DDI) and Data Quality Coefficient of Variation (CoV/CoV (HasBeenE)) filters individually and in conjuction with one another. Selections for site, facility type, and visit type are included and the report will automatically adjust the filter year and CoV filter to input parameters.</p>
+<p>Matrices summarize the weekly number of facilities reporting data and the overall visit volume for each data quality filter duration based on the start year selected (current year through 10 years back) for DDI cutpoints of 70%, 75%, and 80%, and CoV (HasBeenE) cut points of 30, 35, 40, and 45.</p>
 <p>A table is included that lists the DDI and CoV (HasBeenE) values for each data quality filter year for all facilities included in the report.</p>
 <hr>
 <h2 id=user-inputs>User Inputs</h2>
 <ul>
 <li>NSSP Username: NSSP ESSENCE account username</li>
 <li>NSSP Password: NSSP account password</li>
-<li>Site ID: Geographic region. Can be national or a participating site.</li>
+<li>Start Date Year: First year of time period of interest. The report will automatically select the correct data quality filter years that cover data from the start year to the present year.</li>
+<li>Site ID: Geographic region. Can be national or a participating site. Multiple sites can be selected.</li>
+<li>Facility Type(s): Facility classifications to be included in the report.</li>
+<li>Limit visits to HasBeenE = Yes?" If yes, only emergency department visits (HasBeenE = Yes) will be included. If no, all visits will be included.</li>
 </ul>
 <hr>
 <h2 id=output>Output</h2>
@@ -334,16 +337,16 @@ Download this template
 <div style=left:-1000px;overflow:scroll;position:absolute;top:-1000px;border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px>
 <div style=border:none;box-sizing:content-box;height:200px;margin:0;padding:0;width:200px></div>
 </div>
-<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1700667149></script>
+<script src=/Rnssp-rmd-templates/js/clipboard.min.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.min.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/perfect-scrollbar.jquery.min.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/jquery.sticky.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/featherlight.min.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/highlight.pack.js?1708014690></script>
 <script>hljs.initHighlightingOnLoad()</script>
-<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/learn.js?1700667149></script>
-<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1700667149></script>
+<script src=/Rnssp-rmd-templates/js/modernizr.custom-3.6.0.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/learn.js?1708014690></script>
+<script src=/Rnssp-rmd-templates/js/hugo-learn.js?1708014690></script>
 <script src=https://unpkg.com/mermaid@8.8.0/dist/mermaid.min.js></script>
 <script>mermaid.initialize({startOnLoad:!0})</script>
 <script>(function(a,e,f,g,b,c,d){a.GoogleAnalyticsObject=b,a[b]=a[b]||function(){(a[b].q=a[b].q||[]).push(arguments)},a[b].l=1*new Date,c=e.createElement(f),d=e.getElementsByTagName(f)[0],c.async=1,c.src=g,d.parentNode.insertBefore(c,d)})(window,document,'script','https://www.google-analytics.com/analytics.js','ga'),ga('create','UA-105947713-1','auto'),ga('send','pageview')</script>
