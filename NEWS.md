@@ -302,7 +302,7 @@ The current implementation of word alerts in NSSP-ESSENCE is limited to data fro
 <details>
 
 <summary>02/15/2024</summary>
-The Data Quality Filter Matrix templatee has been updated. This version:
+The Data Quality Filter Matrix template has been updated. This version:
 
 * Added a parameters to allow for selection of multiple sites, facility type, and visit type.
 
