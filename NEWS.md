@@ -299,6 +299,22 @@ The current implementation of word alerts in NSSP-ESSENCE is limited to data fro
 
 ## Data Quality Filter Matrix template (`dq_filters`)
 
+<details>
+
+<summary>02/15/2024</summary>
+The Data Quality Filter Matrix templatee has been updated. This version:
+
+* Added a parameters to allow for selection of multiple sites, facility type, and visit type.
+
+* Added a parameter to define earliest year data quality filters will be applied for the report output. 
+
+* Extended the time period to 10 year back data quality filters.
+
+* Reduced Comparing Facility DDI and CoV section to single loop to streamline future updates.
+
+</details>
+
+
 <details open>
 
 <summary>4/5/2022</summary>

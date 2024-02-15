@@ -2,7 +2,15 @@
 title: "DQ Filter Matrix for Surveillance and Analyses"
 output: html_document
 
-description: "This template summarizes the DDI Avg Weekly Percent and Data Quality CoV (HasBeenE) filters individually and in conjuction with one another. The data quality matrix is included to summarize the number of facilities reporting data by MMWR week for levels of DDI and CoV for all durations of data quality filters availble in ESSENCE." 
+description: "This template summarizes the DDI Avg Weekly Percent and 
+Data Quality CoV/CoV (HasBeenE) filters individually and in conjuction with 
+one another. 
+The data quality matrix is included to summarize the number of facilities 
+reporting data by MMWR week for levels of DDI and CoV for all durations of data 
+quality filters availble in ESSENCE. Users can select the facility types and 
+visit types they want included in the output. The template will automatically 
+switch between the CoV and CoV (HasBeenE) filters depending on if the user 
+limits to HasBeenE = Yes." 
 
 params:
   username:
@@ -15,24 +23,54 @@ params:
     value: ""
     input: password
     placeholder: "password"
-  site:
-    label: "Site:"
-    value: ""
+  param_start: 
+    label: "Start Date Year"
+    value: 2024
     input: select
-    choices: ["All", "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado-North Central Region (CO_NCR)", "Connecticut", "Delaware", "District of Columbia", "El Dorado County, CA", "Florida", "Georgia", "Guam", "Hawaii", "Idaho", "Iowa", "Illinois", "Indiana", "Kansas", "Kentucky", "Linn County, IA", "Louisiana", "Maine", "Marion County, IN", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Monterey County, CA", "Nebraska", "Nevada", "Nevada County, CA", "New Hampshire", "New Jersey", "New Mexico", "New York", "New York City",  "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Plumas County, CA", "Rhode Island", "Riverside County, CA", "Sacramento County, CA", "San Diego County, CA", "San Mateo County, CA", "Santa_Cruz County, CA", "Solano County, CA", "South Carolina", "South Dakota", "Stanislaus County, CA", "Tennessee", "Texas", "Texas Region 2/3, TX", "TX_Region65", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "Yolo, CA", "Yosemite Gateway Region, CA"]
+    multiple: no
+    choices: !r seq(as.numeric(format(Sys.Date(), "%Y")), as.numeric(format(Sys.Date(), "%Y")) - 10)
+  site:
+    label: "Site ID:"
+    value: "All"
+    input: select
+    multiple: yes
+    choices: ["All", "Alabama", "Alaska", "Arizona", "Arkansas", "California", 
+    "Colorado-North Central Region (CO_NCR)", "Connecticut", "Delaware", 
+    "District of Columbia", "El Dorado County, CA", "Florida", "Georgia", "Guam", 
+    "Hawaii", "Idaho", "Illinois", "Indiana", "Kansas", "Kentucky", 
+    "Linn County, IA", "Louisiana", "Maine", "Marion County, IN", "Maryland", 
+    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", 
+    "Montana", "Monterey County, CA", "Nebraska", "Nevada", "Nevada County, CA", 
+    "New Hampshire", "New Jersey", "New Mexico", "New York", "New York City", 
+    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", 
+    "Pennsylvania", "Plumas County, CA", "Rhode Island", "Riverside County, CA", 
+    "Sacramento County, CA", "San Diego County, CA", "San Mateo County, CA", 
+    "Santa_Cruz County, CA", "Solano County, CA", "South Carolina", 
+    "South Dakota", "Stanislaus County, CA", "Tennessee", "Texas", 
+    "Texas Region 2/3, TX", "TX_Region65", "Utah", "Vermont", "Virginia", 
+    "Washington", "West Virginia", "Wisconsin", "Wyoming", "Yolo, CA", 
+    "Yosemite Gateway Region, CA"]
+  fac_type:
+    label: "Facility Type(s)"
+    value: "All"
+    multiple: yes
+    choices: ["All", "Emergency Care", "Urgent Care", "Inpatient Practice Setting", 
+    "Medical Specialty", "Primary Care", "Other"]
+  visit_type:
+    label: "Limit visits to HasBeenE = Yes?"
+    value: "Yes"
+    choices: ["Yes", "No"]
 ---
 
 <style type="text/css">
 .main-container {
-max-width: 1800px;
+max-width: 2300px;
 margin-left: auto;
 margin-right: auto;
 }
 </style>
 
-**Site**: `r params$site` 
-
-**Report run** `r format(Sys.Date(), "%B %d, %Y")`.
+Report run `r format(Sys.Date(), "%B %d, %Y")`.
 
 ```{r loadPackages, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
 library(Rnssp)
@@ -43,42 +81,87 @@ library(scales)
 library(cowplot)
 library(htmltools)
 library(DT)
+library(viridis)
+library(colorspace)
 ```
 
-```{r setup_params, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+```{r setup_params, echo=FALSE, warning=FALSE, message=FALSE}
 # set up profile
-myProfile <- Credentials$new(
+userProfile <- Credentials$new(
   username = params$username,
   password = params$password
 )
 
-# set up site API information
-# site id; default is national
+# set up site API information; default is national
 essence_site_info <- readRDS("nca_hosp2.rds")
-essence_site_info <- essence_site_info %>%
-  filter(site_name == params$site)
-site_info <- essence_site_info$site_name
-site_id <- essence_site_info$site_id
-site_volume_api <- ""
-site_dq_api <- ""
 
-if (str_contains(site_info, pattern = "HHS Region", ignore.case = TRUE)) {
-  knitr::knit_exit("Render ends prematurely.
-                   The data quality matrix is currently not available for HHS Regions. Please re-knit the template with a site or national selection.")
+if (str_contains(params$site, pattern = "HHS Region", ignore.case = TRUE)) {
+  knitr::knit_exit(
+    "Render ends prematurely.
+     The data quality matrix is currently not available for HHS Regions.
+     Please re-knit the template with a site or national selection."
+  )
 }
-if (!is.na(site_id)) {
-  site_volume_api <- paste0("&site=", site_id)
-  site_dq_api <- paste0("?siteid=", site_id)
+
+if ("All" %in% params$site) {
+  essence_site_info <- essence_site_info %>%
+    filter(site_name == "All")
+  site_volume_api <- ""
+  site_dq_api <- ""
+  site_name <- "All"
+} else if (length(params$site) > 1) {
+  essence_site_info <- essence_site_info %>%
+    filter(site_name %in% params$site)
+  site_volume_api <- essence_site_info$site_id %>%
+    paste(., collapse = "&site=")
+  site_volume_api <- paste0("&site=", site_volume_api)
+  site_name <- essence_site_info$site_name %>%
+    paste(., collapse = ", ")
+} else {
+  essence_site_info <- essence_site_info %>%
+    filter(site_name %in% params$site)
+  site_volume_api <- paste0("&site=", essence_site_info$site_id)
+  site_name <- essence_site_info$site_name
+}
+
+# define facility types
+if ("All" %in% params$fac_type) {
+  facility_api <- ""
+  facility_types <- "All facility types"
+} else {
+  facility_api <- params$fac_type %>%
+    str_to_lower() %>%
+    paste(., collapse = "&hospFacilityType=") %>%
+    str_replace_all(., pattern = " ", replacement = "%20")
+  facility_api <- paste0("&hospFacilityType=", facility_api)
+  facility_types <- params$fac_type %>%
+    paste(., collapse = ", ")
+}
+
+# define visit types & selection of CoV
+visit_api <- ""
+visit_types <- "HasBeenE = No & HasBeenE = Yes"
+cov_var <- "WeeklyCOV"
+cov_text <- "CoV"
+if (params$visit_type == "Yes") {
+  visit_api <- "&hasBeenE=1"
+  visit_types <- "HasBeenE = Yes only"
+  cov_var <- "WeeklyCOVHasBeenE"
+  cov_text <- "CoV (HasBeenE)"
+}
+
+if (cov_text == "CoV") {
+  cov_label <- "Coefficient of Variation"
+  cov_visits <- "Emergency department (HasBeenE = Yes) and non-emergency department (HasBeenE = No) visits are included in this calculation."
+} else {
+  cov_label <- "Coefficient of Variation of Emergency Department Visits"
+  cov_visits <- "Emergency department (HasBeenE = Yes) visits only are included in this calculation."
 }
 ```
 
 ```{r loadData, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
-# year information for graphs
-year_info <- readRDS("graphYearInfo.rds")
-
 # define time period
-start_year <- as.numeric(format(Sys.Date(), "%Y")) - 4
-
+start_year <- as.numeric(params$param_start)
 start_date <- MMWRweek2Date(start_year, 1, 1)
 api_start_date <- format(start_date, "%d%b%Y")
 
@@ -90,22 +173,38 @@ end_date <- MMWRweek2Date(
 api_end_date <- format(end_date, "%d%b%Y")
 text_end_date <- format(end_date, "%B %m, %Y")
 
-# facility level total volume (HasBeenE=Yes) to determine if >0 visits reported per MMWR week
+# facility level total volume to determine if >0 visits reported per MMWR week
 facility_volume_api <- paste0(
   "https://essence2.syndromicsurveillance.org/nssp_essence/api/tableBuilder/csv?endDate=", api_end_date,
   "&percentParam=noPercent&datasource=va_hosp&startDate=", api_start_date,
-  "&medicalGroupingSystem=essencesyndromes&userId=4092", site_volume_api,
-  "&aqtTarget=TableBuilder&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=1",
+  "&medicalGroupingSystem=essencesyndromes&userId=4092", site_volume_api, facility_api,
+  "&aqtTarget=TableBuilder&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly", visit_api,
   "&rowFields=timeResolution&rowFields=geographyhospital&columnField=hasBeenE"
 )
-raw_facility_volume_data <- get_api_data(facility_volume_api, fromCSV = TRUE)
+raw_facility_volume_data <- userProfile$get_api_data(facility_volume_api, fromCSV = TRUE)
+
+if (params$visit_type == "Yes") {
+  raw_facility_volume_data <- raw_facility_volume_data %>%
+    mutate(count = Yes)
+} else {
+  raw_facility_volume_data <- raw_facility_volume_data %>%
+    mutate(count = No + Yes)
+}
 
 # facility level data quality variables
-facility_dq_api <- paste0(
-  "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataQuality/COVWklyAvgData", site_dq_api
-)
+facility_dq_api <- "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataQuality/COVWklyAvgData"
+raw_facility_dq_data <- userProfile$get_api_data(facility_dq_api)
+if (!"All" %in% params$site) {
+  raw_facility_dq_data <- raw_facility_dq_data %>%
+    filter(siteID %in% essence_site_info$site_id)
+}
+```
 
-raw_facility_dq_data <- get_api_data(facility_dq_api)
+```{r knit_exit_no_visits, warning=FALSE, message=FALSE, echo=FALSE, results='hide'}
+# force exit if the Facility name field has an incorrect value
+if (sum(raw_facility_volume_data$count) == 0) {
+  knitr::knit_exit("Render ends prematurely. No visits meet the selected parameters.")
+}
 ```
 
 ```{r formatData, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
@@ -118,20 +217,17 @@ facility_dq_data <- raw_facility_dq_data %>%
     hospitalName = str_to_upper(hospitalName)
   )
 
-facilities_to_include <- unique(facility_dq_data$hospitalName) # generate facility list
-
 facility_volume_data <- raw_facility_volume_data %>%
   mutate(
     geographyhospital = str_replace_all(geographyhospital, "[^[:alnum:]]", " "),
     geographyhospital = str_squish(geographyhospital),
     geographyhospital = str_to_upper(geographyhospital)
-  ) %>%
-  filter(geographyhospital %in% facilities_to_include)
+  )
 
-# generate list - ensure every facility reported at least 1 visit during time period
+# generate facility list - ensure every facility reported at least 1 visit during time period
 facility_total_volume <- facility_volume_data %>%
   group_by(geographyhospital) %>%
-  summarise(total_volume = sum(Yes)) %>%
+  summarise(total_volume = sum(count)) %>%
   filter(total_volume > 0)
 facility_list <- facility_total_volume$geographyhospital
 
@@ -139,36 +235,13 @@ facility_list <- facility_total_volume$geographyhospital
 facility_volume_data <- facility_volume_data %>%
   filter(geographyhospital %in% facility_list)
 
-# dq data only; for distribution graphs and clustering
-facility_dq_data <- facility_dq_data %>%
-  select(
-    hospital,
-    hospitalName,
-    siteID,
-    siteName,
-    hospitalDHHSRegion,
-    currentYearWeeklyCOVHasBeenE,
-    oneYearBackWeeklyCOVHasBeenE,
-    twoYearBackWeeklyCOVHasBeenE,
-    threeYearBackWeeklyCOVHasBeenE,
-    fourYearBackWeeklyCOVHasBeenE,
-    ddInformativeAvgWeeklyPercentCurrentYear,
-    ddInformativeAvgWeeklyPercentOneYearBack,
-    ddInformativeAvgWeeklyPercentTwoYearBack,
-    ddInformativeAvgWeeklyPercentThreeYearBack,
-    ddInformativeAvgWeeklyPercentFourYearBack
-  ) %>%
-  rename(
-    "COVHasBeenEWeeklycurrentYear" = "currentYearWeeklyCOVHasBeenE",
-    "COVHasBeenEWeeklyoneYearBack" = "oneYearBackWeeklyCOVHasBeenE",
-    "COVHasBeenEWeeklytwoYearBack" = "twoYearBackWeeklyCOVHasBeenE",
-    "COVHasBeenEWeeklythreeYearBack" = "threeYearBackWeeklyCOVHasBeenE",
-    "COVHasBeenEWeeklyfourYearBack" = "fourYearBackWeeklyCOVHasBeenE"
-  ) %>%
-  filter(hospitalName %in% facility_list)
-
 # convert dq data from wide to long
 ddi_long <- facility_dq_data %>%
+  select(
+    hospital, hospitalName, siteID, siteName,
+    hospitalDHHSRegion, starts_with("ddInformativeAvgWeeklyPercent")
+  ) %>%
+  filter(hospitalName %in% facility_list) %>%
   pivot_longer(
     cols = starts_with("ddInformativeAvgWeeklyPercent"),
     names_to = "dq_year",
@@ -180,30 +253,56 @@ ddi_long <- facility_dq_data %>%
   mutate(dq_year = str_to_lower(dq_year))
 
 cov_long <- facility_dq_data %>%
+  select(hospital, hospitalName, siteID, siteName, hospitalDHHSRegion, ends_with(cov_var)) %>%
+  rename(
+    "COVcurrentYear" = paste0("currentYear", cov_var),
+    "COVoneYearBack" = paste0("oneYearBack", cov_var),
+    "COVtwoYearBack" = paste0("twoYearBack", cov_var),
+    "COVthreeYearBack" = paste0("threeYearBack", cov_var),
+    "COVfourYearBack" = paste0("fourYearBack", cov_var),
+    "COVfiveYearBack" = paste0("fiveYearBack", cov_var),
+    "COVsixYearBack" = paste0("sixYearBack", cov_var),
+    "COVsevenYearBack" = paste0("sevenYearBack", cov_var),
+    "COVeightYearBack" = paste0("eightYearBack", cov_var),
+    "COVnineYearBack" = paste0("nineYearBack", cov_var),
+    "COVtenYearBack" = paste0("tenYearBack", cov_var)
+  ) %>%
+  filter(hospitalName %in% facility_list) %>%
   pivot_longer(
-    cols = starts_with("COVHasBeenE"),
+    cols = starts_with("COV"),
     names_to = "dq_year",
-    names_prefix = "COVHasBeenEWeekly",
+    names_prefix = "COV",
     values_to = "cov",
     values_drop_na = FALSE
   ) %>%
-  select(hospital, hospitalName, siteID, siteName, hospitalDHHSRegion, dq_year, cov) %>%
+  select(
+    hospital, hospitalName, siteID, siteName,
+    hospitalDHHSRegion, dq_year, cov
+  ) %>%
   mutate(dq_year = str_to_lower(dq_year))
 
 dq_data <- ddi_long %>%
-  left_join(., cov_long,
-            by = c("hospital", "hospitalName", "siteID", "siteName", "hospitalDHHSRegion", "dq_year")
+  left_join(
+    .,
+    cov_long,
+    by = c(
+      "hospital", "hospitalName", "siteID",
+      "siteName", "hospitalDHHSRegion", "dq_year"
+    )
   )
 
 # dq data and total volume; for static matrix and graphing clustering results
 dq_volume_data <- facility_volume_data %>%
-  mutate(reporting_data = case_when(Yes > 0 ~ 1, TRUE ~ 0)) %>%
+  mutate(reporting_data = case_when(
+    count > 0 ~ 1,
+    TRUE ~ 0
+  )) %>%
   rename("hospitalName" = "geographyhospital") %>%
   left_join(., dq_data, by = c("hospitalName")) %>%
   separate(timeResolution,
-           into = c("year", "week"),
-           sep = "-",
-           remove = FALSE
+    into = c("year", "week"),
+    sep = "-",
+    remove = FALSE
   ) %>%
   mutate(
     week = as.numeric(week),
@@ -211,20 +310,28 @@ dq_volume_data <- facility_volume_data %>%
     mmwr_week_start = MMWRweek2Date(year, week, MMWRday = 1),
     mmwr_week_end = MMWRweek2Date(year, week, MMWRday = 7)
   )
-dq_volume_data$dq_year <- factor(dq_volume_data$dq_year,
-                                 levels = c("currentyear", "oneyearback", "twoyearback", "threeyearback", "fouryearback")
+dq_volume_data$dq_year <- factor(
+  dq_volume_data$dq_year,
+  levels = c(
+    "currentyear", "oneyearback", "twoyearback", "threeyearback",
+    "fouryearback", "fiveyearback", "sixyearback", "sevenyearback",
+    "eightyearback", "nineyearback", "tenyearback"
+  )
 )
 ```
 
 ```{r formatOutput, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# number of facilities included in the report
+report_fac_n <- as.numeric(length(unique(dq_volume_data$hospital)))
+
 # standardize y-axis for number of facilities reporting data
 weekly_reporting_facilities <- dq_volume_data %>%
-  select(timeResolution, hospitalName, reporting_data, Yes) %>%
+  select(timeResolution, hospitalName, reporting_data, count) %>%
   distinct() %>%
   group_by(timeResolution) %>%
   summarize(
     fac_reporting_data = sum(reporting_data, na.rm = TRUE),
-    visit_volume = sum(Yes, na.rm = TRUE)
+    visit_volume = sum(count, na.rm = TRUE)
   )
 
 # facility graphs
@@ -242,175 +349,259 @@ if (y_max >= 1000) {
 y_volume_max <- ceiling(max(weekly_reporting_facilities$visit_volume) / 100) * 100
 ```
 
+```{r subsetDQyears_outputFormatting, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# generate reference dataset
+year_info <- data.frame(
+  section_headers = c(
+    "Current Year to Date", "Last Year to Date", "Last 2 Years to Date",
+    "Last 3 Years to Date", "Last 4 Years to Date", "Last 5 Years to Date",
+    "Last 6 Years to Date", "Last 7 Years to Date", "Last 8 Years to Date",
+    "Last 9 Years to Date", "Last 10 Years to Date"
+  ),
+  dq_year = c(
+    "currentyear", "oneyearback", "twoyearback", "threeyearback",
+    "fouryearback", "fiveyearback", "sixyearback", "sevenyearback",
+    "eightyearback", "nineyearback", "tenyearback"
+  ),
+  numeric_year = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  graph_year_info = c(
+    "Current Year", "One Year Back", "Two Year Back", "Three Year Back",
+    "Four Year Back", "Five Year Back", "Six Year Back", "Seven Year Back",
+    "Eight Year Back", "Nine Year Back", "Ten Year Back"
+  )
+)
+
+# subset to relevant years in reference dataset
+year_info <- year_info %>%
+  mutate(
+    cov_table_header = paste0(cov_text, " ", graph_year_info),
+    ddi_table_header = paste0("DDI ", graph_year_info)
+  ) %>%
+  filter(numeric_year <= as.numeric(format(Sys.Date(), "%Y")) - start_year) %>%
+  mutate(
+    year = as.numeric(format(Sys.Date(), "%Y")) - numeric_year,
+    week = 1,
+    cov_start_date = paste0(
+      "01/01/",
+      as.character(as.numeric(format(Sys.Date(), "%Y")) - numeric_year)
+    ),
+    cov_end_date = format(Sys.Date() - 7, "%m/%d/%Y"),
+    ddi_start_date = format(MMWRweek2Date(year, week, MMWRday = 1), "%m/%d/%Y"),
+    ddi_end_date = format(
+      MMWRweek2Date(
+        MMWRweek(Sys.Date() - 14)$MMWRyear,
+        MMWRweek(Sys.Date() - 14)$MMWRweek,
+        MMWRday = 7
+      ), "%m/%d/%Y"
+    )
+  )
+
+# subset to relevant years in facility DQ and volume dataset
+dq_volume_data <- dq_volume_data %>%
+  filter(dq_year %in% year_info$dq_year)
+
+dq_data <- dq_data %>%
+  filter(dq_year %in% year_info$dq_year)
+
+# define color scales
+n_colors <- nrow(year_info)
+year_info$line_color <- viridis(
+  n_colors,
+  alpha = 1, begin = 0, end = 1, direction = 1, option = "D"
+)
+year_info <- year_info %>%
+  mutate(
+    shade_dark = lighten(line_color, 0.7),
+    shade_light = lighten(line_color, 0.9)
+  )
+```
+
 ```{r DQdistributions, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
 dq_distribution_function <- function(year_to_plot) {
   # format year for text
   current_year <- as.numeric(format(Sys.Date(), "%Y"))
-  
+
   # format graphics for dq year
   graph_info <- year_info %>%
     filter(dq_year == year_to_plot)
   numeric_year <- graph_info$numeric_year
-  year_text <- graph_info$year_text
+  dq_year <- graph_info$year
+  year_text <- graph_info$section_headers
   line_color <- graph_info$line_color
   shade_dark <- graph_info$shade_dark
   shade_light <- graph_info$shade_light
-  
-  # subset data
-  data_subset <- dq_data %>%
-    filter(dq_year == year_to_plot) %>%
-    filter(!is.na(ddi) & !is.na(cov))
-  
-  # plot number of facilities included
-  plot1_fac_count_tile <- ggplot() +
-    geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1),
-              fill = "white"
-    ) +
-    geom_text(aes(
-      x = 0.5, y = 0.5,
-      label = paste(comma(length(unique(data_subset$hospitalName))), "\nFacilities")
-    )) +
-    theme_bw() +
-    theme(
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.title.y = element_blank(),
-      axis.text.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
-    )
-  
-  # plot cov distributions
-  plot2_cov_dist <- data_subset %>%
-    ggplot(aes(x = dq_year, y = cov)) +
-    geom_boxplot(
-      width = 0.15,
-      fill = line_color,
-      alpha = 0.5,
-      outlier.color = line_color,
-      outlier.size = 0.5,
-      outlier.alpha = 0.5
-    ) +
-    ggdist::stat_halfeye(
-      side = "right",
-      adjust = 0.5,
-      width = 0.6,
-      .width = 0,
-      justification = -.2,
-      fill = line_color,
-      alpha = 0.5,
-      point_colour = NA
-    ) +
-    gghalves::geom_half_point(
-      side = "l",
-      shape = 95,
-      range_scale = 0,
-      size = 40,
-      color = line_color,
-      alpha = 0.2
-    ) +
-    coord_flip() +
-    theme_bw() +
-    theme(
-      axis.title.y = element_blank(),
-      axis.text.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      axis.title.x = element_text(face = "bold", size = 12),
-      plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
-    ) +
-    scale_y_continuous(
-      name = "Coeffient of Variance (CoV HasBeenE)",
-      limits = c(0, NA),
-      labels = comma
-    )
-  
-  # plot ddi distributions
-  plot3_ddi_dist <- data_subset %>%
-    ggplot(aes(x = dq_year, y = ddi)) +
-    geom_boxplot(
-      width = 0.15,
-      fill = line_color,
-      alpha = 0.5,
-      outlier.color = line_color,
-      outlier.size = 0.5,
-      outlier.alpha = 0.5
-    ) +
-    ggdist::stat_halfeye(
-      side = "left",
-      adjust = 0.5,
-      width = 0.6,
-      .width = 0,
-      justification = 1.2,
-      fill = line_color,
-      alpha = 0.5,
-      point_colour = NA
-    ) +
-    gghalves::geom_half_point(
-      side = "r",
-      shape = 95,
-      range_scale = 0,
-      size = 3.5,
-      color = line_color,
-      alpha = 0.2
-    ) +
-    theme_bw() +
-    theme(
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.title.y = element_text(face = "bold", size = 12),
-      plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
-    ) +
-    scale_y_continuous(
-      name = "Average Weekly Discharge Diagnosis Informative (DDI %)",
-      limits = c(0, NA)
-    )
-  
-  # plot ddi-cov combinations
-  plot4_dq_combo <- data_subset %>%
-    ggplot(aes(x = cov, y = ddi)) +
-    geom_point(color = line_color, size = 0.5) +
-    theme_bw() +
-    theme(
-      axis.title.y = element_blank(),
-      axis.title.x = element_blank(),
-      plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
-    ) +
-    scale_y_continuous(name = NULL, limits = c(0, NA)) +
-    scale_x_continuous(name = NULL, limits = c(0, NA))
-  
-  # format final output
-  avg_ddi <- sprintf("%.2f", mean(data_subset$ddi, na.rm = TRUE))
-  avg_cov <- sprintf("%.2f", mean(data_subset$cov, na.rm = TRUE))
-  
-  output_title <- ggdraw() + 
-    draw_label("Distribution of Data Quality Filters", fontface = "bold", size = 14)
-  
-  output_subtitle <- ggdraw() + 
-    draw_label(
+
+  if ((MMWRweek(Sys.Date())$MMWRweek <= 2) & (current_year == dq_year)) {
+    final_output <- ggdraw() + draw_label(
       paste0(
-        year_text, " Filters: January 01, ",
-        (current_year - numeric_year), " to ", text_end_date,
-        "\nMean Avg Weekly DDI = ", avg_ddi,
-        "%\nMean CoV(HasBeenE) = ", avg_cov
+        "There is not enough data to calculate both of the ",
+        year_text,
+        " filters. \nData to generate this graph will be available on ",
+        format(format(MMWRweek2Date(dq_year, 3, 1), "%m/%d/%Y")),
+        "."
+      ),
+      fontface = "bold", size = 14
+    )
+  } else {
+    # subset data
+    data_subset <- dq_data %>%
+      filter(dq_year == year_to_plot) %>%
+      filter(!is.na(ddi) & !is.na(cov))
+
+    # plot number of facilities included
+    plot1_fac_count_tile <- ggplot() +
+      geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1),
+        fill = "white"
+      ) +
+      geom_text(aes(
+        x = 0.5, y = 0.5,
+        label = paste(report_fac_n, "\nFacilities")
+      )) +
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
+      )
+
+    # plot cov distributions
+    plot2_cov_dist <- data_subset %>%
+      ggplot(aes(x = dq_year, y = cov)) +
+      geom_boxplot(
+        width = 0.15,
+        fill = line_color,
+        alpha = 0.5,
+        outlier.color = line_color,
+        outlier.size = 0.5,
+        outlier.alpha = 0.5
+      ) +
+      ggdist::stat_halfeye(
+        side = "right",
+        adjust = 0.5,
+        width = 0.6,
+        .width = 0,
+        justification = -.2,
+        fill = line_color,
+        alpha = 0.5,
+        point_colour = NA
+      ) +
+      gghalves::geom_half_point(
+        side = "l",
+        shape = 95,
+        range_scale = 0,
+        size = 40,
+        color = line_color,
+        alpha = 0.2
+      ) +
+      coord_flip() +
+      theme_bw() +
+      theme(
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_text(face = "bold", size = 12),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
+      ) +
+      scale_y_continuous(
+        name = paste0("Coeffient of Variation (", cov_text, ")"),
+        limits = c(0, NA),
+        labels = comma
+      )
+
+    # plot ddi distributions
+    plot3_ddi_dist <- data_subset %>%
+      ggplot(aes(x = dq_year, y = ddi)) +
+      geom_boxplot(
+        width = 0.15,
+        fill = line_color,
+        alpha = 0.5,
+        outlier.color = line_color,
+        outlier.size = 0.5,
+        outlier.alpha = 0.5
+      ) +
+      ggdist::stat_halfeye(
+        side = "left",
+        adjust = 0.5,
+        width = 0.6,
+        .width = 0,
+        justification = 1.2,
+        fill = line_color,
+        alpha = 0.5,
+        point_colour = NA
+      ) +
+      gghalves::geom_half_point(
+        side = "r",
+        shape = 95,
+        range_scale = 0,
+        size = 3.5,
+        color = line_color,
+        alpha = 0.2
+      ) +
+      theme_bw() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_text(face = "bold", size = 12),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
+      ) +
+      scale_y_continuous(
+        name = "Average Weekly Discharge Diagnosis Informative (DDI %)",
+        limits = c(0, NA)
+      )
+
+    # plot ddi-cov combinations
+    plot4_dq_combo <- data_subset %>%
+      ggplot(aes(x = cov, y = ddi)) +
+      geom_point(color = line_color, size = 0.5) +
+      theme_bw() +
+      theme(
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
+      ) +
+      scale_y_continuous(name = NULL, limits = c(0, NA)) +
+      scale_x_continuous(name = NULL, limits = c(0, NA))
+
+    # format final output
+    avg_ddi <- sprintf("%.2f", mean(data_subset$ddi, na.rm = TRUE))
+    avg_cov <- sprintf("%.2f", mean(data_subset$cov, na.rm = TRUE))
+
+    output_title <- ggdraw() +
+      draw_label("Distribution of Data Quality Filters", fontface = "bold", size = 14)
+    output_subtitle <- ggdraw() + draw_label(
+      paste0(
+        year_text, " Filters",
+        "\nMean ",
+        cov_text, " = ",
+        avg_cov, " | Filter Dates: ",
+        graph_info$cov_start_date, " to ",
+        graph_info$cov_end_date,
+        "\nMean Avg Weekly DDI = ",
+        avg_ddi, "% | Filter Dates: ",
+        graph_info$ddi_start_date, " to ",
+        graph_info$ddi_end_date
       ),
       fontface = "bold.italic", size = 10
     )
-  
-  output_plots <- plot_grid(
-    plot3_ddi_dist, plot4_dq_combo, plot1_fac_count_tile, plot2_cov_dist,
-    align = "hv", axis = "bt",
-    nrow = 2, rel_widths = c((2 / 10), (8 / 10)),
-    ncol = 2, rel_heights = c((8 / 10), (2 / 10))
-  )
-  
-  final_output <- plot_grid(
-    output_title, output_subtitle, output_plots,
-    ncol = 1, rel_heights = c((1 / 18), (1 / 18), (16 / 18))
-  )
+
+    output_plots <- plot_grid(
+      plot3_ddi_dist, plot4_dq_combo, plot1_fac_count_tile, plot2_cov_dist,
+      align = "hv", axis = "bt",
+      nrow = 2, rel_widths = c((2 / 10), (8 / 10)),
+      ncol = 2, rel_heights = c((8 / 10), (2 / 10))
+    )
+    final_output <- plot_grid(
+      output_title, output_subtitle, output_plots,
+      ncol = 1, rel_heights = c((1 / 18), (1 / 18), (16 / 18))
+    )
+  }
   return(final_output)
 }
 ```
@@ -419,66 +610,56 @@ dq_distribution_function <- function(year_to_plot) {
 static_dq_matrix_function <- function(year_to_plot) {
   # format year for text
   current_year <- as.numeric(format(Sys.Date(), "%Y"))
-  
-  # format filter year cut-point
-  if (year_to_plot == "currentyear") {
-    filter_date <- as.Date(
-      paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 0)),
-      format = "%m-%d-%Y"
-    )
-  } else if (year_to_plot == "oneyearback") {
-    filter_date <- as.Date(
-      paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 1)),
-      format = "%m-%d-%Y"
-    )
-  } else if (year_to_plot == "twoyearback") {
-    filter_date <- as.Date(
-      paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 2)),
-      format = "%m-%d-%Y"
-    )
-  } else if (year_to_plot == "threeyearback") {
-    filter_date <- as.Date(
-      paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 3)),
-      format = "%m-%d-%Y"
-    )
-  } else if (year_to_plot == "fouryearback") {
-    filter_date <- as.Date(
-      paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 4)),
-      format = "%m-%d-%Y"
-    )
-  }
-  
+
   # format graphics for dq year
-  graph_info <- year_info %>% filter(dq_year == year_to_plot)
+  graph_info <- year_info %>%
+    filter(dq_year == year_to_plot)
   numeric_year <- graph_info$numeric_year
-  year_text <- graph_info$year_text
+  dq_year <- graph_info$year
+  year_text <- graph_info$section_headers
   line_color <- graph_info$line_color
   shade_dark <- graph_info$shade_dark
   shade_light <- graph_info$shade_light
-  
-  # subset data to correct dq year
-  data_subset <- dq_volume_data %>%
-    filter(dq_year == year_to_plot) %>%
-    filter(mmwr_week_start >= filter_date) %>%
-    filter(!is.na(ddi) & !is.na(cov)) %>%
-    select(mmwr_week_start, mmwr_week_end, hospitalName, reporting_data, cov, ddi)
-  
-  # generate panel graphs by dq cutpoints
-  dq_panel_graph_function <- function(ddi_gte, cov_lte) {
-    panel_data <- data_subset %>%
-      filter(ddi >= ddi_gte & cov <= cov_lte) %>%
-      group_by(mmwr_week_start, mmwr_week_end) %>%
-      summarize(facility_count = sum(reporting_data, na.rm = TRUE))
-    
-    panel_plot <- panel_data %>%
-      ggplot(aes(x = as.Date(mmwr_week_end), y = facility_count)) +
-      geom_line(size = 1) +
-      theme_bw() +
-      theme(plot.subtitle = element_text(hjust = 0.5)) +
-      scale_y_continuous(name = NULL, limits = c(0, y_max), labels = comma) +
-      scale_x_date(name = NULL) +
-      labs(
-        subtitle = paste0(
+  if (as.Date(graph_info$cov_start_date, format("%m/%d/%Y")) >=
+    as.Date(graph_info$ddi_start_date, format("%m/%d/%Y"))) {
+    filter_date <- as.Date(graph_info$cov_start_date, format("%m/%d/%Y"))
+  } else {
+    filter_date <- as.Date(graph_info$ddi_start_date, format("%m/%d/%Y"))
+  }
+
+  if ((MMWRweek(Sys.Date())$MMWRweek <= 2) & (current_year == dq_year)) {
+    final_output <- ggdraw() + draw_label(
+      paste0(
+        "There is not enough data to calculate both of the ", year_text,
+        " filters. \nData to generate this graph will be available on ",
+        format(format(MMWRweek2Date(dq_year, 3, 1), "%m/%d/%Y")), "."
+      ),
+      fontface = "bold", size = 14
+    )
+  } else {
+    # subset data to correct dq year
+    data_subset <- dq_volume_data %>%
+      filter(dq_year == year_to_plot) %>%
+      filter(mmwr_week_start >= filter_date) %>%
+      filter(!is.na(ddi) & !is.na(cov)) %>%
+      select(mmwr_week_start, mmwr_week_end, hospitalName, reporting_data, cov, ddi)
+
+    # generate panel graphs by dq cutpoints
+    dq_panel_graph_function <- function(ddi_gte, cov_lte) {
+      panel_data <- data_subset %>%
+        filter(ddi >= ddi_gte & cov <= cov_lte) %>%
+        group_by(mmwr_week_start, mmwr_week_end) %>%
+        summarize(facility_count = sum(reporting_data, na.rm = TRUE)) %>%
+        ungroup()
+
+      panel_plot <- panel_data %>%
+        ggplot(aes(x = as.Date(mmwr_week_end), y = facility_count)) +
+        geom_line(size = 1) +
+        theme_bw() +
+        theme(plot.subtitle = element_text(hjust = 0.5)) +
+        scale_y_continuous(name = NULL, limits = c(0, y_max), labels = comma) +
+        scale_x_date(name = NULL) +
+        labs(subtitle = paste0(
           "Maximum: ",
           comma(max(panel_data$facility_count, na.rm = TRUE), format = "f", big.mark = ","),
           " Facilities\nWeekly Average: ",
@@ -486,138 +667,129 @@ static_dq_matrix_function <- function(year_to_plot) {
           " Facilities\nMinimum: ",
           comma(min(panel_data$facility_count, na.rm = TRUE), format = "f", big.mark = ","),
           " Facilities"
-        )
+        ))
+      return(panel_plot)
+    }
+
+    plot1A <- dq_panel_graph_function(0, 1000000) +
+      theme(plot.background = element_rect(fill = shade_dark, color = shade_dark))
+    plot1B <- dq_panel_graph_function(0, 30)
+    plot1C <- dq_panel_graph_function(0, 35)
+    plot1D <- dq_panel_graph_function(0, 40)
+    plot1E <- dq_panel_graph_function(0, 45)
+
+    plot2A <- dq_panel_graph_function(70, 1000000)
+    plot2B <- dq_panel_graph_function(70, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2C <- dq_panel_graph_function(70, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2D <- dq_panel_graph_function(70, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2E <- dq_panel_graph_function(70, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    plot3A <- dq_panel_graph_function(75, 1000000)
+    plot3B <- dq_panel_graph_function(75, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3C <- dq_panel_graph_function(75, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3D <- dq_panel_graph_function(75, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3E <- dq_panel_graph_function(75, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    plot4A <- dq_panel_graph_function(80, 1000000)
+    plot4B <- dq_panel_graph_function(80, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4C <- dq_panel_graph_function(80, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4D <- dq_panel_graph_function(80, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4E <- dq_panel_graph_function(80, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    # format final output
+    output_title <- ggdraw() +
+      draw_label("Comparing the Number of Facilities Included in a Query by Data Quality Filter Combinations",
+        fontface = "bold", size = 14
       )
-    
-    return(panel_plot)
+    output_subtitle <- ggdraw() + draw_label(
+      paste0(
+        year_text, " Filters",
+        "\n", cov_text, "  Filter Dates: ",
+        graph_info$cov_start_date, " to ", graph_info$cov_end_date,
+        "\nAvg Weekly DDI Filter Dates: ",
+        graph_info$ddi_start_date, " to ", graph_info$ddi_end_date
+      ),
+      fontface = "bold.italic", size = 10
+    )
+    x_label <- ggdraw() +
+      draw_label("Date (MMWR Week)", fontface = "bold", size = 10)
+    y_label <- ggdraw() +
+      draw_label("Number of Hospitals Reporting Data", fontface = "bold", size = 10, angle = 90)
+
+    colA_header <- ggdraw() +
+      draw_label(paste0("No ", cov_text), fontface = "plain", size = 10)
+    colB_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  30"), fontface = "plain", size = 10)
+    colC_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  35"), fontface = "plain", size = 10)
+    colD_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  40"), fontface = "plain", size = 10)
+    colE_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  45"), fontface = "plain", size = 10)
+    column_headers <- plot_grid(colA_header, colB_header, colC_header, colD_header, colE_header, nrow = 1)
+
+    row1_header <- ggdraw() +
+      draw_label("No Avg Weekly DDI%", fontface = "plain", size = 10, angle = 90)
+    row2_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  70", fontface = "plain", size = 10, angle = 90)
+    row3_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  75", fontface = "plain", size = 10, angle = 90)
+    row4_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  80", fontface = "plain", size = 10, angle = 90)
+    row_headers <- plot_grid(row1_header, row2_header, row3_header, row4_header, ncol = 1)
+    left_headers <- plot_grid(y_label, row_headers, ncol = 2)
+
+    panel_1 <- plot_grid(plot1A) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_2 <- plot_grid(
+      plot1B, plot1C, plot1D, plot1E,
+      align = "hv", axis = "bt",
+      nrow = 1
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_3 <- plot_grid(
+      plot2A, plot3A, plot4A,
+      align = "hv", axis = "bt",
+      ncol = 1
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_4 <- plot_grid(
+      plot2B, plot2C, plot2D, plot2E,
+      plot3B, plot3C, plot3D, plot3E,
+      plot4B, plot4C, plot4D, plot4E,
+      align = "hv", axis = "bt",
+      nrow = 3, ncol = 4
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    output_plots <- plot_grid(
+      panel_1, panel_2, panel_3, panel_4,
+      nrow = 2, rel_widths = c((1 / 5), (4 / 5)),
+      ncol = 2, rel_heights = c((1 / 4), (3 / 4))
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+
+    output_with_headers <- plot_grid(
+      NULL, column_headers, left_headers, output_plots,
+      nrow = 2, rel_widths = c((1 / 20), (19 / 20)),
+      ncol = 2, rel_heights = c((1 / 20), (19 / 20))
+    )
+    final_output <- plot_grid(
+      output_title, output_subtitle, output_with_headers, x_label,
+      ncol = 1, rel_heights = c((1 / 22), (1 / 22), (19 / 22), (1 / 22))
+    )
   }
-  
-  plot1A <- dq_panel_graph_function(0, 1000000) + 
-    theme(plot.background = element_rect(fill = shade_dark, color = shade_dark))
-  
-  plot1B <- dq_panel_graph_function(0, 30)
-  plot1C <- dq_panel_graph_function(0, 35)
-  plot1D <- dq_panel_graph_function(0, 40)
-  plot1E <- dq_panel_graph_function(0, 45)
-  
-  plot2A <- dq_panel_graph_function(70, 1000000)
-  plot2B <- dq_panel_graph_function(70, 30) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot2C <- dq_panel_graph_function(70, 35) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot2D <- dq_panel_graph_function(70, 40) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot2E <- dq_panel_graph_function(70, 45) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot3A <- dq_panel_graph_function(75, 1000000)
-  plot3B <- dq_panel_graph_function(75, 30) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot3C <- dq_panel_graph_function(75, 35) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot3D <- dq_panel_graph_function(75, 40) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot3E <- dq_panel_graph_function(75, 45) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot4A <- dq_panel_graph_function(80, 1000000)
-  plot4B <- dq_panel_graph_function(80, 30) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot4C <- dq_panel_graph_function(80, 35) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot4D <- dq_panel_graph_function(80, 40) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  plot4E <- dq_panel_graph_function(80, 45) + 
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  # format final output
-  output_title <- ggdraw() + 
-    draw_label("Comparing the Number of Facilities Included in a Query by Data Quality Filter Combinations",
-               fontface = "bold", size = 14
-    )
-  output_subtitle <- ggdraw() + 
-    draw_label(paste0(
-      year_text,
-      " Filters: January 01, ",
-      (current_year - numeric_year),
-      " to ",
-      text_end_date
-    ),
-    fontface = "bold.italic", size = 10
-    )
-  x_label <- ggdraw() + 
-    draw_label("Date (MMWR Week)", fontface = "bold", size = 10)
-  y_label <- ggdraw() + 
-    draw_label("Number of Hospitals Reporting Data", fontface = "bold", size = 10, angle = 90)
-  
-  colA_header <- ggdraw() +
-    draw_label("No CoV (HasBeenE)", fontface = "plain", size = 10)
-  colB_header <- ggdraw() +
-    draw_label("CoV (HasBeenE) <=  30", fontface = "plain", size = 10)
-  colC_header <- ggdraw() + 
-    draw_label("CoV (HasBeenE) <=  35", fontface = "plain", size = 10)
-  colD_header <- ggdraw() + 
-    draw_label("CoV (HasBeenE) <=  40", fontface = "plain", size = 10)
-  colE_header <- ggdraw() + 
-    draw_label("CoV (HasBeenE) <=  45", fontface = "plain", size = 10)
-  
-  column_headers <- plot_grid(colA_header, colB_header, colC_header, colD_header, colE_header, nrow = 1)
-  
-  row1_header <- ggdraw() + 
-    draw_label("No Avg Weekly DDI%", fontface = "plain", size = 10, angle = 90)
-  row2_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  70", fontface = "plain", size = 10, angle = 90)
-  row3_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  75", fontface = "plain", size = 10, angle = 90)
-  row4_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  80", fontface = "plain", size = 10, angle = 90)
-  
-  row_headers <- plot_grid(row1_header, row2_header, row3_header, row4_header, ncol = 1)
-  left_headers <- plot_grid(y_label, row_headers, ncol = 2)
-  
-  panel_1 <- plot_grid(plot1A) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  panel_2 <- plot_grid(
-    plot1B, plot1C, plot1D, plot1E,
-    align = "hv", axis = "bt",
-    nrow = 1
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  panel_3 <- plot_grid(
-    plot2A, plot3A, plot4A,
-    align = "hv", axis = "bt",
-    ncol = 1
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  panel_4 <- plot_grid(
-    plot2B, plot2C, plot2D, plot2E,
-    plot3B, plot3C, plot3D, plot3E,
-    plot4B, plot4C, plot4D, plot4E,
-    align = "hv", axis = "bt",
-    nrow = 3, ncol = 4
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  output_plots <- plot_grid(
-    panel_1, panel_2, panel_3, panel_4,
-    nrow = 2, rel_widths = c((1 / 5), (4 / 5)),
-    ncol = 2, rel_heights = c((1 / 4), (3 / 4))
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
-  
-  output_with_headers <- plot_grid(NULL, column_headers, left_headers, output_plots,
-                                   nrow = 2, rel_widths = c((1 / 20), (19 / 20)),
-                                   ncol = 2, rel_heights = c((1 / 20), (19 / 20))
-  )
-  
-  final_output <- plot_grid(
-    output_title, output_subtitle, output_with_headers, x_label,
-    ncol = 1, rel_heights = c((1 / 22), (1 / 22), (19 / 22), (1 / 22))
-  )
-  
   return(final_output)
 }
 ```
@@ -626,229 +798,225 @@ static_dq_matrix_function <- function(year_to_plot) {
 static_dq_matrix_vol_function <- function(year_to_plot) {
   # format year for text
   current_year <- as.numeric(format(Sys.Date(), "%Y"))
-  
-  # format filter year cut-point
-  if (year_to_plot == "currentyear") {
-    filter_date <- as.Date(paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 0)), format = "%m-%d-%Y")
-  } else if (year_to_plot == "oneyearback") {
-    filter_date <- as.Date(paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 1)), format = "%m-%d-%Y")
-  } else if (year_to_plot == "twoyearback") {
-    filter_date <- as.Date(paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 2)), format = "%m-%d-%Y")
-  } else if (year_to_plot == "threeyearback") {
-    filter_date <- as.Date(paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 3)), format = "%m-%d-%Y")
-  } else if (year_to_plot == "fouryearback") {
-    filter_date <- as.Date(paste0("1-1-", (as.numeric(format(Sys.Date(), "%Y")) - 4)), format = "%m-%d-%Y")
-  }
-  
+
   # format graphics for dq year
-  graph_info <- year_info %>% filter(dq_year == year_to_plot)
+  graph_info <- year_info %>%
+    filter(dq_year == year_to_plot)
   numeric_year <- graph_info$numeric_year
-  year_text <- graph_info$year_text
+  dq_year <- graph_info$year
+  year_text <- graph_info$section_headers
   line_color <- graph_info$line_color
   shade_dark <- graph_info$shade_dark
   shade_light <- graph_info$shade_light
-  
-  # subset data to correct dq year
-  data_subset <- dq_volume_data %>%
-    filter(dq_year == year_to_plot) %>%
-    filter(mmwr_week_start >= filter_date) %>%
-    filter(!is.na(ddi) & !is.na(cov)) %>%
-    select(mmwr_week_start, mmwr_week_end, hospitalName, reporting_data, cov, ddi, Yes)
-  
-  # generate panel graphs by dq cutpoints
-  dq_panel_graph_function <- function(ddi_gte, cov_lte) {
-    panel_data <- data_subset %>%
-      filter(ddi >= ddi_gte & cov <= cov_lte) %>%
-      group_by(mmwr_week_start, mmwr_week_end) %>%
-      summarize(overall_vol = sum(Yes, na.rm = TRUE))
-    
-    panel_plot <- panel_data %>%
-      ggplot(aes(x = as.Date(mmwr_week_end), y = overall_vol)) +
-      geom_line(size = 1) +
-      theme_bw() +
-      theme(plot.subtitle = element_text(hjust = 0.5)) +
-      scale_y_continuous(name = NULL, limits = c(0, y_volume_max), labels = comma) +
-      scale_x_date(name = NULL) +
-      labs(subtitle = paste0(
-        "Maximum: ",
-        comma(max(panel_data$overall_vol, na.rm = TRUE), format = "f", big.mark = ","),
-        " Visits\nWeekly Average: ",
-        comma(ceiling(mean(panel_data$overall_vol, na.rm = TRUE)), format = "f", big.mark = ","),
-        " Visits\nMinimum: ",
-        comma(min(panel_data$overall_vol, na.rm = TRUE), format = "f", big.mark = ","),
-        " Visits"
-      ))
-    
-    return(panel_plot)
+  if (as.Date(graph_info$cov_start_date, format("%m/%d/%Y")) >=
+    as.Date(graph_info$ddi_start_date, format("%m/%d/%Y"))) {
+    filter_date <- as.Date(graph_info$cov_start_date, format("%m/%d/%Y"))
+  } else {
+    filter_date <- as.Date(graph_info$ddi_start_date, format("%m/%d/%Y"))
   }
-  
-  plot1A <- dq_panel_graph_function(0, 1000000) +
-    theme(plot.background = element_rect(fill = shade_dark, color = shade_dark))
-  
-  plot1B <- dq_panel_graph_function(0, 30)
-  plot1C <- dq_panel_graph_function(0, 35)
-  plot1D <- dq_panel_graph_function(0, 40)
-  plot1E <- dq_panel_graph_function(0, 45)
-  
-  plot2A <- dq_panel_graph_function(70, 1000000)
-  plot2B <- dq_panel_graph_function(70, 30) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot2C <- dq_panel_graph_function(70, 35) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot2D <- dq_panel_graph_function(70, 40) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot2E <- dq_panel_graph_function(70, 45) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot3A <- dq_panel_graph_function(75, 1000000)
-  plot3B <- dq_panel_graph_function(75, 30) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot3C <- dq_panel_graph_function(75, 35) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot3D <- dq_panel_graph_function(75, 40) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot3E <- dq_panel_graph_function(75, 45) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot4A <- dq_panel_graph_function(80, 1000000)
-  plot4B <- dq_panel_graph_function(80, 30) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot4C <- dq_panel_graph_function(80, 35) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot4D <- dq_panel_graph_function(80, 40) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  plot4E <- dq_panel_graph_function(80, 45) +
-    theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
-  
-  # format final output
-  output_title <- ggdraw() +
-    draw_label("Comparing the Number of Visits Included in a Query by Data Quality Filter Combinations",
-               fontface = "bold", size = 14
+
+  if ((MMWRweek(Sys.Date())$MMWRweek <= 2) & (current_year == dq_year)) {
+    final_output <- ggdraw() + draw_label(
+      paste0(
+        "There is not enough data to calculate both of the ", year_text,
+        " filters. \nData to generate this graph will be available on ",
+        format(format(MMWRweek2Date(dq_year, 3, 1), "%m/%d/%Y")), "."
+      ),
+      fontface = "bold", size = 14
     )
-  
-  output_subtitle <- ggdraw() +
-    draw_label(
-      paste0(year_text, " Filters: January 01, ", (current_year - numeric_year), " to ", text_end_date),
+  } else {
+    # subset data to correct dq year
+    data_subset <- dq_volume_data %>%
+      filter(dq_year == year_to_plot) %>%
+      filter(mmwr_week_start >= filter_date) %>%
+      filter(!is.na(ddi) & !is.na(cov)) %>%
+      select(mmwr_week_start, mmwr_week_end, hospitalName, reporting_data, cov, ddi, count)
+
+    # generate panel graphs by dq cutpoints
+    dq_panel_graph_function <- function(ddi_gte, cov_lte) {
+      panel_data <- data_subset %>%
+        filter(ddi >= ddi_gte & cov <= cov_lte) %>%
+        group_by(mmwr_week_start, mmwr_week_end) %>%
+        summarize(overall_vol = sum(count, na.rm = TRUE)) %>%
+        ungroup()
+
+      panel_plot <- panel_data %>%
+        ggplot(aes(x = as.Date(mmwr_week_end), y = overall_vol)) +
+        geom_line(size = 1) +
+        theme_bw() +
+        theme(plot.subtitle = element_text(hjust = 0.5)) +
+        scale_y_continuous(name = NULL, limits = c(0, y_volume_max), labels = comma) +
+        scale_x_date(name = NULL) +
+        labs(subtitle = paste0(
+          "Maximum: ",
+          comma(max(panel_data$overall_vol, na.rm = TRUE), format = "f", big.mark = ","),
+          " Visits\nWeekly Average: ",
+          comma(ceiling(mean(panel_data$overall_vol, na.rm = TRUE)), format = "f", big.mark = ","),
+          " Visits\nMinimum: ",
+          comma(min(panel_data$overall_vol, na.rm = TRUE), format = "f", big.mark = ","),
+          " Visits"
+        ))
+      return(panel_plot)
+    }
+
+    plot1A <- dq_panel_graph_function(0, 1000000) +
+      theme(plot.background = element_rect(fill = shade_dark, color = shade_dark))
+    plot1B <- dq_panel_graph_function(0, 30)
+    plot1C <- dq_panel_graph_function(0, 35)
+    plot1D <- dq_panel_graph_function(0, 40)
+    plot1E <- dq_panel_graph_function(0, 45)
+
+    plot2A <- dq_panel_graph_function(70, 1000000)
+    plot2B <- dq_panel_graph_function(70, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2C <- dq_panel_graph_function(70, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2D <- dq_panel_graph_function(70, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot2E <- dq_panel_graph_function(70, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    plot3A <- dq_panel_graph_function(75, 1000000)
+    plot3B <- dq_panel_graph_function(75, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3C <- dq_panel_graph_function(75, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3D <- dq_panel_graph_function(75, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot3E <- dq_panel_graph_function(75, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    plot4A <- dq_panel_graph_function(80, 1000000)
+    plot4B <- dq_panel_graph_function(80, 30) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4C <- dq_panel_graph_function(80, 35) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4D <- dq_panel_graph_function(80, 40) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+    plot4E <- dq_panel_graph_function(80, 45) +
+      theme(plot.background = element_rect(fill = shade_light, colour = shade_light))
+
+    # format final output
+    output_title <- ggdraw() +
+      draw_label(
+        "Comparing the Number of Visits Included in a Query by Data Quality Filter Combinations",
+        fontface = "bold", size = 14
+      )
+    output_subtitle <- ggdraw() + draw_label(
+      paste0(
+        year_text, " Filters",
+        "\n", cov_text, "  Filter Dates: ",
+        graph_info$cov_start_date, " to ", graph_info$cov_end_date,
+        "\nAvg Weekly DDI Filter Dates: ", graph_info$ddi_start_date,
+        " to ", graph_info$ddi_end_date
+      ),
       fontface = "bold.italic", size = 10
     )
-  x_label <- ggdraw() +
-    draw_label("Date (MMWR Week)", fontface = "bold", size = 10)
-  
-  y_label <- ggdraw() +
-    draw_label("Visit Volume (n)", fontface = "bold", size = 10, angle = 90)
-  
-  colA_header <- ggdraw() +
-    draw_label("No CoV (HasBeenE)", fontface = "plain", size = 10)
-  
-  colB_header <- ggdraw() +
-    draw_label("CoV (HasBeenE) <=  30", fontface = "plain", size = 10)
-  
-  colC_header <- ggdraw() +
-    draw_label("CoV (HasBeenE) <=  35", fontface = "plain", size = 10)
-  
-  colD_header <- ggdraw() +
-    draw_label("CoV (HasBeenE) <=  40", fontface = "plain", size = 10)
-  
-  colE_header <- ggdraw() +
-    draw_label("CoV (HasBeenE) <=  45", fontface = "plain", size = 10)
-  
-  column_headers <- plot_grid(colA_header, colB_header, colC_header, colD_header, colE_header, nrow = 1)
-  
-  row1_header <- ggdraw() + 
-    draw_label("No Avg Weekly DDI%", fontface = "plain", size = 10, angle = 90)
-  row2_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  70", fontface = "plain", size = 10, angle = 90)
-  row3_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  75", fontface = "plain", size = 10, angle = 90)
-  row4_header <- ggdraw() + 
-    draw_label("Avg Weekly DDI% >=  80", fontface = "plain", size = 10, angle = 90)
-  
-  row_headers <- plot_grid(row1_header, row2_header, row3_header, row4_header, ncol = 1)
-  
-  left_headers <- plot_grid(y_label, row_headers, ncol = 2)
-  
-  panel_1 <- plot_grid(plot1A) + theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  panel_2 <- plot_grid(
-    plot1B, plot1C, plot1D, plot1E,
-    align = "hv", axis = "bt",
-    nrow = 1
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  panel_3 <- plot_grid(
-    plot2A, plot3A, plot4A,
-    align = "hv", axis = "bt",
-    ncol = 1
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  panel_4 <- plot_grid(
-    plot2B, plot2C, plot2D, plot2E,
-    plot3B, plot3C, plot3D, plot3E,
-    plot4B, plot4C, plot4D, plot4E,
-    align = "hv", axis = "bt",
-    nrow = 3, ncol = 4
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
-  
-  output_plots <- plot_grid(
-    panel_1, panel_2, panel_3, panel_4,
-    nrow = 2, rel_widths = c((1 / 5), (4 / 5)),
-    ncol = 2, rel_heights = c((1 / 4), (3 / 4))
-  ) + 
-    theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
-  
-  output_with_headers <- plot_grid(
-    NULL, column_headers, left_headers, output_plots,
-    nrow = 2, rel_widths = c((1 / 20), (19 / 20)),
-    ncol = 2, rel_heights = c((1 / 20), (19 / 20))
-  )
-  
-  final_output <- plot_grid(
-    output_title, output_subtitle, output_with_headers, x_label,
-    ncol = 1, rel_heights = c((1 / 22), (1 / 22), (19 / 22), (1 / 22)
+    x_label <- ggdraw() +
+      draw_label("Date (MMWR Week)", fontface = "bold", size = 10)
+    y_label <- ggdraw() +
+      draw_label("Visit Volume (n)", fontface = "bold", size = 10, angle = 90)
+
+    colA_header <- ggdraw() +
+      draw_label(paste0("No ", cov_text), fontface = "plain", size = 10)
+    colB_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  30"), fontface = "plain", size = 10)
+    colC_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  35"), fontface = "plain", size = 10)
+    colD_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  40"), fontface = "plain", size = 10)
+    colE_header <- ggdraw() +
+      draw_label(paste0(cov_text, " <=  45"), fontface = "plain", size = 10)
+    column_headers <- plot_grid(
+      colA_header, colB_header, colC_header, colD_header, colE_header,
+      nrow = 1
     )
-  )
-  
+
+    row1_header <- ggdraw() +
+      draw_label("No Avg Weekly DDI%", fontface = "plain", size = 10, angle = 90)
+    row2_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  70", fontface = "plain", size = 10, angle = 90)
+    row3_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  75", fontface = "plain", size = 10, angle = 90)
+    row4_header <- ggdraw() +
+      draw_label("Avg Weekly DDI% >=  80", fontface = "plain", size = 10, angle = 90)
+    row_headers <- plot_grid(row1_header, row2_header, row3_header, row4_header, ncol = 1)
+    left_headers <- plot_grid(y_label, row_headers, ncol = 2)
+
+    panel_1 <- plot_grid(plot1A) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_2 <- plot_grid(
+      plot1B, plot1C, plot1D, plot1E,
+      align = "hv", axis = "bt",
+      nrow = 1
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_3 <- plot_grid(
+      plot2A, plot3A, plot4A,
+      align = "hv", axis = "bt",
+      ncol = 1
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    panel_4 <- plot_grid(
+      plot2B, plot2C, plot2D, plot2E,
+      plot3B, plot3C, plot3D, plot3E,
+      plot4B, plot4C, plot4D, plot4E,
+      align = "hv", axis = "bt",
+      nrow = 3, ncol = 4
+    ) +
+      theme(panel.border = element_rect(colour = "black", fill = NA, size = 0.8))
+    output_plots <- plot_grid(
+      panel_1, panel_2, panel_3, panel_4,
+      nrow = 2, rel_widths = c((1 / 5), (4 / 5)),
+      ncol = 2, rel_heights = c((1 / 4), (3 / 4))
+    ) + theme(panel.border = element_rect(colour = "black", fill = NA, size = 1))
+
+    output_with_headers <- plot_grid(
+      NULL, column_headers, left_headers, output_plots,
+      nrow = 2, rel_widths = c((1 / 20), (19 / 20)),
+      ncol = 2, rel_heights = c((1 / 20), (19 / 20))
+    )
+    final_output <- plot_grid(
+      output_title, output_subtitle, output_with_headers, x_label,
+      ncol = 1, rel_heights = c((1 / 22), (1 / 22), (19 / 22), (1 / 22))
+    )
+  }
   return(final_output)
 }
 ```
 
 # Introduction
 
-This report is meant to explore how many facilities are included in a query based on certain data quality filters. 
+This report describes how many facilities are included in a query based on certain data quality filters.
+
+Site(s): `r site_name`
+
+Facility Type(s): `r facility_types`
+
+Visit Type(s): `r visit_types`
 
 The two data quality filters included in this report are:
 
-1. **Average Weekly Discharge Diagnosis Informative** ***(DDI Avg Weekly Percent)***: A measure of how informative the information in the discharge diagnosis fields are over time. This measure is a way to control for the availability and quality of the data in the discharge diagnosis field and is calculated once per week. This measure requires 14 days of data and will return a NULL value for current year calculations until after MMWR Week 2  of `r format(Sys.Date(), "%Y")`.
-
-2. **Coefficient of Variation of Emergency Department Visits** ***Data Quality CoV (HasBeenE)***: A measure of total volume volatility over time. The CoV is calculated by dividing the standard deviation by the mean (calculation below). This measure is a way to control for facility on-boarding over time and is calculated daily. This measure requires 7 days of data and will return a NULL value for current year calculations until after January 7 of `r format(Sys.Date(), "%Y")`.
+1. **Average Weekly Discharge Diagnosis Informative** ***(DDI Avg Weekly Percent)***: A measure of how informative the information in the discharge diagnosis fields are over time. This measure is a way to control for the availability and quality of the data in the discharge diagnosis field and is calculated once per week. This measure requires 2 MMWR weeks of data and will return a NULL value for current year calculations until after MMWR Week 2 of `r format(Sys.Date(), "%Y")`.
 
 $$
-CoV = \frac{\sigma}{\mu}
+DDI = mean(\frac{Weekly Informative Visits}{Weekly Visit Volume})*100
+$$
+
+2. **`r cov_label`** ***(`r cov_text`)***: A measure of total volume volatility over time. The CoV is calculated by dividing the standard deviation by the mean multiplied by 100 (calculation below). `r cov_visits` This measure is a way to control for facility on-boarding over time and is calculated daily. This measure requires 7 days of data and will return a NULL value for current year calculations until after January 7 of `r format(Sys.Date(), "%Y")`.
+
+$$
+CoV = \frac{\sigma}{\mu}*100
 $$
 
 # Data Quality Distribution
 
 ## DQ Filter Distribution by Year
 
-Distributions of facility level average weekly DDI and CoV (HasBeenE) by DQ filter year. 
+Distributions of facility level average weekly DDI and `r cov_text` by DQ filter year.
 
 ```{r compare_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.width=15, fig.height=6, fig.align="center"}
-dq_data_long = dq_volume_data %>%
-  select(hospital, dq_year, ddi, cov) %>%
-  distinct()
-  
-ddi_distributions <- dq_data_long %>%
+ddi_distributions <- dq_data %>%
   ggplot(aes(x = dq_year, y = ddi)) +
   geom_boxplot(aes(fill = dq_year), outlier.shape = 21) +
   theme_bw() +
@@ -861,17 +1029,11 @@ ddi_distributions <- dq_data_long %>%
   scale_x_discrete(name = NULL) +
   scale_fill_manual(
     name = "Data Quality Filter Duration",
-    values = c(
-      "currentyear" = "#430154",
-      "oneyearback" = "#414587",
-      "twoyearback" = "#2A788E",
-      "threeyearback" = "#22A884",
-      "fouryearback" = "#7AD151"
-    ),
-    labels = c("Current Year", "One Year Back", "Two Year Back", "Three Year Back", "Four Year Back")
+    values = year_info$line_color,
+    labels = year_info$graph_year_info
   )
 
-cov_distributions <- dq_data_long %>%
+cov_distributions <- dq_data %>%
   ggplot(aes(x = dq_year, y = cov)) +
   geom_boxplot(aes(fill = dq_year), outlier.shape = 21) +
   theme_bw() +
@@ -880,256 +1042,154 @@ cov_distributions <- dq_data_long %>%
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()
   ) +
-  scale_y_continuous(name = "Coeffient of Variance (CoV HasBeenE)") +
+  scale_y_continuous(name = paste0("Coeffient of Variation (", cov_text, ")")) +
   scale_x_discrete(name = NULL) +
   scale_fill_manual(
     name = "Data Quality Filter Duration",
-    values = c(
-      "currentyear" = "#430154",
-      "oneyearback" = "#414587",
-      "twoyearback" = "#2A788E",
-      "threeyearback" = "#22A884",
-      "fouryearback" = "#7AD151"
-    ),
-    labels = c(
-      "Current Year", "One Year Back", "Two Year Back",
-      "Three Year Back", "Four Year Back"
-    )
+    values = year_info$line_color,
+    labels = year_info$graph_year_info
   )
 
-distribution_legend <- get_legend(ddi_distributions + theme(legend.position = "bottom"))
-
+distribution_legend <- get_legend(
+  ddi_distributions +
+    theme(legend.position = "bottom") +
+    guides(fill = guide_legend(nrow = 2, byrow = TRUE))
+)
 distribution_title <- ggdraw() +
-  draw_label("Distribution of Data Quality Filters by Filter Duration", fontface = "bold", size = 14)
-
-distribution_plots <- plot_grid(ddi_distributions, cov_distributions, align = "hv", axis = "bt")
-
-distribution_output <- plot_grid(distribution_title, distribution_plots, distribution_legend,
-                                 ncol = 1, rel_heights = c((1 / 20), (18 / 20), (1 / 20))
+  draw_label(
+    "Distribution of Data Quality Filters by Filter Duration",
+    fontface = "bold",
+    size = 14
+  )
+distribution_plots <- plot_grid(
+  ddi_distributions, cov_distributions,
+  align = "hv", axis = "bt"
+)
+distribution_output <- plot_grid(
+  distribution_title, distribution_plots, distribution_legend,
+  ncol = 1,
+  rel_heights = c((1 / 21), (18 / 21), (2 / 21))
 )
 distribution_output
 ```
 
-```{r compare_distributions_table, echo=FALSE, warning=FALSE, message=FALSE}
-dq_summary_table = dq_data_long %>%
-  mutate(dq_year = case_when(dq_year=="currentyear" ~ "Current Year",
-                             dq_year=="oneyearback" ~ "One Year Back",
-                             dq_year=="twoyearback" ~ "Two Year Back",
-                             dq_year=="threeyearback" ~ "Three Year Back",
-                             dq_year=="fouryearback" ~ "Four Year Back",
-                             TRUE ~ NA_character_)) %>%
-  group_by(dq_year) %>%
-  summarize(ddi_minimum = min(ddi),
-            ddi_q25 = quantile(ddi, probs=0.25),
-            ddi_med = median(ddi),
-            ddi_mean = mean(ddi),
-            ddi_q75 = quantile(ddi, probs=0.75),
-            ddi_maximum = max(ddi),
-            cov_minimum = min(cov),
-            cov_q25 = quantile(cov, probs=0.25),
-            cov_med = median(cov),
-            cov_mean = mean(cov),
-            cov_q75 = quantile(cov, probs=0.75),
-            cov_maximum = max(cov)) %>%
-  mutate(across(where(is.numeric), round, 2)) %>%
-  arrange(match(dq_year, c("Current Year", "One Year Back", "Two Year Back", "Three Year Back", "Four Year Back")))
-
-sum_col_layout = htmltools::withTags(table(
-  class = 'display',
-  thead(
-    tr(
-      th(colspan = 1, " "),
-      th(colspan = 6, "Average Weekly Discharge Diagnosis Informative"),
-      th(colspan = 6, "Coefficient of Variation of Emergency Department Visits")
-    ),
-    tr(
-      lapply(c("DQ Year",
-               "Minimum",
-               "25th Percentile",
-               "Median",
-               "Mean",
-               "75th Percentile",
-               "Maximum",
-               "Minimum",
-               "25th Percentile",
-               "Median",
-               "Mean",
-               "75th Percentile",
-               "Maximum"), th)
-    )
-  )
-))
-
-dq_summary_table %>%
-  datatable(extensions = 'Buttons',
-            options = list(dom="Bfrtip", 
-                           buttons = list(list(extend = "csv", 
-                                               text = "Download Data to .CSV")),
-                           lengthMenu = list(c(10,25,50,-1),
-                                             c(10,25,50,"All")),
-                           columnDefs = list(list(className = "dt-center", 
-                                                  targets = c(0:12)))),
-            rownames = FALSE,
-            container = sum_col_layout,
-            filter = "top",
-            class = "cell-border stripe")
-```
-
 ## Comparing Facility DDI and CoV {.tabset}
 
-Scatterplot of average weekly DDI and CoV (HasBeenE) for each facility by DQ filter year. 
+Scatterplot of average weekly DDI and `r cov_text` for each facility by DQ filter year.
 
-### Current Year to Date {.tabset .tabset-fade .tabset-pills}
+```{r distributionLoop, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center", results="asis"}
+section_list <- year_info$section_headers
 
-```{r current_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center"}
-dq_distribution_function("currentyear")
+for (i in 1:length(section_list)) {
+  temp_year_info <- year_info %>%
+    filter(section_headers == section_list[i])
+  temp_year_info <- temp_year_info$dq_year
+
+  cat(paste0("  \n### ", section_list[i], "{.tabset}  \n"))
+  print(dq_distribution_function(temp_year_info))
+  cat("  \n")
+}
 ```
 
-### Last Year to Date {.tabset .tabset-fade .tabset-pills}
+# Static Data Quality Matrices {.tabset}
 
-```{r oneyear_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center"}
-dq_distribution_function("oneyearback")
-```
+Average weekly DDI values greater than or equal to 70%, 75%, and 80% are included in this report. `r cov_text` values of less than or equal to 30, 35, 40, and 45 are also included. The top row has no average weekly DDI filter, the left column has no `r cov_text` filter, and the top left graph represents the number of facilitates reporting data per week with no data quality filters applied.
 
-### Last 2 Years to Date {.tabset .tabset-fade .tabset-pills}
+```{r matrixLoop, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=20, fig.align="center", results="asis"}
+for (i in 1:length(section_list)) {
+  temp_year_info <- year_info %>%
+    filter(section_headers == section_list[i])
+  temp_year_info <- temp_year_info$dq_year
 
-```{r twoyear_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center"}
-dq_distribution_function("twoyearback")
-```
+  cat(paste0("  \n## ", section_list[i], ": Facilities Reporting Data {.tabset}  \n"))
+  print(static_dq_matrix_function(temp_year_info))
+  cat("  \n")
 
-### Last 3 Years to Date {.tabset .tabset-fade .tabset-pills}
+  cat(paste0("  \n## ", section_list[i], ": Visit Volume {.tabset}  \n"))
+  print(static_dq_matrix_vol_function(temp_year_info))
+  cat("  \n")
 
-```{r threeyear_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center"}
-dq_distribution_function("threeyearback")
-```
-
-### Last 4 Years to Date {.tabset .tabset-fade .tabset-pills}
-
-```{r fouryear_distributions, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=8, fig.align="center"}
-dq_distribution_function("fouryearback")
-```
-
-# Static Data Quality Matrices 
-
-Average weekly DDI values greater than or equal to 70%, 75%, and 80% are included in this report. CoV(HasBeenE) values of less than or equal to 30, 35, 40, and 45 are also included. The top row has no average weekly DDI filter, the left column has no CoV (HasBeenE) filter, and the top left graph represents the number of facilitates reporting data per week with no data quality filters applied. 
-
-## Current Year to Date {.tabset}
-
-### Facilities Reporting Data {.tabset .tabset-fade .tabset-pills}
-
-```{r current_static_facility, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=15, fig.align="center"}
-static_dq_matrix_function("currentyear")
-```
-
-### Visit Volume {.tabset .tabset-fade .tabset-pills}
-
-```{r current_static_volume, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=18, fig.align="center"}
-static_dq_matrix_vol_function("currentyear")
-```
-
-## Last Year to Date {.tabset}
-
-### Facilities Reporting Data {.tabset .tabset-fade .tabset-pills}
-
-```{r oneyear_static, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=15, fig.align="center"}
-static_dq_matrix_function("oneyearback")
-```
-
-### Visit Volume {.tabset .tabset-fade .tabset-pills}
-
-```{r oneyear_static_volume, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=18, fig.align="center"}
-static_dq_matrix_vol_function("oneyearback")
-```
-
-## Last 2 Years to Date {.tabset}
-
-### Facilities Reporting Data {.tabset .tabset-fade .tabset-pills}
-
-```{r twoyear_static, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=15, fig.align="center"}
-static_dq_matrix_function("twoyearback")
-```
-
-### Visit Volume {.tabset .tabset-fade .tabset-pills}
-
-```{r twoyear_static_volume, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=18, fig.align="center"}
-static_dq_matrix_vol_function("twoyearback")
-```
-
-## Last 3 Years to Date {.tabset}
-
-### Facilities Reporting Data {.tabset .tabset-fade .tabset-pills}
-
-```{r threeyear_static, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=15, fig.align="center"}
-static_dq_matrix_function("threeyearback")
-```
-
-### Visit Volume {.tabset .tabset-fade .tabset-pills}
-
-```{r threeyear_static_volume, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=18, fig.align="center"}
-static_dq_matrix_vol_function("threeyearback")
-```
-
-## Last 4 Years to Date {.tabset}
-
-### Facilities Reporting Data {.tabset .tabset-fade .tabset-pills}
-
-```{r fouryear_static, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=15, fig.align="center"}
-static_dq_matrix_function("fouryearback")
-```
-
-### Visit Volume {.tabset .tabset-fade .tabset-pills}
-
-```{r fouryear_static_volume, echo=FALSE, warning=FALSE, message=FALSE, fig.height=10, fig.width=18, fig.align="center"}
-static_dq_matrix_vol_function("fouryearback")
+  cat("  \n")
+}
 ```
 
 # Facility Table
 
-Table containing DDI and CoV(HasBeenE) values for all DQ filter years. 
+Table containing facility DDI and `r cov_text` values for all DQ filter years.
 
 ```{r facility_table, echo=FALSE, warning=FALSE, message=FALSE}
-dq_table = facility_dq_data %>% 
-  mutate(across(where(is.numeric), round, 2)) %>%
-  arrange(hospitalName)
+dq_table1 <- facility_dq_data %>%
+  select(
+    hospital, hospitalName, siteID,
+    siteName, hospitalDHHSRegion, ends_with(cov_var)
+  ) %>%
+  select(
+    hospital, hospitalName, siteID, siteName,
+    hospitalDHHSRegion, contains(year_info$dq_year)
+  ) %>%
+  mutate(across(where(is.numeric), round, 2))
 
-col_layout = htmltools::withTags(table(
-  class = 'display',
+dq_table2 <- facility_dq_data %>%
+  select(
+    hospital, hospitalName, siteID, siteName,
+    hospitalDHHSRegion, starts_with("ddInformativeAvgWeeklyPercent")
+  ) %>%
+  select(
+    hospital, hospitalName, siteID, siteName,
+    hospitalDHHSRegion, contains(year_info$dq_year)
+  ) %>%
+  mutate(across(where(is.numeric), round, 2))
+
+dq_table <- dq_table1 %>%
+  left_join(
+    .,
+    dq_table2,
+    by = c("hospital", "hospitalName", "siteID", "siteName", "hospitalDHHSRegion")
+  ) %>%
+  filter(hospitalName %in% facility_list)
+
+ndd_colspan <- as.numeric(n_colors)
+
+col_layout <- htmltools::withTags(table(
+  class = "display",
   thead(
     tr(
       th(colspan = 2, "Hospital"),
       th(colspan = 3, "Site"),
-      th(colspan = 5, "Coefficient of Variation of Emergency Department Visits"),
-      th(colspan = 5, "Average Weekly Discharge Diagnosis Informative")
+      th(colspan = ndd_colspan, cov_label),
+      th(colspan = ndd_colspan, "Average Weekly Discharge Diagnosis Informative")
     ),
     tr(
-      lapply(c("ID","Name",
-               "ID","Name",
-               "DHHS Region",
-               "CoV (HasBeenE) Current Year",
-               "CoV (HasBeenE) One Year Back",
-               "CoV (HasBeenE) Two Year Back",
-               "CoV (HasBeenE) Three Year Back",
-               "CoV (HasBeenE) Four Year Back",
-               "DDI Current Year",
-               "DDI One Year Back",
-               "DDI Two Year Back",
-               "DDI Three Year Back",
-               "DDI Four Year Back"), th)
+      lapply(c(
+        "ID", "Name",
+        "ID", "Name", "DHHS Region",
+        year_info$cov_table_header,
+        year_info$ddi_table_header
+      ), th)
     )
   )
 ))
 
 dq_table %>%
-  datatable(extensions = 'Buttons',
-            options = list(dom="Bfrtip", 
-                           buttons = list(list(extend = "csv", 
-                                               text = "Download Data to .CSV")),
-                           lengthMenu = list(c(10,25,50,-1),
-                                             c(10,25,50,"All")),
-                           columnDefs = list(list(className = "dt-center", 
-                                                  targets = c(0,2,5:14)))),
-            rownames = FALSE,
-            container = col_layout,
-            filter = "top",
-            class = "cell-border stripe")
+  datatable(
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(list(
+        extend = "csv",
+        text = "Download Data to .CSV"
+      )),
+      lengthMenu = list(
+        c(10, 25, 50, -1),
+        c(10, 25, 50, "All")
+      ),
+      columnDefs = list(
+        list(className = "dt-center", targets = c(0, 1, 5:ncol(dq_table) - 1))
+      )
+    ),
+    rownames = FALSE,
+    container = col_layout,
+    filter = "top",
+    class = "cell-border stripe"
+  )
 ```
