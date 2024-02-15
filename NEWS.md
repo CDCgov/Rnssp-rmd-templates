@@ -28,6 +28,7 @@ State Emergency Department template available.
 
 <hr>
 
+
 ## Text Analysis Interactive Dashboard template (`text_mining`)
 
 <details>
@@ -120,6 +121,7 @@ Text Mining template available.
 
 <hr>
 
+
 ## Essence Chief Complaint and Discharge Diagnosis Categories template (`essence_ccdd`)
 
 <details>
@@ -144,6 +146,7 @@ This template generates a trend report of CCDD Categories between the MMWR weeks
 
 
 <hr>
+
 
 ## Emergency Department ICD-10 Category Volumes template (`ed_icd10_volume`)
 
@@ -179,6 +182,7 @@ This template explores the top N categories by volume for the new ICD Chapter, S
 </details>
 
 <hr>
+
 
 ## Syndrome Definition Evaluation template (`syndrome_eval`)
 
@@ -241,6 +245,7 @@ This template allows ESSENCE users to evaluate the data details (line level) res
 
 <hr>
 
+
 ## Word Alerts Report template (`word_alerts`)
 
 <details>
@@ -291,6 +296,7 @@ The current implementation of word alerts in NSSP-ESSENCE is limited to data fro
 
 <hr>
 
+
 ## Data Quality Filter Matrix template (`dq_filters`)
 
 <details open>
@@ -302,6 +308,7 @@ The Data Quality Filter Matrix template is available.
 This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (HasBeenE) (CoV (HasBeenE)) filters individually and in conjunction with one another.
 
 </details>
+
 
 ## State Data Quality Report template (`state_dq_report`)
 
@@ -328,6 +335,7 @@ The State Data Quality Report template has been updated. This version:
 
 </details>
 
+
 ## Lab Pathogen Surveillance Report template (`lab_pathogen_trend`)
 
 <details open>
@@ -339,6 +347,7 @@ The Lab Pathogen Surveillance Report template is available.
 This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory2 options in the ESSENCE Laboratory by Results data source.
 
 </details>
+
 
 ## Lab Reason for Testing Report template (`lab_testing_reason`)
 
@@ -352,6 +361,7 @@ This template summarizes the types of tests and patient demographics of a user d
 
 </details>
 
+
 ## Lab Year Over Year Trends Report template (`lab_yoy_trend`)
 
 <details open>
@@ -363,6 +373,7 @@ The Lab Year Over Year Trends Report template is available.
 This template generates a trend report of testing volume and the percent of tests that are positive for all Lab A LabCategory 2 options in the ESSENCE Laboratory by Results data source. Users are able to select a time period and geographic region (national, HHS Region, state, or county). 
 
 </details>
+
 
 ## ICD-10 Discharge Diagnosis Code Usage and Feature Template (`icd10_code_use`)
 
