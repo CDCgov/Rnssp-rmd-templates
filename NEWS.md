@@ -328,16 +328,6 @@ This template summarizes the DDI Avg Weekly Percent (DDI) and Data Quality CoV (
 
 ## State Data Quality Report template (`state_dq_report`)
 
-<details open>
-
-<summary>1/31/2023</summary>
-The State Data Quality Report template is available.
-
-
-This template summarizes data quality metrics, including timeliness, completeness, and validity. It Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
-
-</details>
-
 <details>
 
 <summary>9/1/2023</summary>
@@ -348,6 +338,16 @@ The State Data Quality Report template has been updated. This version:
 * An NSSP-themed color palette has been added.
 * The regular expression that assesses Race_Code validity has been corrected (the previous version did not throw an error when a non-code value was received after a valid code value).
 * The regular expressions that assess Ethnicity_Code and Ethnicity_Description validity have been corrected to use the correct "UNK" and "OTH" values.
+
+</details>
+
+<details open>
+
+<summary>1/31/2023</summary>
+The State Data Quality Report template is available.
+
+
+This template summarizes data quality metrics, including timeliness, completeness, and validity. It Currently includes NSSP Priority 1 & NSSP Priority 2 elements.
 
 </details>
 
