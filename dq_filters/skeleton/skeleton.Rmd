@@ -34,22 +34,7 @@ params:
     value: "All"
     input: select
     multiple: yes
-    choices: ["All", "Alabama", "Alaska", "Arizona", "Arkansas", "California", 
-    "Colorado-North Central Region (CO_NCR)", "Connecticut", "Delaware", 
-    "District of Columbia", "El Dorado County, CA", "Florida", "Georgia", "Guam", 
-    "Hawaii", "Idaho", "Illinois", "Indiana", "Kansas", "Kentucky", 
-    "Linn County, IA", "Louisiana", "Maine", "Marion County, IN", "Maryland", 
-    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", 
-    "Montana", "Monterey County, CA", "Nebraska", "Nevada", "Nevada County, CA", 
-    "New Hampshire", "New Jersey", "New Mexico", "New York", "New York City", 
-    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", 
-    "Pennsylvania", "Plumas County, CA", "Rhode Island", "Riverside County, CA", 
-    "Sacramento County, CA", "San Diego County, CA", "San Mateo County, CA", 
-    "Santa_Cruz County, CA", "Solano County, CA", "South Carolina", 
-    "South Dakota", "Stanislaus County, CA", "Tennessee", "Texas", 
-    "Texas Region 2/3, TX", "TX_Region65", "Utah", "Vermont", "Virginia", 
-    "Washington", "West Virginia", "Wisconsin", "Wyoming", "Yolo, CA", 
-    "Yosemite Gateway Region, CA"]
+    choices: !r stn <- tempfile(fileext=".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "dq_filters", "skeleton", "nca_hosp2.rds"), destfile = stn); dplyr::pull(readRDS(stn), site_name)
   fac_type:
     label: "Facility Type(s)"
     value: "All"
