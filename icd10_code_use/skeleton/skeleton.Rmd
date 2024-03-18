@@ -651,7 +651,7 @@ dd_increase <- dd_significant %>%
     adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
   ) %>%
   mutate(
-    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
+    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date_api, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
   ) %>%
   group_by(code) %>%
   mutate(
@@ -1046,7 +1046,7 @@ dd_decrease <- dd_significant %>%
     adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
   ) %>%
   mutate(
-    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
+    ts_url = paste0("https://essence2.syndromicsurveillance.org/nssp_essence/servlet/TemporalTimeSeriesViewer?datasource=va_hosp&DDParsedFreeText=%5E;", code, ";%5E&startDate=", start_date_api, "&medicalGroupingSystem=essencesyndromes&userId=2362&endDate=", end_date_api, "&percentParam=DDParsedFreeText&site=", as.character(site_id), "&aqtTarget=TimeSeries&geographySystem=hospital&detector=nodetectordetector&timeResolution=weekly&hasBeenE=", has_been_e)
   ) %>%
   group_by(code) %>%
   mutate(
