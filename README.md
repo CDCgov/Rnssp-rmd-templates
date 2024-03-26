@@ -1,4 +1,4 @@
-# Rnssp-rmd-templates <a href='https://cdcgov.github.io/Rnssp-rmd-templates'><img src='logo.png' align="right" height="139" /></a>
+# Rnssp-rmd-templates <a href='https://cdcgov.github.io/Rnssp-rmd-templates'><img src='_assets/logo.png' align="right" height="139" /></a>
 
 <!-- badges: start -->
 [![Project Status: Active - The project has reached a stable, usable
