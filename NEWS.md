@@ -250,6 +250,19 @@ This template allows ESSENCE users to evaluate the data details (line level) res
 
 <details>
 
+<summary>7/11/2024</summary>
+The Word Alerts Report template has been updated. This version:
+
+* Includes ESSENCE data details URLs for site-level users to view line-level records associated with alerts within the ESSENCE user interface. Data details URLs are not included in the event a user selects the CCQV data source.
+* Allows users to use the Has been Emergency parameter for the CCQV data source.
+* Has an updated modern appearance.
+* Includes updated utility files to include updated age group systems, new CCDD categories, an updated site list, and an updated ICD-10 description file.
+* Includes a report appendix section at the end to summarize example stop words by class.
+
+</details>
+
+<details>
+
 <summary>8/18/2022</summary>
 The Word Alerts Report template has been updated. This version:
 
