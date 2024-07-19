@@ -148,7 +148,7 @@ if(params$data_export){
 endDate <- format(params$end_date, "%d%b%Y")
 startDate <- format(params$start_date, "%d%b%Y")
 
-hasBeenE <- as.numeric(params$has_been_E)
+hasBeenE <- ifelse(params$has_been_E, "&hasBeenE=1", "")
 
 select_fields <- c(
   "ChiefComplaintUpdates", "DischargeDiagnosis", "Diagnosis_Combo",
@@ -210,10 +210,10 @@ if (as.character(str_match(params2$definition[1], pattern = "CCDD Category|Subsy
   grouping_system <- "essencesyndromes"
 }
 
-url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 
 if (params$site != "All") {
-  url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+  url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 }
 
 if(is_valid_url(params2$custom_query1)){
@@ -300,10 +300,10 @@ if (as.character(str_match(params2$definition[2], pattern = "CCDD Category|Subsy
   grouping_system <- "essencesyndromes"
 }
 
-url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 
 if (params2$site != "All") {
-  url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+  url2 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 }
 
 if(is_valid_url(params2$custom_query2)){
@@ -388,10 +388,10 @@ if (as.character(str_match(params2$definition[3], pattern = "CCDD Category|Subsy
   grouping_system <- "essencesyndromes"
 }
 
-url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 
 if (params2$site != "All") {
-  url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily&hasBeenE=", hasBeenE, "&field=", fields)
+  url3 <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&site=", site_id, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=1555&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=probrepswitch&timeResolution=daily", hasBeenE, "&field=", fields)
 }
 
 if(is_valid_url(params2$custom_query3)){
