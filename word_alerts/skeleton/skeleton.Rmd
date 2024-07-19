@@ -24,7 +24,7 @@ params:
     value: !r as.Date(Sys.Date())
     input: date
   has_been_E:
-    label: "Has been Emergency (Full Details only): "
+    label: "Has been Emergency: "
     value: true
   data_source:
     label: "Data Source:"
@@ -66,7 +66,7 @@ params:
 
 <style type="text/css">   
 .main-container {
-max-width: 1300px;
+max-width: 1200px;
 margin-left: auto;
 margin-right: auto;
 }
@@ -85,6 +85,7 @@ library(odbc)
 library(DBI)
 library(dbplyr)
 library(flextable)
+library(kableExtra)
 library(quanteda)
 library(quanteda.textstats)
 library(ggthemes)
@@ -119,6 +120,7 @@ caption {
 
 .term-table {
   font-family: 'Roboto', Helvetica, Arial, sans-serif;
+  font-size: 11px;
 }
 
 .term-table a:hover {
@@ -133,7 +135,7 @@ caption {
 .term-table-title {
   margin-top: 30px;
   padding: 8px;
-  background-color: hsl(205, 100%, 36%);
+  background-color: hsl(205, 100%, 5%);
   color: hsl(0, 0%, 98%);
   font-size: 25px;
   font-weight: 400;
@@ -146,7 +148,7 @@ caption {
 
 .term-table-header {
   border-bottom-width: 1px;
-  background-color: hsl(205, 93%, 16%);
+  background-color: hsl(0, 0%, 47%);
   color: hsl(0, 0%, 98%);
   font-weight: 400;
   font-size: 11px;
@@ -157,7 +159,7 @@ caption {
 .term-table-header:hover,
 .term-table-header[aria-sort="ascending"],
 .term-table-header[aria-sort="descending"] {
-  background-color: hsl(205, 100%, 36%);
+  background-color: hsl(205, 100%, 5%);
 }
 
 .term-table-header[aria-sort="ascending"] {
@@ -166,6 +168,11 @@ caption {
 
 .term-table-header[aria-sort="descending"] {
   box-shadow: inset 0 -10px 0 -6px #efaa10 !important;
+}
+
+.term-table input {
+  background-color: white;
+  color: black;
 }
 
 .sorted {
@@ -177,6 +184,8 @@ caption {
 ```{r specification, echo = FALSE, warning = FALSE, message = FALSE}
 
 source("helpers.R")
+
+site <- params$site
 
 end_date_api <- format(params$end_date, "%d%b%Y")
 start_date_api <- format(params$start_date, "%d%b%Y")
@@ -196,7 +205,7 @@ db_query_length <- db_query & length > 90
 api_query <- params$data_source == "Facility Location (Full Details)"
 api_query_length <- api_query & length > 90
 
-limit_ed <- as.numeric(params$has_been_E)
+limit_ed <- ifelse(params$has_been_E, "&hasBeenE=1", "")
 
 premature_quit <- params$definition == "None (Custom CCDD Query)" &
   (params$ccdd_query == "" | is.null(params$ccdd_query) | grepl("^\\s*$", params$ccdd_query)) & params$complex_query == ""
@@ -232,7 +241,7 @@ knitr::knit_exit("Expensive query! Render ends prematurely.
 
 ### **Selected Parameters**
 
-```{r parameter tab, echo = FALSE, warning = FALSE, message = FALSE, ft.align = "left"}
+```{r parameter tab, echo = FALSE, warning = FALSE, message = FALSE}
 
 source_used <- params$data_source
 ccqv_param_reset <- source_used == "CCQV Datamart Backup (NSSP User Only!)"
@@ -255,7 +264,6 @@ param_df <- tibble(
     `Has been Emergency` = ifelse(`Has been Emergency`, "Yes", "No")
   ) %>%
   mutate(
-    `Has been Emergency` = ifelse(ccqv_param_reset, "Not available in CCQV backup", `Has been Emergency`),
     `Site` = ifelse(ccqv_param_reset, "All CCQV Sites", `Site`),
     `Age Group` = ifelse(ccqv_param_reset, "All Ages", `Age Group`),
     `CCDD Query` = ifelse(ccqv_param_reset, NA, `CCDD Query`),
@@ -271,13 +279,13 @@ param_df <- tibble(
   ) %>%
   pivot_longer(everything(), names_to = "Parameter", values_to = "Value")
 
+options(knitr.kable.NA = "")
+
 param_df %>%
-  flextable() %>%
-  width(width = 5) %>%
-  theme_box() %>%
-  bg(bg = "#006BB8", part = "header") %>%
-  color(color = "white", part = "header") %>%
-  set_caption(caption = "User-selected Parameters")
+  kable(escape = FALSE) %>%
+  kable_styling() %>%
+  scroll_box(width = "1000px", height = "400px") %>%
+  row_spec(0, background = "#000000", color = "#FFFFFF") 
 
 ```
 
@@ -352,32 +360,53 @@ results <- foreach(i = 1:length(dates), .combine = "bind_rows", .inorder = FALSE
   library(dbplyr)
 
   con <- dbConnect(odbc::odbc(), dsn = "Prod_NSSP_Web")
-  erbase <- tbl(con, "View_Cache_ER_Base_for_CCDD")
+  erbase <- tbl(con, "View_Cache_ER_Base_for_CCQV")
 
   current_date <- as.Date(dates[[i]])
 
   sample <- if (definition_pattern == "Syndrome") {
-    erbase %>%
-      filter(Date == current_date, Category_flat %like% paste0("%;", definition_string, ";%")) %>%
-      collect()
+    
+    if (params$has_been_E) {
+      erbase %>%
+        filter(Date == current_date, Category_flat %like% paste0("%;", definition_string, ";%"), hasBeenE == 1) %>%
+        collect()
+    } else {
+      erbase %>%
+        filter(Date == current_date, Category_flat %like% paste0("%;", definition_string, ";%")) %>%
+        collect()
+    }
   } else if (definition_pattern == "Subsyndrome") {
-    erbase %>%
-      filter(Date == current_date, SubCategory_flat %like% paste0("%;", definition_string, ";%")) %>%
-      collect()
+    
+    if (params$has_been_E) {
+      erbase %>%
+        filter(Date == current_date, SubCategory_flat %like% paste0("%;", definition_string, ";%"), hasBeenE == 1) %>%
+        collect()
+    } else {
+      erbase %>%
+        filter(Date == current_date, SubCategory_flat %like% paste0("%;", definition_string, ";%")) %>%
+        collect()
+    }
   } else {
-    erbase %>%
-      filter(Date == current_date, CCDDCategory_flat %like% paste0("%;", definition_string, ";%")) %>%
-      collect()
+    
+    if (params$has_been_E) {
+      erbase %>%
+        filter(Date == current_date, CCDDCategory_flat %like% paste0("%;", definition_string, ";%"), hasBeenE == 1) %>%
+        collect()
+    } else {
+      erbase %>%
+        filter(Date == current_date, CCDDCategory_flat %like% paste0("%;", definition_string, ";%")) %>%
+        collect()
+    }
   }
-
+  
   dbDisconnect(con)
-
+  
   return(sample)
 }
 
 stopCluster(cl)
 
-ccqv_data <- results %>%
+df_dd <- results %>%
   clean_names() %>%
   select(
     date,
@@ -385,25 +414,25 @@ ccqv_data <- results %>%
     chief_complaint_orig,
     chief_complaint_parsed,
     discharge_diagnosis,
-    # dd_parsed, # On hold until available in CCQV backup
+    dd_parsed,
     ccdd,
+    ccdd_parsed,
     week_year,
     cc_parsed_length,
     dd_length,
     category_flat
   ) %>%
-  mutate(dd_parsed = discharge_diagnosis) %>% # Temporary until DD Parsed is actually available in CCQV backup
   as.data.table() %>%
-  .[nchar(chief_complaint_parsed) > 0] %>%
   .[, date := as.Date(date)]
 
 rm(results)
 
-date_range <- paste(format(min(ccqv_data$date), "%B %d, %Y"), "to", format(max(ccqv_data$date), "%B %d, %Y"))
+date_range <- paste(format(min(df_dd$date), "%B %d, %Y"), "to", format(max(df_dd$date), "%B %d, %Y"))
 
-n_days <- length(unique(ccqv_data$date))
+n_days <- length(unique(df_dd$date))
 premature_quit_baseline <- n_days <= 30
 
+url <- ""
 data_source <- "the datamart"
 note <- "**Note:** CCQV backup contains the actual date for each record, rather than the MMWR week date that populates the CCQV date field in ESSENCE."
 
@@ -430,7 +459,7 @@ if (nchar(params$complex_query) > 0) {
     url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
   }
 
-  definition <- "None (Complex Query)"
+  definition <- "Complex Query"
 } else {
   definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
 
@@ -467,11 +496,11 @@ if (nchar(params$complex_query) > 0) {
       pull(site_id)
   }
 
-  if (params$age_groups == "All Ages") {
+  if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
     if (params$site == "All") {
-      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
     } else {
-      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", limit_ed, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD")
     }
   } else {
     age_group_string <- params$age_groups %>%
@@ -488,9 +517,9 @@ if (nchar(params$complex_query) > 0) {
     }
 
     if (params$site == "All") {
-      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
     } else {
-      url <- paste0("https://essence.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", "&hasBeenE=", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
+      url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", end_date_api, "&percentParam=noPercent&datasource=va_hosp&startDate=", start_date_api, "&medicalGroupingSystem=", grouping_system, "&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospitalregion&detector=nodetectordetector&timeResolution=daily", limit_ed, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD&field=Age")
     }
   }
 }
@@ -519,7 +548,7 @@ if (premature_quit_essence) {
 
 ```{r site level preprocess, echo = FALSE, warning = FALSE, message = FALSE, eval = api_query & (!api_query_length)}
 
-ccqv_data <- api_data %>%
+df_dd <- api_data %>%
   clean_names() %>%
   separate(week_year, c("year", "week"), sep = "-", remove = TRUE) %>%
   mutate(
@@ -535,14 +564,14 @@ ccqv_data <- api_data %>%
   ) %>%
   as.data.table()
 
-n_days <- length(unique(ccqv_data$date))
+n_days <- length(unique(df_dd$date))
 premature_quit_length <- n_days <= 30
 
-data_source <- "NSSP-ESSENCE"
+data_source <- "NSSP-ESSENCE Facility Location (Full Details)"
 
 date_range <- paste(format(start_date, "%B %d, %Y"), "to", format(end_date, "%B %d, %Y"))
 
-dates <- ccqv_data %>%
+dates <- df_dd %>%
   arrange(date) %>%
   pull(date) %>%
   unique()
@@ -557,34 +586,35 @@ if (premature_quit_length) {
 
 ### **Further Processing and Cleansing of Chief Complaint Parsed Field**
 
-In total, `r format(nrow(ccqv_data), big.mark = ",")` ED encounters identified by the `r definition` syndrome are pulled from `r data_source` with a date range of `r date_range`. `r note` The following uses the `quanteda` library to efficiently remove stop words from `stopterms` and other common English stop words pulled from the `stopwords()` function, tokenize into the corpus of chief complaint parsed text into bigrams, convert to a document feature matrix (`dfm` object), and extract daily bigram frequencies for each feature. Like `data.table`, the `quanteda` library allows users to specify the number of threads used. NSSP's instance of RStudio Workbench has 48 total cores available, of which half are used below. `quanteda` is compatible with the `magrittr` pipe, allowing for implicit creation of the daily feature frequency data frame, `cc_bigram_freq`. 
+In total, `r format(nrow(df_dd), big.mark = ",")` ED encounters identified by the `r definition` definition are pulled from `r data_source` with a date range of `r date_range`. `r note` The following uses the `quanteda` library to efficiently remove stop words from `stopterms` and other common English stop words pulled from the `stopwords()` function, tokenize into the corpus of chief complaint parsed text into bigrams, convert to a document feature matrix (`dfm` object), and extract daily bigram frequencies for each feature. Like `data.table`, the `quanteda` library allows users to specify the number of threads used. NSSP's instance of RStudio Workbench has 48 total cores available, of which half are used below. `quanteda` is compatible with the `magrittr` pipe, allowing for implicit creation of the daily feature frequency data frame, `cc_bigram_freq`. 
 
 ```{r volume, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 9, fig.height = 5, fig.align = "center"}
 
-volume <- ccqv_data %>%
+volume <- df_dd %>%
   count(date) %>%
   complete(date = seq.Date(from = start_date, to = end_date, by = "1 day"), fill = list(n = 0)) %>%
   arrange(date)
 
 ggplot(data = volume) +
-  geom_line(aes(x = date, y = n), linewidth = 1.0, color = "#005EAA") +
+  geom_line(aes(x = date, y = n), linewidth = 1.0, color = "#00928F") +
   scale_y_continuous(limits = c(0, NA), labels = scales::comma) +
   labs(
     x = "Date",
     y = "Daily Encounters"
   ) +
-  theme_bw() +
+  theme_minimal() +
   labs(
     title = paste("Daily ED Encounters for", definition),
     subtitle = date_range
   ) +
   theme(plot.title = element_text(face = "bold")) +
-  scale_x_date(date_breaks = "15 day", date_labels = "%b %d\n%Y")
+  scale_x_date(date_breaks = "7 day", date_labels = "%b %d\n%Y")
+
 ```
 
 ```{r quanteda corpus CC, echo = FALSE, warning = FALSE, message = FALSE}
 
-cc_tokens <- ccqv_data %>%
+cc_tokens <- df_dd %>%
   .[, chief_complaint_parsed := vapply(lapply(str_split(chief_complaint_parsed, " "), unique), paste, character(1L), collapse = " ")] %>%
   corpus(
     text_field = "chief_complaint_parsed"
@@ -635,7 +665,7 @@ Additionally, after bigram frequencies are computed, discharge diagnosis pairing
 
 pattern_replace <- "[;/,\\\\*-]"
 
-dd_corpus <- ccqv_data %>%
+dd_corpus <- df_dd %>%
   .[, dd_parsed := toupper(dd_parsed)] %>%
   .[dd_parsed != "NA"] %>%
   .[, dd_parsed := gsub(pattern_replace, " ", dd_parsed)] %>%
@@ -676,7 +706,7 @@ dd_bigram_freq <- dd_corpus %>%
 
 ### **Description of Word Alert Algorithm** 
 
-The ESSENCE word alert algorithm uses 28 day baselines over which unigram or bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (last 24 hours), contingency tables are formed to count the number of emergency department visits with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department visits without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks. **Note:** *The two-by-two table below is a fixed example and is not based on the data pulled for the selected syndrome in this template.*
+The ESSENCE word alert algorithm uses 28 day baselines over which unigram or bigram frequencies are computed. As with the univariate temporal anomaly detection algorithms, a 2-day guardband is used to separate the baseline and test date. For each term that occurred in the testing block (last 24 hours), contingency tables are formed to count the number of emergency department visits with the term/code occurring in the chief complaint/discharge diagnosis and the number of emergency department visits without the term/code in the chief complaint/discharge diagnosis for both the testing and baseline blocks. **Note:** *The two-by-two table below is a fixed example and is not based on the data pulled for the selected query in this template.*
 
 ```{r contingency table, echo = FALSE, warning = FALSE, message = FALSE}
 
@@ -696,16 +726,26 @@ tab %>%
   autofit() %>%
   set_caption(caption = paste("Two by two contingency table for chief complaint bigram", "RASH SKIN")) %>%
   theme_box() %>%
-  color(color = "black", part = "all")
+  color(color = "black", part = "all") %>%
+  flextable::font(font = "Calibri", part = "all")
+
 ```
 
 To test for anomalous increases in term occurrence on the test date relative to the baseline, either Fisher's Exact Test or a Chi-squared Test is applied. Fisher's Exact Test is applied for **moderate counts**, whereas a Chi-squared Test is applied for **large counts**. Terms are determined to have moderate counts if the number of visits in the baseline with the term is less than 1,000 or if the number of visits on the test date without the term are less than 1,000, i.e., min(B, C) < 1,000. 
+
+### **ESSENCE Data Details URLs**
+
+When the Facility Location (Full Details) data source is used, the chief complaint and discharge diagnosis unigram and bigram tables below will contain ESSENCE URLs linking to line-level records associated with alerts. The date of the records should align with the date listed under the Test Date column. Data details URLs are not available when the CCQV Datamart Backup data source is used as the daily date field is excluded from the CCQV data source within the ESSENCE UI. 
+
+***Please note that the number of records displayed in the ESSENCE UI for a chief complaint bigram query may slightly differ from the frequency reported in the tables within this report due to stop word removal.*** As an example, this template will transform chief complaints of "SHORTNESS OF BREATH" to "SHORTNESS BREATH" and generate an ESSENCE data details query for !SHORTNESS BREATH! to be run on the CCDD Parsed field. The records with an original parsed chief complaint of "SHORTNESS OF BREATH" will be included in the frequency reported in the table but will not appear in the ESSENCE UI. Manual updates to the query run by the URL may need to be modified in ESSENCE configuration options to account for these variations. 
+
+For discharge diagnosis bigrams, the ESSENCE data details URLs will account for permutations of two diagnosis codes. As mentioned previously, this template orders discharge diagnosis bigrams alphanumerically so that permutations of two diagnosis codes are counted together. As an example, bigrams "E876 R410" and "R410 E876" are considered equivalent and will therefore be reported as "E876 R410" with the combined frequencies. The ESSENCE data details URLs will run queries that search CCDD Parsed for both variations (i.e., query CCDD Parsed for  \\^;E876;R410;^,OR,^;R410;E876;\\^). 
 
 ## **Chief Complaint Term Alerts**
 
 ```{r process blocks CC, echo = FALSE, warning = FALSE, message = FALSE, output = FALSE}
 
-dates <- seq.Date(from = as.Date(min(ccqv_data$date)), to = as.Date(max(ccqv_data$date)), by = "1 day")
+dates <- seq.Date(from = as.Date(min(df_dd$date)), to = as.Date(max(df_dd$date)), by = "1 day")
 iter_dates <- head(dates, length(dates) - 30)
 blocks <- as.list(iter_dates)
 
@@ -717,14 +757,14 @@ itr_blocks <- blocks %>%
     base <- cc_unigram_freq %>%
       .[date >= .start & date <= .end]
 
-    total_base <- ccqv_data %>%
+    total_base <- df_dd %>%
       .[date >= .start & date <= .end] %>%
       nrow()
 
     test <- cc_unigram_freq %>%
       .[date == .end + 3]
 
-    total_test <- ccqv_data %>%
+    total_test <- df_dd %>%
       .[date == .end + 3] %>%
       nrow()
 
@@ -836,14 +876,14 @@ itr_blocks <- blocks %>%
     base <- cc_bigram_freq %>%
       .[date >= .start & date <= .end]
 
-    total_base <- ccqv_data %>%
+    total_base <- df_dd %>%
       .[date >= .start & date <= .end] %>%
       nrow()
 
     test <- cc_bigram_freq %>%
       .[date == .end + 3]
 
-    total_test <- ccqv_data %>%
+    total_test <- df_dd %>%
       .[date == .end + 3] %>%
       nrow()
 
@@ -947,12 +987,12 @@ itr_blocks <- blocks %>%
 res_out_ccbigram <- itr_blocks %>%
   rbindlist()
 
-test_date <- max(ccqv_data$date)
+test_date <- max(df_dd$date)
 ```
 
 ```{r process blocks DD, echo = FALSE, warning = FALSE, message = FALSE, output = FALSE}
 
-dates <- seq.Date(from = as.Date(min(ccqv_data$date)), to = as.Date(max(ccqv_data$date)), by = "1 day")
+dates <- seq.Date(from = as.Date(min(df_dd$date)), to = as.Date(max(df_dd$date)), by = "1 day")
 iter_dates <- head(dates, length(dates) - 30)
 blocks <- as.list(iter_dates)
 
@@ -964,14 +1004,14 @@ itr_blocks <- blocks %>%
     base <- dd_unigram_freq %>%
       .[date >= .start & date <= .end]
 
-    total_base <- ccqv_data %>%
+    total_base <- df_dd %>%
       .[date >= .start & date <= .end] %>%
       nrow()
 
     test <- dd_unigram_freq %>%
       .[date == .end + 3]
 
-    total_test <- ccqv_data %>%
+    total_test <- df_dd %>%
       .[date == .end + 3] %>%
       nrow()
 
@@ -1083,14 +1123,14 @@ itr_blocks <- blocks %>%
     base <- dd_bigram_freq %>%
       .[date >= .start & date <= .end]
 
-    total_base <- ccqv_data %>%
+    total_base <- df_dd %>%
       .[date >= .start & date <= .end] %>%
       nrow()
 
     test <- dd_bigram_freq %>%
       .[date == .end + 3]
 
-    total_test <- ccqv_data %>%
+    total_test <- df_dd %>%
       .[date == .end + 3] %>%
       nrow()
 
@@ -1195,7 +1235,7 @@ itr_blocks <- blocks %>%
 res_out_ddbigram <- itr_blocks %>%
   rbindlist()
 
-test_date <- max(ccqv_data$date)
+test_date <- max(df_dd$date)
 ```
 
 ```{r CC alert counts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 11, fig.height = 6, fig.align = "center"}
@@ -1285,7 +1325,7 @@ date_breaks <- ceiling(as.integer(difftime(max_date, min_date, units = "days")) 
 date_seq <- seq.Date(min_date, max_date, by = date_breaks)
 
 plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
-  geom_col(aes(x = date_test, y = n), color = "black", fill = "#26418F") +
+  geom_col(aes(x = date_test, y = n), fill = "#005DAA") +
   scale_y_continuous(
     name = "CC Unigram Alerts",
     limits = c(0, ceiling + 5),
@@ -1293,7 +1333,7 @@ plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
     expand = c(0, 0)
   ) +
   scale_x_date(breaks = date_seq, date_labels = "%b %d") +
-  theme_bw() +
+  theme_minimal() +
   labs(
     x = "Date",
     title = "Chief Complaint Unigram Alerts"
@@ -1310,7 +1350,7 @@ plotcc_unigram <- ggplot(data = daily_cc_alerts_unigram) +
   )
 
 plotcc_bigram <- ggplot(data = daily_cc_alerts_bigram) +
-  geom_col(aes(x = date_test, y = n), color = "black", fill = "#26418F") +
+  geom_col(aes(x = date_test, y = n), fill = "#005DAA") +
   scale_y_continuous(
     name = "CC Bigram Alerts",
     limits = c(0, ceiling + 5),
@@ -1318,7 +1358,7 @@ plotcc_bigram <- ggplot(data = daily_cc_alerts_bigram) +
     expand = c(0, 0)
   ) +
   scale_x_date(breaks = date_seq, date_labels = "%b %d") +
-  theme_bw() +
+  theme_minimal() +
   labs(
     x = "Date",
     title = "Chief Complaint Bigram Alerts"
@@ -1335,7 +1375,7 @@ plotcc_bigram <- ggplot(data = daily_cc_alerts_bigram) +
   )
 
 plotdd_unigram <- ggplot(data = daily_dd_alerts_unigram) +
-  geom_col(aes(x = date_test, y = n), color = "black", fill = "#497D0C") +
+  geom_col(aes(x = date_test, y = n), fill = "#00928F") +
   scale_y_continuous(
     name = "DD Unigram Alerts",
     limits = c(0, ceiling + 5),
@@ -1343,7 +1383,7 @@ plotdd_unigram <- ggplot(data = daily_dd_alerts_unigram) +
     expand = c(0, 0)
   ) +
   scale_x_date(breaks = date_seq, date_labels = "%b %d") +
-  theme_bw() +
+  theme_minimal() +
   labs(
     x = "Date",
     title = "Discharge Diagnosis Unigram Alerts"
@@ -1360,7 +1400,7 @@ plotdd_unigram <- ggplot(data = daily_dd_alerts_unigram) +
   )
 
 plotdd_bigram <- ggplot(data = daily_dd_alerts_bigram) +
-  geom_col(aes(x = date_test, y = n), color = "black", fill = "#497D0C") +
+  geom_col(aes(x = date_test, y = n), fill = "#00928F") +
   scale_y_continuous(
     name = "DD Bigram Alerts",
     limits = c(0, ceiling + 5),
@@ -1368,7 +1408,7 @@ plotdd_bigram <- ggplot(data = daily_dd_alerts_bigram) +
     expand = c(0, 0)
   ) +
   scale_x_date(breaks = date_seq, date_labels = "%b %d") +
-  theme_bw() +
+  theme_minimal() +
   labs(
     x = "Date",
     title = "Discharge Diagnosis Bigram Alerts"
@@ -1395,17 +1435,17 @@ plots_combined + plot_annotation(
 ```{r distribution alerts, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 9, fig.height = 5, fig.align = "center"}
 
 daily_alerts_combined <- daily_cc_alerts_unigram %>%
-  bind_rows(daily_cc_alerts_bigram) %>%
-  bind_rows(daily_dd_alerts_unigram) %>%
-  bind_rows(daily_dd_alerts_bigram) %>%
+  rbind(daily_cc_alerts_bigram) %>%
+  rbind(daily_dd_alerts_unigram) %>%
+  rbind(daily_dd_alerts_bigram) %>%
   mutate(type = str_wrap(type, 20))
 
-pal <- c("#26418F", "#26418F", "#497D0C", "#497D0C")
+pal <- c("#005DAA", "#005DAA", "#00928F", "#00928F")
 
 ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
   stat_boxplot(geom = "errorbar", width = 0.5) +
   geom_boxplot(outlier.color = "black", outlier.size = 2, outlier.shape = 21, outlier.fill = "white") +
-  theme_bw() +
+  theme_minimal() +
   scale_fill_manual(values = pal, name = "Field") +
   labs(
     x = "Field",
@@ -1417,6 +1457,7 @@ ggplot(data = daily_alerts_combined, aes(x = type, y = n, fill = type)) +
     plot.title = element_text(face = "bold"),
     legend.position = "none"
   )
+
 ```
 
 ### **Chief Complaint Unigram Distribution over Time: `r date_range`**
@@ -1441,7 +1482,7 @@ if (!is_empty(res_out_ccunigram)) {
   cc_alerts_unigram <- data.frame()
 }
 
-visit_denominators <- ccqv_data %>%
+visit_denominators <- df_dd %>%
   as.data.frame() %>%
   count(date) %>%
   filter(date >= min(res_out_ccunigram$date)) %>%
@@ -1490,7 +1531,7 @@ if (nrow(cc_alerts_unigram) > 0) {
         type = "scatter",
         mode = "markers",
         size = ~ 2 * radius,
-        marker = list(symbol = "circle", sizemode = "diameter", color = "#4EBAAA", line = list(color = "#00695C", width = 2)),
+        marker = list(symbol = "circle", sizemode = "diameter", color = "#80AED4", line = list(color = "#005DAA", width = 2)),
         showlegend = FALSE,
         text = ~ paste(
           "<br>Date:</b>", date,
@@ -1540,7 +1581,7 @@ if (nrow(cc_alerts_unigram) > 0) {
   min_date <- start_date + 28 + 2
   max_date <- test_date
 
-  visit_denominators <- ccqv_data %>%
+  visit_denominators <- df_dd %>%
     as.data.frame() %>%
     count(date) %>%
     mutate(date = as.Date(date)) %>%
@@ -1586,14 +1627,29 @@ if (nrow(cc_alerts_unigram) > 0) {
       p.value,
       p.value_current,
       scale,
+      freq,
       historical_alert
     ) %>%
     nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA
+      sparkline = NA,
+      dd_url = url,
+      dd_url = gsub("/api/dataDetails/csv", "/servlet/DataDetailsServlet", dd_url),
+      dd_url = str_replace(dd_url, "startDate=\\d{1,2}\\w{3}\\d{4}", paste0("startDate=", format(date_test, "%d%b%Y"))),
+      dd_url = str_replace(dd_url, "endDate=\\d{1,2}\\w{3}\\d{4}", paste0("endDate=", format(date_test, "%d%b%Y"))),
+      dd_url = gsub("&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD", "", dd_url),
+      dd_url = gsub("&field=Age", "", dd_url), 
+      dd_url = paste0(dd_url, "&CCDDParsedFreeText=!", feature, "!")
     ) %>%
     arrange(date_test, feature)
+  
+  margins <- list(
+    l = 0,
+    r = 0,
+    b = 0,
+    t = 0
+  )
 
   tbl <- ccunigram_table %>%
     reactable(
@@ -1610,13 +1666,40 @@ if (nrow(cc_alerts_unigram) > 0) {
           }
         }
       }"),
-        headerClass = "term-table-header"
+      headerClass = "term-table-header"
       ),
       columns = list(
         prop = colDef(show = FALSE),
         data = colDef(show = FALSE),
+        feature = colDef(
+          name = "Unigram",
+          width = 170
+        ),
+        date_test = colDef(
+          name = "Test Date",
+          width = 170
+        ),
+        p.value_current = colDef(
+          name = "p-value",
+          format = colFormat(digits = 4),
+          width = 60
+        ),
+        scale = colDef(
+          name = "Scale",
+          width = 170
+        ),
+        freq = colDef(
+          name = "Frequency",
+          width = 100,
+          align = "left"
+        ),
+        detector = colDef(
+          name = "Detector",
+          width = 170
+        ),
         sparkline = colDef(
           name = "Unigram Trend with Word Alerts",
+          html = TRUE, 
           cell = function(value, index) {
             .dat <- ccunigram_table$data[[index]]
 
@@ -1624,11 +1707,13 @@ if (nrow(cc_alerts_unigram) > 0) {
               add_trace(
                 x = ~date,
                 y = ~prop,
-                line = list(color = "#005EAA", width = 1),
+                line = list(color = "#005DAA", width = 1),
+                fillcolor = "#80AED4",
                 fill = "tozeroy",
                 mode = "lines",
                 type = "scatter",
                 hoverinfo = "text",
+                showlegend = FALSE, 
                 text = ~ paste(
                   "<br>Date:</b>", date,
                   "<br>Proportion:</b>", format(prop, digits = 2, scientific = TRUE),
@@ -1639,7 +1724,7 @@ if (nrow(cc_alerts_unigram) > 0) {
                 data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
-                marker = list(color = "red"),
+                marker = list(color = "red", size = 5),
                 showlegend = FALSE,
                 hoverinfo = "text",
                 text = ~ paste(
@@ -1649,35 +1734,34 @@ if (nrow(cc_alerts_unigram) > 0) {
                 )
               ) %>%
               layout(
-                xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
-                yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 250,
-                height = 100,
+                xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+                yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+                width = 160,
+                height = 60,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
-                hoverlabel = list(font = list(size = 9, align = "left"))
+                hoverlabel = list(font = list(size = 9, align = "left")),
+                margin = margins
               ) %>%
               config(displayModeBar = FALSE)
-
-            div(.fig, style = "height:100px;")
+            
+            div(.fig, style = "height:50px;", align = "left")
           },
-          width = 250
+          width = 180,
+          align = "left"
         ),
-        feature = colDef(
-          name = "Unigram"
-        ),
-        date_test = colDef(
-          name = "Test Date"
-        ),
-        p.value_current = colDef(
-          name = "p-value",
-          format = colFormat(digits = 4)
-        ),
-        scale = colDef(
-          name = "Scale"
-        ),
-        detector = colDef(
-          name = "Detector"
+        dd_url = colDef(
+          name = "ESSENCE Data Details URL", 
+          cell = function(value) {
+            
+            if (ccqv_param_reset) {
+              "Not available for CCQV"
+            } else {
+              htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+            }
+          },
+          align = "center",
+          width = 150
         )
       ),
       showSortIcon = TRUE,
@@ -1685,7 +1769,8 @@ if (nrow(cc_alerts_unigram) > 0) {
       striped = TRUE,
       bordered = TRUE,
       compact = TRUE,
-      theme = reactableTheme(cellPadding = "8 px")
+      theme = reactableTheme(cellPadding = "8 px"),
+      filterable = TRUE
     )
 
   div(
@@ -1761,7 +1846,7 @@ if (nrow(cc_alerts_bigram) > 0) {
         type = "scatter",
         mode = "markers",
         size = ~ 2 * radius,
-        marker = list(symbol = "circle", sizemode = "diameter", color = "#4EBAAA", line = list(color = "#00695C", width = 2)),
+        marker = list(symbol = "circle", sizemode = "diameter", color = "#80AED4", line = list(color = "#005DAA", width = 2)),
         showlegend = FALSE,
         text = ~ paste(
           "<br>Date:</b>", date,
@@ -1810,7 +1895,7 @@ if (nrow(cc_alerts_bigram) > 0) {
   min_date <- start_date + 28 + 2
   max_date <- test_date
 
-  visit_denominators <- ccqv_data %>%
+  visit_denominators <- df_dd %>%
     as.data.frame() %>%
     count(date) %>%
     mutate(date = as.Date(date)) %>%
@@ -1856,15 +1941,30 @@ if (nrow(cc_alerts_bigram) > 0) {
       p.value,
       p.value_current,
       scale,
+      freq, 
       historical_alert
     ) %>%
     nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA
+      sparkline = NA,
+      dd_url = url,
+      dd_url = gsub("/api/dataDetails/csv", "/servlet/DataDetailsServlet", dd_url),
+      dd_url = str_replace(dd_url, "startDate=\\d{1,2}\\w{3}\\d{4}", paste0("startDate=", format(date_test, "%d%b%Y"))),
+      dd_url = str_replace(dd_url, "endDate=\\d{1,2}\\w{3}\\d{4}", paste0("endDate=", format(date_test, "%d%b%Y"))),
+      dd_url = gsub("&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD", "", dd_url),
+      dd_url = gsub("&field=Age", "", dd_url), 
+      dd_url = paste0(dd_url, "&CCDDParsedFreeText=!", gsub(" ", "%20", feature), "!")
     ) %>%
     arrange(date_test, feature)
-
+  
+  margins <- list(
+    l = 0,
+    r = 0,
+    b = 0,
+    t = 0
+  )
+  
   tbl <- ccbigram_table %>%
     reactable(
       pagination = FALSE,
@@ -1883,14 +1983,37 @@ if (nrow(cc_alerts_bigram) > 0) {
         headerClass = "term-table-header"
       ),
       columns = list(
-        bigram = colDef(
-          width = 100
+        prop = colDef(show = FALSE), 
+        data = colDef(show = FALSE), 
+        feature = colDef(
+          name = "Bigram", 
+          width = 170
         ),
-        prop = colDef(show = FALSE),
-        data = colDef(show = FALSE),
+        date_test = colDef(
+          name = "Test Date", 
+          width = 170
+        ),
+        p.value_current = colDef(
+          name = "p-value",
+          format = colFormat(digits = 4), 
+          width = 60
+        ), 
+        scale = colDef(
+          name = "Scale", 
+          width = 170
+        ),
+        freq = colDef(
+          name = "Frequency",
+          width = 100,
+          align = "left"
+        ),
+        detector = colDef(
+          name = "Detector", 
+          width = 170
+        ),
         sparkline = colDef(
           name = "Bigram Trend with Word Alerts",
-          align = "left",
+          html = TRUE, 
           cell = function(value, index) {
             .dat <- ccbigram_table$data[[index]]
 
@@ -1898,7 +2021,8 @@ if (nrow(cc_alerts_bigram) > 0) {
               add_trace(
                 x = ~date,
                 y = ~prop,
-                line = list(color = "#005EAA", width = 1),
+                line = list(color = "#005DAA", width = 1),
+                fillcolor = "#80AED4",
                 fill = "tozeroy",
                 mode = "lines",
                 type = "scatter",
@@ -1913,7 +2037,7 @@ if (nrow(cc_alerts_bigram) > 0) {
                 data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
-                marker = list(color = "red"),
+                marker = list(color = "red", size = 5),
                 showlegend = FALSE,
                 hoverinfo = "text",
                 text = ~ paste(
@@ -1923,35 +2047,34 @@ if (nrow(cc_alerts_bigram) > 0) {
                 )
               ) %>%
               layout(
-                xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
-                yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 250,
-                height = 100,
+                xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+                yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+                width = 160,
+                height = 60,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
-                hoverlabel = list(font = list(size = 9, align = "left"))
+                hoverlabel = list(font = list(size = 9, align = "left")),
+                margin = margins
               ) %>%
               config(displayModeBar = FALSE)
-
-            div(.fig, style = "height:100px;")
+            
+            div(.fig, style = "height:50px;", align = "left")
           },
-          width = 250
+          width = 180,
+          align = "left"
         ),
-        feature = colDef(
-          name = "bigram"
-        ),
-        date_test = colDef(
-          name = "Test Date"
-        ),
-        p.value_current = colDef(
-          name = "p-value",
-          format = colFormat(digits = 4)
-        ),
-        scale = colDef(
-          name = "Scale"
-        ),
-        detector = colDef(
-          name = "Detector"
+        dd_url = colDef(
+          name = "ESSENCE Data Details URL",
+          cell = function(value) {
+            
+            if (ccqv_param_reset) {
+              "Not available for CCQV"
+            } else {
+              htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+            }
+          },
+          align = "center",
+          width = 150
         )
       ),
       showSortIcon = TRUE,
@@ -1959,7 +2082,8 @@ if (nrow(cc_alerts_bigram) > 0) {
       striped = TRUE,
       bordered = TRUE,
       compact = TRUE,
-      theme = reactableTheme(cellPadding = "8 px")
+      theme = reactableTheme(cellPadding = "8 px"),
+      filterable = TRUE
     )
 
   div(
@@ -2087,7 +2211,7 @@ if (nrow(dd_alerts_unigram) > 0) {
   min_date <- start_date + 28 + 2
   max_date <- test_date
   
-  visit_denominators <- ccqv_data %>%
+  visit_denominators <- df_dd %>%
     as.data.frame() %>%
     count(date) %>%
     mutate(date = as.Date(date)) %>%
@@ -2133,18 +2257,33 @@ if (nrow(dd_alerts_unigram) > 0) {
       p.value,
       p.value_current,
       scale,
+      freq, 
       historical_alert
     ) %>%
     nest(data = c(date, prop, p.value, historical_alert)) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA
+      sparkline = NA,
+      dd_url = url,
+      dd_url = gsub("/api/dataDetails/csv", "/servlet/DataDetailsServlet", dd_url),
+      dd_url = str_replace(dd_url, "startDate=\\d{1,2}\\w{3}\\d{4}", paste0("startDate=", format(date_test, "%d%b%Y"))),
+      dd_url = str_replace(dd_url, "endDate=\\d{1,2}\\w{3}\\d{4}", paste0("endDate=", format(date_test, "%d%b%Y"))),
+      dd_url = gsub("&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD", "", dd_url),
+      dd_url = gsub("&field=Age", "", dd_url), 
+      dd_url = paste0(dd_url, "&CCDDParsedFreeText=%5E;", feature, ";%5E")
     ) %>%
     left_join(icd_codes, by = c("feature" = "code")) %>%
     distinct(feature, .keep_all = TRUE) %>%
     mutate(description = ifelse(is.na(description), "SNOMED or Unknown Code", description)) %>%
     relocate(description, .after = feature) %>%
     arrange(date_test, feature)
+  
+  margins <- list(
+    l = 0,
+    r = 0,
+    b = 0,
+    t = 0
+  )
   
   tbl <- ddunigram_table %>%
     reactable(
@@ -2164,21 +2303,40 @@ if (nrow(dd_alerts_unigram) > 0) {
       headerClass = "term-table-header"
       ),
       columns = list(
-        unigram = colDef(
-          width = 100
-        ),
-        test_date = colDef(
-          width = 100
-        ),
         prop = colDef(show = FALSE),
-        data = colDef(show = FALSE),
-        scale = colDef(
-          width = 150
+        data = colDef(show = FALSE), 
+        feature = colDef(
+          name = "Unigram", 
+          width = 80
         ),
-        description = colDef(name = "Description"),
+        description = colDef(
+          name = "Description"
+          ),
+        date_test = colDef(
+          name = "Test Date", 
+          width = 80
+        ),
+        p.value_current = colDef(
+          name = "p-value",
+          format = colFormat(digits = 4), 
+          width = 60
+        ),
+        scale = colDef(
+          name = "Scale", 
+          width = 120
+        ),
+        freq = colDef(
+          name = "Frequency",
+          width = 100,
+          align = "left"
+        ),
+        detector = colDef(
+          name = "Detector", 
+          width = 120
+        ),
         sparkline = colDef(
           name = "Unigram Trend with Word Alerts",
-          align = "right",
+          html = TRUE, 
           cell = function(value, index) {
             .dat <- ddunigram_table$data[[index]]
             
@@ -2186,7 +2344,8 @@ if (nrow(dd_alerts_unigram) > 0) {
               add_trace(
                 x = ~date,
                 y = ~prop,
-                line = list(color = "#005EAA", width = 1),
+                line = list(color = "#00928F", width = 1),
+                fillcolor = "#4EBAAA",
                 fill = "tozeroy",
                 mode = "lines",
                 type = "scatter",
@@ -2201,7 +2360,7 @@ if (nrow(dd_alerts_unigram) > 0) {
                 data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
-                marker = list(color = "red"),
+                marker = list(color = "red", size = 5),
                 showlegend = FALSE,
                 hoverinfo = "text",
                 text = ~ paste(
@@ -2211,37 +2370,34 @@ if (nrow(dd_alerts_unigram) > 0) {
                 )
               ) %>%
               layout(
-                xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
-                yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 250,
-                height = 100,
+                xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+                yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+                width = 160,
+                height = 60,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
-                hoverlabel = list(font = list(size = 9, align = "left"))
+                hoverlabel = list(font = list(size = 9, align = "left")),
+                margin = margins
               ) %>%
               config(displayModeBar = FALSE)
             
-            div(.fig, style = "height:100px;")
+            div(.fig, style = "height:50px;", align = "left")
           },
-          width = 250
-        ),
-        feature = colDef(
-          name = "Unigram"
-        ),
-        date_test = colDef(
-          name = "Test Date"
-        ),
-        p.value_current = colDef(
-          name = "p-value",
-          format = colFormat(digits = 4),
-          width = 100,
+          width = 180,
           align = "left"
         ),
-        scale = colDef(
-          name = "Scale"
-        ),
-        detector = colDef(
-          name = "Detector"
+        dd_url = colDef(
+          name = "ESSENCE Data Details URL",
+          cell = function(value) {
+            
+            if (ccqv_param_reset) {
+              "Not available for CCQV"
+            } else {
+              htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+            }
+          },
+          align = "center",
+          width = 150
         )
       ),
       showSortIcon = TRUE,
@@ -2249,7 +2405,8 @@ if (nrow(dd_alerts_unigram) > 0) {
       striped = TRUE,
       bordered = TRUE,
       compact = TRUE,
-      theme = reactableTheme(cellPadding = "8 px")
+      theme = reactableTheme(cellPadding = "8 px"),
+      filterable = TRUE
     )
   
   div(
@@ -2385,7 +2542,7 @@ if (nrow(dd_alerts_bigram) > 0) {
   min_date <- start_date + 28 + 2 
   max_date <- test_date
 
-  visit_denominators <- ccqv_data %>%
+  visit_denominators <- df_dd %>%
     as.data.frame() %>%
     count(date) %>%
     mutate(date = as.Date(date)) %>%
@@ -2431,14 +2588,23 @@ if (nrow(dd_alerts_bigram) > 0) {
       p.value,
       p.value_current,
       scale,
+      freq, 
       historical_alert
     ) %>%
     nest(data = c(date, prop, p.value, historical_alert)) %>%
+    separate(feature, c("code1", "code2"), sep = " ", remove = FALSE) %>%
     mutate(
       detector = ifelse(scale == "Moderate Counts", "Fisher's Exact Test", "Chi-squared Test"),
-      sparkline = NA
+      sparkline = NA,
+      dd_url = url,
+      dd_url = gsub("/api/dataDetails/csv", "/servlet/DataDetailsServlet", dd_url),
+      dd_url = str_replace(dd_url, "startDate=\\d{1,2}\\w{3}\\d{4}", paste0("startDate=", format(date_test, "%d%b%Y"))),
+      dd_url = str_replace(dd_url, "endDate=\\d{1,2}\\w{3}\\d{4}", paste0("endDate=", format(date_test, "%d%b%Y"))),
+      dd_url = gsub("&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=DDParsed&field=CCDD", "", dd_url),
+      dd_url = gsub("&field=Age", "", dd_url), 
+      dd_url = paste0(dd_url, "&CCDDParsedFreeText=%5E;", code1, " ", code2, ";%5E,OR,%5E;", code2, " ", code1, ";%5E"), 
+      dd_url = gsub(" ", ";", dd_url)
     ) %>%
-    separate(feature, c("code1", "code2"), sep = " ", remove = FALSE) %>%
     left_join(icd_codes, by = c("code1" = "code")) %>%
     rename(description1 = description) %>%
     left_join(icd_codes, by = c("code2" = "code")) %>%
@@ -2446,8 +2612,27 @@ if (nrow(dd_alerts_bigram) > 0) {
     distinct(code1, code2, .keep_all = TRUE) %>%
     mutate_at(.vars = c("description1", "description2"), ~ ifelse(is.na(.), "SNOMED or Unknown Code", .)) %>%
     relocate(c(description1, description2), .after = feature) %>%
-    arrange(date_test, feature)
-
+    arrange(date_test, feature) %>%
+    mutate(
+      description1 = paste(code1, description1), 
+      description2 = paste(code2, description2),
+      description1 = gsub("ICD-10", "(ICD-10)", description1),
+      description2 = gsub("ICD-10", "(ICD-10)", description2),
+      description1 = gsub("ICD-9", "(ICD-9)", description1),
+      description2 = gsub("ICD-9", "(ICD-9)", description2)
+    ) %>%
+    select(
+      -code1,
+      -code2
+    )
+  
+  margins <- list(
+    l = 0,
+    r = 0,
+    b = 0,
+    t = 0
+  )
+  
   tbl <- ddbigram_table %>%
     reactable(
       pagination = FALSE,
@@ -2466,24 +2651,43 @@ if (nrow(dd_alerts_bigram) > 0) {
         headerClass = "term-table-header"
       ),
       columns = list(
-        bigram = colDef(
-          width = 100
-        ),
         prop = colDef(show = FALSE),
         data = colDef(show = FALSE),
-        code1 = colDef(
+        feature = colDef(
+          name = "Bigram", 
           width = 100
+        ), 
+        description1 = colDef(
+          name = "Description 1"
         ),
-        code2 = colDef(
-          width = 100
+        description2 = colDef(
+          name = "Description 2"
+        ),
+        date_test = colDef(
+          name = "Test Date",
+          width = 80
+        ),
+        p.value_current = colDef(
+          name = "p-value",
+          format = colFormat(digits = 4),
+          width = 60
         ),
         scale = colDef(
-          width = 150
+          name = "Scale",
+          width = 80
         ),
-        description1 = colDef(name = "Description 1"),
-        description2 = colDef(name = "Description 2"),
+        freq = colDef(
+          name = "Frequency",
+          width = 100,
+          align = "left"
+        ),
+        detector = colDef(
+          name = "Detector",
+          width = 80
+        ),
         sparkline = colDef(
           name = "Bigram Trend with Word Alerts",
+          html = TRUE, 
           cell = function(value, index) {
             .dat <- ddbigram_table$data[[index]]
 
@@ -2491,7 +2695,8 @@ if (nrow(dd_alerts_bigram) > 0) {
               add_trace(
                 x = ~date,
                 y = ~prop,
-                line = list(color = "#005EAA", width = 1),
+                line = list(color = "#00928F", width = 1),
+                fillcolor = "#4EBAAA",
                 fill = "tozeroy",
                 mode = "lines",
                 type = "scatter",
@@ -2506,7 +2711,7 @@ if (nrow(dd_alerts_bigram) > 0) {
                 data = subset(.dat, historical_alert),
                 x = ~date,
                 y = ~prop,
-                marker = list(color = "red"),
+                marker = list(color = "red", size = 5),
                 showlegend = FALSE,
                 hoverinfo = "text",
                 text = ~ paste(
@@ -2516,37 +2721,34 @@ if (nrow(dd_alerts_bigram) > 0) {
                 )
               ) %>%
               layout(
-                xaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE, showspikes = TRUE, spikemode = "across"),
-                yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE),
-                width = 250,
-                height = 100,
+                xaxis = list(title = "", showticklabels = FALSE, spikemode = "across", showline = FALSE, zerolinewidth = 0.5, zeroline = TRUE, spikedash = "dot", spikecolor = "black", spikethickness = -2),
+                yaxis = list(title = "", showticklabels = FALSE, showline = TRUE),
+                width = 160,
+                height = 60,
                 plot_bgcolor = "rgba(0, 0, 0, 0)",
                 paper_bgcolor = "rgba(0, 0, 0, 0)",
-                hoverlabel = list(font = list(size = 9, align = "left"))
+                hoverlabel = list(font = list(size = 9, align = "left")),
+                margin = margins
               ) %>%
               config(displayModeBar = FALSE)
 
-            div(.fig, style = "height:100px;")
+            div(.fig, style = "height:50px;", align = "left")
           },
-          width = 250
-        ),
-        feature = colDef(
-          name = "Bigram"
-        ),
-        date_test = colDef(
-          name = "Test Date"
-        ),
-        p.value_current = colDef(
-          name = "p-value",
-          format = colFormat(digits = 4),
-          width = 100,
+          width = 180,
           align = "left"
         ),
-        scale = colDef(
-          name = "Scale"
-        ),
-        detector = colDef(
-          name = "Detector"
+        dd_url = colDef(
+          name = "ESSENCE Data Details URL",
+          cell = function(value) {
+            
+            if (ccqv_param_reset) {
+              "Not available for CCQV"
+            } else {
+              htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
+            }
+          },
+          align = "center",
+          width = 150
         )
       ),
       showSortIcon = TRUE,
@@ -2587,5 +2789,11 @@ stopterms %>%
   hline(i = 10, border = officer::fp_border(color = "black", width = 1)) %>%
   hline(i = 15, border = officer::fp_border(color = "black", width = 1)) %>%
   hline(i = 20, border = officer::fp_border(color = "black", width = 1)) %>%
-  width(width = 4)
+  width(width = 4) %>%
+  flextable::font(font = "Calibri", part = "all") %>%
+  bg(bg = "#000000", part = "header") %>%
+  color(color = "#FFFFFF", part = "header") %>%
+  bold(part = "header") %>%
+  fontsize(size = 9, part = "body")
+
 ```
