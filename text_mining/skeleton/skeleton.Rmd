@@ -807,7 +807,7 @@ Chief Complaint Co-occurrence {data-navmenu="Term Network Graphs"}
 cc_unigram_dfm <- cc_tokens %>%
   tokens_ngrams(n = 1) %>% 
   dfm(tolower = FALSE) %>%
-  dfm_trim(min_termfreq = 0.2, teremfreq_type = "rank")
+  dfm_trim(min_termfreq = 0.2)
 
 cc_fcm <- fcm(cc_unigram_dfm)
 
