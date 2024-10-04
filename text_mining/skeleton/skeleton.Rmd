@@ -418,6 +418,7 @@ valueBox(range, icon = "fa-calendar", color = "orange")
 
 data %>%
   count(date) %>%
+  complete(date = seq.Date(from = min(data$date), to = max(data$date), by = "1 week"), fill = list(n = 0)) %>%
   plot_ly(
     x = ~date,
     y = ~n,
