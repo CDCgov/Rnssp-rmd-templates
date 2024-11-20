@@ -538,13 +538,13 @@ icd10_feature_table <- summary_age_all %>%
   arrange(code) %>%
   fuzzyjoin::regex_left_join(icd10_chapters, by = c(code = "regex_match"))
 
-# ICD-10 FY-2024 conversion file
-code_updates <- readRDS("icd10_fy2024_conversion_ref.rds")
+# ICD-10 FY-2025 conversion file
+code_updates <- readRDS("icd10_fy2025_conversion_ref.rds")
 
 previous_codes <- code_updates %>%
   select(previous_clean) %>%
   distinct(previous_clean) %>%
-  mutate(conversion_status = "Code revised for FY-2024")
+  mutate(conversion_status = "Code revised for FY-2025")
 
 new_codes <- code_updates %>%
   select(
@@ -552,7 +552,7 @@ new_codes <- code_updates %>%
     current_description
   ) %>%
   distinct(current_clean, .keep_all = TRUE) %>%
-  mutate(conversion_status = "Updated code for FY-2024")
+  mutate(conversion_status = "Updated code for FY-2025")
 
 code_updates_limited <- code_updates %>%
   select(
@@ -624,8 +624,8 @@ dd_increase <- dd_significant %>%
   filter(!filter) %>%
   mutate(
     description = ifelse(description == "" | is.na(description), current_description, description),
-    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2024", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2024", "No revision detected for FY-2024"))
+    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2025", "No revision detected for FY-2025"))
   ) %>%
   select(
     code,
@@ -646,7 +646,6 @@ dd_increase <- dd_significant %>%
   ) %>%
   arrange(-statistic) %>%
   mutate(
-    frequency = format(frequency, big.mark = ","),
     statistic = round(statistic, 2),
     adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
   ) %>%
@@ -685,7 +684,7 @@ dd_increase <- dd_significant %>%
   )
 
 dd_increase_shift <- dd_increase %>%
-  filter(conversion_status == "Updated code for FY-2024") %>%
+  filter(conversion_status == "Updated code for FY-2025") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   arrange(code)
 ```
@@ -738,6 +737,16 @@ tbl_increase <- dd_increase %>%
   reactable(
     pagination = FALSE,
     borderless = FALSE,
+    sortable = FALSE,
+    showSortable = TRUE,
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
+    height = "750px",
     defaultColDef = colDef(
       sortNALast = TRUE,
       minWidth = 50,
@@ -754,48 +763,61 @@ tbl_increase <- dd_increase %>%
     columns = list(
       code = colDef(
         name = "ICD-10 Code",
-        width = 80
+        width = 70,
+        sortable = TRUE
       ),
       description = colDef(
         name = "Description"
       ),
       conversion_status = colDef(
         name = "Conversion Status",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       frequency = colDef(
         name = "Overall Frequency",
         format = colFormat(separators = TRUE),
         width = 100,
-        align = "left"
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       mean_age = colDef(
         name = "Mean Age",
         format = colFormat(digits = 2),
         width = 60,
-        align = "left"
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       median_age = colDef(
         name = "Median Age",
         format = colFormat(digits = 0),
-        width = 60,
-        align = "left"
+        width = 70,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       pct_female = colDef(
         name = "Percent Female",
         format = colFormat(digits = 2, percent = TRUE),
-        width = 70,
-        align = "left"
+        width = 80,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       pct_male = colDef(
         name = "Percent Male",
         format = colFormat(digits = 2, percent = TRUE),
-        width = 70,
-        align = "left"
+        width = 80,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
+        filterable = FALSE, 
         cell = function(value, index) {
           .dat <- dd_increase$data[[index]]
 
@@ -844,21 +866,14 @@ tbl_increase <- dd_increase %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
+        filterable = FALSE,
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
         align = "center",
         width = 100
       )
-    ),
-    showSortIcon = TRUE,
-    highlight = TRUE,
-    striped = TRUE,
-    bordered = TRUE,
-    compact = TRUE,
-    theme = reactableTheme(cellPadding = "8 px"),
-    filterable = TRUE,
-    height = "750px"
+    )
   )
 
 div(
@@ -868,9 +883,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2024**
+### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2025**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2024. Updated 2024 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2023 through September 30, 2024. These codes were identified by joining to a reference file derived from the 2024 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes/2024-icd-10-cm). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2025. Updated 2025 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2024 through September 30, 2025. These codes were identified by joining to a reference file derived from the 2025 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
   * Code Set
   * Effective Year
@@ -881,12 +896,12 @@ The following table includes a subset of ICD-10 codes identified as having recen
   * Current Code Clean (decimals removed)
   * Current Description
   
-The sparklines in the following table represent trends for updated FY-2024 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2024 code revisions are detected.
+The sparklines in the following table represent trends for updated FY-2025 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2025 code revisions are detected.
 
 ```{r increasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_increase_detailed <- dd_increase %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Updated code for FY-2024") %>%
+  filter(conversion_status == "Updated code for FY-2025") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   select(
     conversion_status,
@@ -903,6 +918,15 @@ tbl_increase_detailed <- dd_increase %>%
   reactable(
     pagination = FALSE,
     borderless = FALSE,
+    sortable = FALSE,
+    showSortable = TRUE, 
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
     defaultColDef = colDef(
       sortNALast = TRUE,
       minWidth = 50,
@@ -919,22 +943,26 @@ tbl_increase_detailed <- dd_increase %>%
     columns = list(
       conversion_status = colDef(
         name = "Conversion Status",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       effective_year = colDef(
         name = "Effective Year",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       code = colDef(
-        name = "Updated ICD-10 Code for FY-2024",
-        width = 100
+        name = "Updated ICD-10 Code for FY-2025",
+        width = 100,
+        sortable = TRUE
       ),
       current_description = colDef(
         name = "Updated ICD-10 Code Description"
       ),
       previous_clean = colDef(
         name = "Previous ICD-10 Code",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       previous_description = colDef(
         name = "Previous ICD-10 Code Description"
@@ -942,6 +970,7 @@ tbl_increase_detailed <- dd_increase %>%
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
+        filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_increase_shift$data[[index]]
 
@@ -990,25 +1019,19 @@ tbl_increase_detailed <- dd_increase %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
+        filterable = FALSE, 
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
         align = "center",
         width = 100
       )
-    ),
-    showSortIcon = TRUE,
-    highlight = TRUE,
-    striped = TRUE,
-    bordered = TRUE,
-    compact = TRUE,
-    theme = reactableTheme(cellPadding = "8 px"),
-    filterable = TRUE
+    )
   )
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2024"),
+  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2025"),
   tbl_increase_detailed
 )
 ```
@@ -1041,7 +1064,6 @@ dd_decrease <- dd_significant %>%
   ) %>%
   arrange(statistic) %>%
   mutate(
-    frequency = format(frequency, big.mark = ","),
     statistic = round(statistic, 2),
     adjusted.p.value = format(adjusted.p.value, digits = 2, nsmall = 1, scientific = TRUE)
   ) %>%
@@ -1072,8 +1094,8 @@ dd_decrease <- dd_significant %>%
     ts_url
   ) %>%
   mutate(
-    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2024", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2024", "No revision detected for FY-2024"))
+    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2025", "No revision detected for FY-2025"))
   ) %>%
   left_join(icd10_features, by = c("code", "description")) %>%
   mutate(chapter = paste(chapter, codes)) %>%
@@ -1085,7 +1107,7 @@ dd_decrease <- dd_significant %>%
   )
 
 dd_decrease_shift <- dd_decrease %>%
-  filter(conversion_status == "Code revised for FY-2024") %>%
+  filter(conversion_status == "Code revised for FY-2025") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   group_by(code) %>%
   mutate(option = row_number()) %>%
@@ -1141,6 +1163,16 @@ tbl_decrease <- dd_decrease %>%
   reactable(
     pagination = FALSE,
     borderless = FALSE,
+    sortable = FALSE,
+    showSortable = TRUE, 
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
+    height = "750px",
     defaultColDef = colDef(
       sortNALast = TRUE,
       minWidth = 50,
@@ -1157,48 +1189,61 @@ tbl_decrease <- dd_decrease %>%
     columns = list(
       code = colDef(
         name = "ICD-10 Code",
-        width = 80
+        width = 70,
+        sortable = TRUE
       ),
       description = colDef(
         name = "Description"
       ),
       conversion_status = colDef(
         name = "Conversion Status",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       frequency = colDef(
         name = "Overall Frequency",
         format = colFormat(separators = TRUE),
         width = 100,
-        align = "left"
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       mean_age = colDef(
         name = "Mean Age",
         format = colFormat(digits = 2),
         width = 60,
-        align = "left"
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       median_age = colDef(
         name = "Median Age",
         format = colFormat(digits = 0),
-        width = 60,
-        align = "left"
+        width = 70,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       pct_female = colDef(
         name = "Percent Female",
         format = colFormat(digits = 2, percent = TRUE),
-        width = 70,
-        align = "left"
+        width = 80,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       pct_male = colDef(
         name = "Percent Male",
         format = colFormat(digits = 2, percent = TRUE),
-        width = 70,
-        align = "left"
+        width = 80,
+        align = "left",
+        sortable = TRUE,
+        filterable = FALSE
       ),
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
+        filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_decrease$data[[index]]
 
@@ -1247,21 +1292,14 @@ tbl_decrease <- dd_decrease %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
+        filterable = FALSE,
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
         align = "center",
         width = 100
       )
-    ),
-    showSortIcon = TRUE,
-    highlight = TRUE,
-    striped = TRUE,
-    bordered = TRUE,
-    compact = TRUE,
-    theme = reactableTheme(cellPadding = "8 px"),
-    filterable = TRUE,
-    height = "750px"
+    )
   )
 
 div(
@@ -1271,9 +1309,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2024**
+### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2025**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2024. Updated 2024 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2023 through September 30, 2024. These codes were identified by joining to a reference file derived from the 2024 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes/2024-icd-10-cm). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2025. Updated 2025 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2024 through September 30, 2025. These codes were identified by joining to a reference file derived from the 2025 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
   * Code Set
   * Effective Year
@@ -1284,17 +1322,18 @@ The following table includes a subset of ICD-10 codes identified as having recen
   * Current Code Clean (decimals removed)
   * Current Description
   
-Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2024 discharge diagnoses. As an example, FY-2024 revisions for the D319 code for benign neoplasm of ill-defined sites within the digestive system include the following 2 options: 
+Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2025 discharge diagnoses. As an example, FY-2025 revisions for the the E162 code for Hypoglycemia, unspecified include the following 3 options: 
 
-  1. D1391: Familial adenomatous polyposis
-  2. D1399: Benign neoplasm of ill-defined sites within the digestive system
+  1. E16A1: Hypoglycemia level 1
+  2. E16A2: Hypoglycemia level 2
+  3. E16A3: Hypoglycemia level 3
   
-The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2024 code revisions are detected.
+The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2025 code revisions are detected.
 
 ```{r decreasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_decrease_detailed <- dd_decrease %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Code revised for FY-2024") %>%
+  filter(conversion_status == "Code revised for FY-2025") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   select(
     conversion_status,
@@ -1315,6 +1354,15 @@ tbl_decrease_detailed <- dd_decrease %>%
   reactable(
     pagination = FALSE,
     borderless = FALSE,
+    sortable = FALSE,
+    showSortable = TRUE, 
+    showSortIcon = TRUE,
+    highlight = TRUE,
+    striped = TRUE,
+    bordered = TRUE,
+    compact = TRUE,
+    theme = reactableTheme(cellPadding = "8 px"),
+    filterable = TRUE,
     defaultColDef = colDef(
       sortNALast = TRUE,
       minWidth = 50,
@@ -1331,33 +1379,39 @@ tbl_decrease_detailed <- dd_decrease %>%
     columns = list(
       conversion_status = colDef(
         name = "Conversion Status",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       effective_year = colDef(
         name = "Effective Year",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       code = colDef(
         name = "Previous ICD-10 Code",
-        width = 100
+        width = 100,
+        sortable = TRUE
       ),
       previous_description = colDef(
         name = "Previous ICD-10 Code Description"
       ),
       current_clean = colDef(
-        name = "Updated ICD-10 Code for FY-2024",
-        width = 100
+        name = "Updated ICD-10 Code for FY-2025",
+        width = 100,
+        sortable = TRUE
       ),
       current_description = colDef(
         name = "Updated ICD-10 Code Description"
       ),
       option = colDef(
         name = "Conversion Option",
+        filterable = FALSE, 
         width = 100
       ),
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
+        filterable = FALSE, 
         cell = function(value, index) {
           .dat <- dd_decrease_shift$data[[index]]
 
@@ -1406,25 +1460,19 @@ tbl_decrease_detailed <- dd_decrease %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
+        filterable = FALSE, 
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
         align = "center",
         width = 100
       )
-    ),
-    showSortIcon = TRUE,
-    highlight = TRUE,
-    striped = TRUE,
-    bordered = TRUE,
-    compact = TRUE,
-    theme = reactableTheme(cellPadding = "8 px"),
-    filterable = TRUE
+    )
   )
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2024"),
+  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2025"),
   tbl_decrease_detailed
 )
 ```
