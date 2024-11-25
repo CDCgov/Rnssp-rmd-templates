@@ -418,6 +418,7 @@ valueBox(range, icon = "fa-calendar", color = "orange")
 
 data %>%
   count(date) %>%
+  complete(date = seq.Date(from = min(data$date), to = max(data$date), by = "1 week"), fill = list(n = 0)) %>%
   plot_ly(
     x = ~date,
     y = ~n,
@@ -807,7 +808,7 @@ Chief Complaint Co-occurrence {data-navmenu="Term Network Graphs"}
 cc_unigram_dfm <- cc_tokens %>%
   tokens_ngrams(n = 1) %>% 
   dfm(tolower = FALSE) %>%
-  dfm_trim(min_termfreq = 0.2, teremfreq_type = "rank")
+  dfm_trim(min_termfreq = 0.2)
 
 cc_fcm <- fcm(cc_unigram_dfm)
 
@@ -950,6 +951,10 @@ if (nrow(check_cor) > 10) {
     filter(!pair2 %in% unnested_cc_bigrams$bigram) %>%
     mutate_at(.vars = c("item1", "item2"), ~toupper(.))
   
+  if (nrow(cc_cor) == 0) {
+    cat("Not a sufficient number of terms to render network graph.")
+  } else {
+  
   cc_cor_edges <- cc_cor %>%
     mutate(id = ifelse(item1 < item2, paste(item1, item2),  paste(item2, item1))) %>%
     distinct(id, .keep_all = TRUE) %>%
@@ -1001,6 +1006,7 @@ if (nrow(check_cor) > 10) {
       nodesIdSelection = TRUE
     ) %>%
     visLayout(randomSeed = 1993)
+  }
 } else {
   cat("Not a sufficient number of terms to render network graph.")
 }
@@ -1011,7 +1017,7 @@ if (nrow(check_cor) > 10) {
 
 ```{r search table, echo = FALSE, warning = FALSE, message = FALSE}
 
-if (nrow(check_cor) > 10) {
+if (nrow(check_cor) > 10 & nrow(cc_cor) > 0) {
 cc_cor %>%
   select(
     `Term 1` = item1, 
