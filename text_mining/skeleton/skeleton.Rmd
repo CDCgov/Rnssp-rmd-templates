@@ -996,7 +996,7 @@ Chief Complaint and Discharge Diagnosis Co-occurrence {data-navmenu="Term Networ
 
 ```{r CCDD network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
 ccdd_tokens <- data %>%
-  corpus(text_field = "ccdd_parsed") %>%
+  corpus(text_field = "ccdd") %>%
   tokens(
     what = "word",
     remove_punct = TRUE,
