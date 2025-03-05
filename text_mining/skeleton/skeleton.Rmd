@@ -24,7 +24,7 @@ params:
     input: date
   end_date:
     label: "Enter End Date: "
-    value: !r Sys.Date()
+    value: !r lubridate::floor_date(Sys.Date(), unit = "1 week") - 1
     input: date
   has_been_E: 
     label: "Has Been Emergency: "
@@ -47,17 +47,17 @@ params:
     choices: !r agrp <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "essagegrps.rds"), destfile = agrp); dplyr::pull(readRDS(agrp), display_name)
     multiple: yes
   definition: 
-    label: "Syndrome Definition: " 
+    label: "Definition (CCDD Category, Subsyndrome, or Syndrome): " 
     value: "None (Custom CCDD Query)"
     input: select
-    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
+    choices: !r definitions <- tibble::add_row(readRDS("syndef_new.rds"), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
     label: "CCDD Query:"
     value: ""
     input: text
     placeholder: "Free Text Query e.g.: ^[;/ ]J10^,OR,^[;/ ]J.10^"
   complex_query: 
-    label: "Complex Query (will override all previous parameters):"
+    label: "Complex Query (will override all previous parameters except for dates):"
     value: ""
     input: text
     placeholder: "ESSENCE Data Details API URL (NOTE: Will overwrite all previous parameters!)"
@@ -80,6 +80,8 @@ editor_options:
 .chart-title {  /* chart_title  */
    font-size: 20px;
    font-weight: bold;
+   background: #005EAA;
+   color: white;
 
 </style>
 
@@ -87,25 +89,24 @@ editor_options:
 ## Libraries ----
 library(Rnssp)
 library(tidyverse)
-library(tidytext)
-library(kableExtra)
 library(janitor)
 library(MMWRweek)
 library(lubridate)
-library(shiny)
-library(flexdashboard)
-library(plotly)
-library(widyr)
-library(visNetwork)
-library(igraph)
-library(ggthemes)
-library(flextable)
-library(DT)
+library(tidytext)
 library(quanteda)
 library(quanteda.textmodels)
 library(quanteda.textstats)
 library(quanteda.textplots)
-
+library(shiny)
+library(flexdashboard)
+library(widyr)
+library(echarts4r)
+library(visNetwork)
+library(igraph)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(DT)
 ```
 
 ```{r set_end_start_dates, echo=FALSE, message=FALSE, include=FALSE}
@@ -114,13 +115,12 @@ startDate <- format(params$start_date, "%d%b%Y")
 hasBeenE <- as.numeric(params$has_been_E)
 definition <- params$definition
 
-premature_quit <- params$definition == "None (Custom CCDD Query)" & 
+premature_quit <- params$definition == "None (Custom CCDD Query)" &
   (params$ccdd_query == "" | is.null(params$ccdd_query) | grepl("^\\s*$", params$ccdd_query)) & params$complex_query == ""
-
 ```
 
 ```{r knit_exit_condition, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_quit}
-knitr::knit_exit("Render ends prematurely. 
+knitr::knit_exit("Render ends prematurely.
                  You choose a Custom CCDD Query definition without supplying a Free Text Query!")
 ```
 
@@ -133,47 +133,43 @@ myProfile <- Credentials$new(
 ```
 
 ```{r ESSENCE data pull, echo=FALSE, message = FALSE, warning = FALSE, results = 'hide'}
-
-
 if (nchar(params$complex_query) > 0) {
-  
   url <- params$complex_query
-  
+
   if (!grepl("&field=", url)) {
-    url <- paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+    url <- change_dates(paste0(url, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed"), start_date = params$start_date, end_date = params$end_date)
   }
-  
+
   definition <- "None (Complex Query)"
-  
 } else {
   definition_pattern <- as.character(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"))
-  
+
   if (definition_pattern == "CCDD Category") {
     definition_string <- str_replace_all(str_remove_all(tolower(definition), "ccdd category: "), " ", "%20")
     definition_type <- "&ccddCategory="
     grouping_system <- "essencesyndromes"
   }
-  
+
   if (definition_pattern == "Subsyndrome") {
     definition_string <- str_remove_all(tolower(definition), "subsyndrome: ")
     if (params$data_source == "Chief Complaint Query Validation") {
       definition_type <- "&subsyndrome="
-    } else{
+    } else {
       definition_type <- "&medicalGrouping="
       grouping_system <- "chiefcomplaintsubsyndromes"
     }
   }
-  
+
   if (definition_pattern == "Syndrome") {
     definition_string <- str_remove_all(tolower(definition), "syndrome: ")
     if (params$data_source == "Chief Complaint Query Validation") {
       definition_type <- "&syndrome="
-    } else{
+    } else {
       definition_type <- "&medicalGrouping="
       grouping_system <- "essencesyndromes"
     }
   }
-  
+
   if (definition_pattern == "None (Custom CCDD Query)") {
     definition_string <- str_replace_all(params$ccdd_query, "\\^", "%5E") %>%
       str_replace_all(" ", "%20") %>%
@@ -182,7 +178,7 @@ if (nchar(params$complex_query) > 0) {
     definition_type <- "&ccddFreeText="
     grouping_system <- "essencesyndromes"
   }
-  
+
   if (params$site != "All") {
     site_id <- readRDS("nca_hosp.rds") %>%
       filter(site_name == params$site) %>%
@@ -190,15 +186,14 @@ if (nchar(params$complex_query) > 0) {
   }
   
   if (params$data_source == "Chief Complaint Query Validation") {
-    url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE)
-    
+    url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE,
+"&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed")
   } else if (params$data_source == "Facility Location (Full Details)") {
-    
     if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
       if (params$site == "All") {
-        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed")
       } else {
-        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD")
+        url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed")
       }
     } else {
       age_group_string <- params$age_groups %>%
@@ -210,35 +205,35 @@ if (nchar(params$complex_query) > 0) {
         str_replace_all("School", "school") %>%
         str_replace_all("\\+", "-1000") %>%
         paste0("age", .)
-      
+
       if (grepl("age\\d{1}", age_group_string)) {
         age_group_string <- str_replace_all(age_group_string, "age", "ageGroup")
       }
-      
+
       if (params$site == "All") {
         url <- paste0(
           "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
-          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
+          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed&field=Age"
         )
       } else {
         url <- paste0(
           "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate,
-          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system , "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=Age"
+          "&percentParam=noPercent&datasource=va_hosp&startDate=", startDate, "&medicalGroupingSystem=", grouping_system, "&userId=2362&site=", site_id, "&aqtTarget=DataDetails", definition_type, definition_string, "&geographySystem=hospital&detector=nodetectordetector&timeResolution=daily&hasBeenE=", hasBeenE, "&", age_group_string, "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed&field=Age"
         )
       }
     }
   }
 }
 # Data Pull from NSSP-ESSENCE
-api_data <- try(myProfile$get_api_data(url, fromCSV = TRUE),
-                silent = TRUE)
+api_data <- try(get_api_data(url, fromCSV = TRUE),
+  silent = TRUE
+)
 
 premature_knit2 <- all(class(api_data) == "try-error") &
   nchar(params$complex_query) == 0
 
-premature_knit3 <- all(class(api_data) == "try-error") & 
+premature_knit3 <- all(class(api_data) == "try-error") &
   nchar(params$complex_query) > 0
-
 ```
 
 ```{r knit_exit_condition2, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit2}
@@ -252,9 +247,6 @@ knitr::knit_exit("Render ends prematurely.
 ```
 
 ```{r comp_data, echo = FALSE, warning = FALSE, message = FALSE}
-
-pattern_replace = "[;/,\\\\*-]|([a-zA-Z])/([\\d])|([\\d])/([a-zA-Z])|([a-zA-Z])/([a-zA-Z])|([\\d])/([\\d])"
-
 data <- api_data %>%
   clean_names() %>%
   as.data.table() %>%
@@ -266,24 +258,20 @@ data <- api_data %>%
   .[, linenumber := .I] %>%
   .[, month := round_date(date, "month")] %>%
   .[, chief_complaint_parsed_orig := chief_complaint_parsed] %>%
-  .[, discharge_diagnosis_orig := discharge_diagnosis] %>%
-  .[, ccdd_orig := ccdd] %>%
-  relocate(c(linenumber, year, week, date, month, chief_complaint_parsed_orig, discharge_diagnosis_orig, ccdd_orig)) %>%
+  .[, dd_parsed_orig := dd_parsed] %>%
+  .[, ccdd_parsed_orig := ccdd_parsed] %>%
+  relocate(c(linenumber, year, week, date, month, chief_complaint_parsed_orig, dd_parsed_orig, ccdd_parsed_orig)) %>%
   .[, chief_complaint_parsed := vapply(lapply(str_split(chief_complaint_parsed, " "), unique), paste, character(1L), collapse = " ")] %>%
-  .[, discharge_diagnosis := gsub(pattern_replace, " ", discharge_diagnosis)] %>%
-  .[, discharge_diagnosis := gsub("\\.", "", discharge_diagnosis)] %>%
-  .[, discharge_diagnosis := gsub("^\\s+|\\s+$", replacement = "", discharge_diagnosis)] %>%
+  .[, discharge_diagnosis := gsub(";", " ", dd_parsed)] %>%
   .[, discharge_diagnosis := vapply(lapply(str_split(discharge_diagnosis, " "), unique), paste, character(1L), collapse = " ")] %>%
-  .[, ccdd := vapply(lapply(str_split(ccdd, " "), unique), paste, character(1L), collapse = " ")]
-
+  .[, discharge_diagnosis := gsub("^\\s+|\\s+$", replacement = "", discharge_diagnosis)] %>%
+  .[, ccdd := vapply(lapply(str_split(ccdd_parsed, " "), unique), paste, character(1L), collapse = " ")]
 ```
 
 ```{r data and icd_dictionary import, echo = FALSE, warning = FALSE, message = FALSE}
-
 icd_dictionary <- readRDS("icd10.rds") %>%
   distinct(code, description, .keep_all = TRUE) %>%
   select(-set)
-
 ```
 
 Background
@@ -311,42 +299,39 @@ This template can access two different data sources, including the Chief Complai
 
 ### Interactive Visualizations 
 
-The visualizations in this dashboard include total weekly volume of encounters, the 200 most frequent n-gram frequencies of chief complaint terms and discharge diagnosis codes, term co-occurrence network graphs for the ChiefComplaintParsed and CCDD fields, a chief complaint and discharge diagnosis term correlation network graph, and n-grams with significant increases or decreases in occurrence over time. Potential clusters or groupings of terms are visualized by node color and can be selected from the "Select by group" drop down menu. All interactive widgets were produced with the `plotly` and `visNetwork` packages which provide hovering functionality such as displaying data point values, ICD-10 code descriptions, co-occurrence frequencies, and correlation coefficients. 
+The visualizations in this dashboard include total weekly volume of encounters, the 200 most frequent n-gram frequencies of chief complaint terms and discharge diagnosis codes, term co-occurrence network graphs for the ChiefComplaintParsed and CCDD fields, a chief complaint and discharge diagnosis term correlation network graph, and n-grams with significant increases or decreases in occurrence over time. Potential clusters or groupings of terms are visualized by node color and can be selected from the "Select by group" drop down menu. All interactive widgets were produced with the `echarts4r` and `visNetwork` packages which provide hovering functionality such as displaying data point values, ICD-10 code descriptions, co-occurrence frequencies, and correlation coefficients. 
 
 ### `r paste("Query Details:", str_squish(str_remove_all(definition, "CCDD Category|Syndrome|Subsyndrome|:")))`
 
 ```{r query, echo = FALSE, warning = FALSE, message = FALSE}
-
 if (nchar(params$complex_query) > 0) {
   query <- as.character(params$complex_query) %>%
     str_replace_all("api/dataDetails/csv", "servlet/DataDetailsServlet")
-  
+
   query_url <- paste0("[API URL](", query, ")")
-  
+
   fields <- c(
-    "syndromeFreeText",
-    "ccddCategoryFreeText"
+    "Syndrome free text",
+    "CCDD category free text"
   )
-  
+
   syndrome_free_text <- URLdecode(unique(as.character(str_match(params$complex_query, pattern = "(?<=syndromeFreeText=)(.*?)(?=&)"))))
   ccdd_category_free_text <- URLdecode(unique(as.character(str_match(params$complex_query, pattern = "(?<=ccddCategoryFreeText=)(.*?)(?=&)"))))
-  
-  # data.frame(URL = query, Query = "Complex Query Option (API URL)") %>%
+
   data.frame(Fields = fields, Query = c(syndrome_free_text, ccdd_category_free_text)) %>%
+    mutate(Query = if_else(Query == "NA", "Not used, see API URL", Query)) %>%
     mutate(Query = str_replace_all(Query, pattern = "\\^", "\\\\^")) %>%
     kable("html") %>%
     kable_styling() %>%
-    add_footnote(label = query_url, escape = FALSE, notation = "symbol") %>%
-    scroll_box(width = "1000px", height = "300px") 
-  
+    add_footnote(label = query_url, escape = FALSE, notation = "none") %>%
+    scroll_box(width = "1000px", height = "300px")
 } else {
-  
   if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
     field <- str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)")
-    
+
     if (params$ccdd_query != "") {
       query <- params$ccdd_query
-      
+
       data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
         kable() %>%
         kable_styling() %>%
@@ -355,7 +340,7 @@ if (nchar(params$complex_query) > 0) {
       query <- readRDS("syndef.rds") %>%
         filter(syndrome == definition) %>%
         pull(query_logic)
-      
+
       data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
         kable() %>%
         kable_styling() %>%
@@ -364,10 +349,10 @@ if (nchar(params$complex_query) > 0) {
   } else {
     field <- c(str_match(definition, pattern = "CCDD Category|Subsyndrome|Syndrome|None \\(Custom CCDD Query\\)"), as.character(str_match(params$age_group, pattern = "([[:alnum:]]*|\\-|\\s*)*(?=:)")[, 1])) %>%
       unique()
-    
+
     if (params$ccdd_query != "") {
       query <- params$ccdd_query
-      
+
       data.frame(Fields = field, Query = str_replace_all(query, pattern = "\\^", "\\\\^")) %>%
         kable() %>%
         kable_styling() %>%
@@ -376,10 +361,10 @@ if (nchar(params$complex_query) > 0) {
       query <- readRDS("syndef.rds") %>%
         filter(syndrome == definition) %>%
         pull(query_logic)
-      
+
       age_groups <- as.character(str_match(params$age_group, pattern = "\\d{2}-\\d{2}|\\d{2}\\+")) %>%
         ifelse(length(.) == 1, ., paste(., collapse = ", "))
-      
+
       data.frame(Fields = field, Query = c(str_replace_all(query, pattern = "\\^", "\\\\^"), age_groups)) %>%
         kable() %>%
         kable_styling() %>%
@@ -387,7 +372,6 @@ if (nchar(params$complex_query) > 0) {
     }
   }
 }
-
 ```
 
 Column 
@@ -396,45 +380,59 @@ Column
 ### Total Number of Encounters
 
 ```{r total encounters, echo = FALSE, warning = FALSE, message = FALSE}
-
 n_encounters <- format(nrow(data), big.mark = ",")
-valueBox(n_encounters, icon = "fa-hospital")
+valueBox(n_encounters, icon = "fa-hospital", color = "#EEF9FF")
 ```
 
 ### Date Range
 
 ```{r date range, echo = FALSE, warning = FALSE, message = FALSE}
-
 range <- paste(format(as.Date(min(data$date)), "%B %d, %Y"), "to", format(as.Date(max(data$date)), "%B %d, %Y"))
 
-valueBox(range, icon = "fa-calendar", color = "orange")
-
+valueBox(range, icon = "fa-calendar", color = "#EEF9FF")
 ```
 
 ### Weekly Volume of Encounters
 ##### Data Source: NSSP-ESSENCE
 
 ```{r total volume, echo = FALSE, warning = FALSE, message = FALSE}
-
 data %>%
   count(date) %>%
   complete(date = seq.Date(from = min(data$date), to = max(data$date), by = "1 week"), fill = list(n = 0)) %>%
-  plot_ly(
-    x = ~date,
-    y = ~n,
-    type = "scatter",
-    mode = "lines+markers",
-    hoverinfo = "text",
-    text = ~ paste(
-      "</br><b>Date:</b>", date,
-      "</br><b>Encounters:</b>", n
+  e_charts(date) %>%
+  e_line(
+    n,
+    symbol = "none",
+    lineStyle = list(width = 3)
+  ) %>%
+  e_color("#005EAA") %>%
+  e_x_axis(
+    name = "MMWR Week Date",
+    nameLocation = "center",
+    axisLabel = list(hideOverlap = TRUE),
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
     )
   ) %>%
-  layout(
-    xaxis = list(title = "MMWR Week Date", rangemode = "tozero"),
-    yaxis = list(title = "Encounters", rangemode = "tozero")
+  e_y_axis(
+    axisLine = list(show = TRUE),
+    axisTick = list(show = TRUE),
+    name = "Encounters",
+    nameLocation = "center",
+    nameTextStyle = list(
+      padding = c(0, 0, 40, 0)
+    )
   ) %>%
-  config(displayModeBar = FALSE)
+  e_tooltip(
+    trigger = "axis",
+    formatter = htmlwidgets::JS("
+      function(params){
+        return('<b>MMWR Week Date:</b> ' + params[0].value[0]) +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params[0].value[1].toLocaleString())
+      }
+    ")
+  ) %>%
+  e_legend(show = FALSE)
 ```
 
 Unigram {data-navmenu="N-gram Frequencies"} 
@@ -446,9 +444,12 @@ Column
 ### Chief Complaint  
 
 ```{r CC unigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
-stopterms <- tidytext::stop_words
-stopterms2 <- toupper(str_remove_all(stopwords("english"), "[[:punct:]]"))
+stopterms <- tidytext::stop_words %>%
+  mutate(
+    word = gsub("[[:punct:]]", "", word),
+    word = str_squish(word),
+    word = toupper(word)
+  )
 
 cc_tokens <- data %>%
   corpus(text_field = "chief_complaint_parsed") %>%
@@ -461,7 +462,6 @@ cc_tokens <- data %>%
     verbose = TRUE
   ) %>%
   tokens_select(pattern = stopterms$word, selection = "remove", min_nchar = 3) %>%
-  tokens_select(pattern = stopterms2, selection = "remove") %>%
   tokens_select(pattern = icd_dictionary$code, selection = "remove") %>%
   tokens_select(pattern = "[a-zA-Z]{1}\\d{2,3}", selection = "remove", valuetype = "regex")
 
@@ -474,7 +474,7 @@ unnested_cc_unigrams <- cc_tokens %>%
   setorderv("document") %>%
   merge(docvars(cc_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     word = term
   )
 
@@ -484,25 +484,35 @@ ccngram <- unnested_cc_unigrams %>%
   mutate(word = fct_reorder(word, n, .desc = TRUE))
 
 ccngram %>%
-  plot_ly(
-    x = ~n,
-    y = ~word,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      word,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  e_charts(word) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA") %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    axisLabel = list(hideOverlap = TRUE),
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  layout(
-    title = "Top 200 Single Term Frequencies of Chief Complaint Parsed",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Word")
+  e_y_axis(
+    name = "Unigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        return('<b>Term:</b> ' + params.value[1] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Single Term Frequencies of Chief Complaint Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Column 
@@ -511,13 +521,6 @@ Column
 ### Discharge Diagnosis 
 
 ```{r DD unigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
-dd_stopword_dict <- dictionary(list(
-  pattern1 = "\\b[A-Za-z]{2,20}\\b",
-  pattern2 = "COVID19",
-  pattern3 = "\\b\\d{1,2}[a-zA-Z]{2,20}\\b"
-))
-
 dd_tokens <- data %>%
   corpus(text_field = "discharge_diagnosis") %>%
   tokens(
@@ -526,8 +529,7 @@ dd_tokens <- data %>%
     remove_symbols = TRUE,
     remove_separators = TRUE,
     verbose = TRUE
-  ) %>%
-  tokens_select(pattern = dd_stopword_dict, valuetype = "regex", selection = "remove", min_nchar = 3)
+  )
 
 unnested_dd_unigrams <- dd_tokens %>%
   dfm(tolower = FALSE) %>%
@@ -538,7 +540,7 @@ unnested_dd_unigrams <- dd_tokens %>%
   setorderv("document") %>%
   merge(docvars(dd_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     code = term
   )
 
@@ -548,28 +550,40 @@ ddngram <- unnested_dd_unigrams %>%
   left_join(icd_dictionary, by = "code") %>%
   distinct() %>%
   mutate(description = ifelse(is.na(description), "ICD-9, SNOMED, or invalid DD code", description)) %>%
-  mutate(code = fct_reorder(code, n, .desc = TRUE)) 
+  mutate(code = fct_reorder(code, n, .desc = TRUE))
 
 ddngram %>%
-  plot_ly(
-    x = ~n,
-    y = ~code,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      code, ": ", description,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  mutate(model = paste(code, description, sep = ",")) %>%
+  e_charts(code) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA", bind = model) %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  layout(
-    title = "Top 200 Single Term Frequencies of Discharge Diagnosis",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Word")
+  e_y_axis(
+    name = "Unigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        var vals = params.name.split(',')
+        return('<b>Code:</b> ' + params.value[1] +
+        '<br /><b>Description:</b> ' + vals[1] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Single Term Frequencies of Discharge Diagnosis Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Bigram {data-navmenu="N-gram Frequencies"} 
@@ -581,7 +595,6 @@ Column
 ### Chief Complaint 
 
 ```{r CC bigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
 unnested_cc_bigrams <- cc_tokens %>%
   tokens_ngrams(n = 2, concatenator = " ") %>%
   dfm(tolower = FALSE) %>%
@@ -592,11 +605,11 @@ unnested_cc_bigrams <- cc_tokens %>%
   setorderv("document") %>%
   merge(docvars(dd_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     bigram = term
   ) %>%
   .[, c("word1", "word2") := tstrsplit(bigram, " ", fixed = TRUE)] %>%
-  .[, bigram := fifelse(word1 < word2, paste(word1, word2), paste(word2, word1))] 
+  .[, bigram := fifelse(word1 < word2, paste(word1, word2), paste(word2, word1))]
 
 cc_bigram_top200 <- unnested_cc_bigrams %>%
   count(bigram) %>%
@@ -604,25 +617,35 @@ cc_bigram_top200 <- unnested_cc_bigrams %>%
   mutate(bigram = fct_reorder(bigram, n, .desc = TRUE))
 
 cc_bigram_top200 %>%
-  plot_ly(
-    x = ~n,
-    y = ~bigram,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      bigram,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  e_charts(bigram) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA") %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    axisLabel = list(hideOverlap = TRUE),
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  layout(
-    title = "Top 200 Bigram Frequencies of Chief Complaint Parsed",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Bigram")
+  e_y_axis(
+    name = "Bigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        return('<b>Bigram:</b> ' + params.value[1] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Bigram Frequencies of Chief Complaint Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Column 
@@ -631,22 +654,21 @@ Column
 ### Discharge Diagnosis
 
 ```{r DD bigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
 unnested_dd_bigrams <- dd_tokens %>%
   tokens_ngrams(n = 2, concatenator = " ") %>%
   dfm(tolower = FALSE) %>%
   tidytext::tidy() %>%
-  as.data.table()  %>%
+  as.data.table() %>%
   .[, document := gsub("text", "", document, fixed = TRUE)] %>%
   .[, document := as.numeric(document)] %>%
   setorderv("document") %>%
   merge(docvars(dd_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     bigram = term
   ) %>%
   .[, c("word1", "word2") := tstrsplit(bigram, " ", fixed = TRUE)] %>%
-  .[, bigram := fifelse(word1 < word2, paste(word1, word2), paste(word2, word1))] 
+  .[, bigram := fifelse(word1 < word2, paste(word1, word2), paste(word2, word1))]
 
 ddngram <- unnested_dd_bigrams %>%
   count(bigram) %>%
@@ -659,30 +681,47 @@ ddngram <- unnested_dd_bigrams %>%
     description2 = description.y
   ) %>%
   distinct() %>%
-  mutate_at(.vars = c("description1", "description2"), ~ifelse(is.na(.), "ICD-9, SNOMED, or invalid DD code", .)) %>%
-  mutate(bigram = fct_reorder(bigram, n, .desc = TRUE)) 
+  mutate_at(.vars = c("description1", "description2"), ~ ifelse(is.na(.), "ICD-9, SNOMED, or invalid DD code", .)) %>%
+  mutate(bigram = fct_reorder(bigram, n, .desc = TRUE))
+
 
 ddngram %>%
-  plot_ly(
-    x = ~n,
-    y = ~bigram,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      code1, ": ", description1,
-      "<br>", code2, ": ", description2,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  mutate(
+    code1 = str_wrap(paste(code1, description1, sep = "-"), 90),
+    code2 = str_wrap(paste(code2, description2, sep = "-"), 90),
+    model = paste(code1, code2, sep = "_"),
+    model = gsub("\n", "<br />", model)
   ) %>%
-  layout(
-    title = "Top 200 Bigram Frequencies of Discharge Diagnosis",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Bigram")
+  e_charts(bigram) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA", bind = model) %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_y_axis(
+    name = "Bigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
+  ) %>%
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        var vals = params.name.split('_')
+        return('<b>Code 1:</b> ' + vals[0] +
+        '<br /><b>Code 2:</b> ' + vals[1] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Bigram Frequencies of Discharge Diagnosis Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Trigram {data-navmenu="N-gram Frequencies"} 
@@ -694,20 +733,19 @@ Column
 ### Chief Complaint  
 
 ```{r CC trigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
 unnested_cc_trigrams <- cc_tokens %>%
   tokens_ngrams(n = 3, concatenator = " ") %>%
   dfm(tolower = FALSE) %>%
   tidytext::tidy() %>%
-  as.data.table()  %>%
+  as.data.table() %>%
   .[, document := gsub("text", "", document, fixed = TRUE)] %>%
   .[, document := as.numeric(document)] %>%
   setorderv("document") %>%
   merge(docvars(cc_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     trigram = term
-  ) 
+  )
 
 ccngram <- unnested_cc_trigrams %>%
   count(trigram) %>%
@@ -716,25 +754,35 @@ ccngram <- unnested_cc_trigrams %>%
   mutate(trigram = fct_reorder(trigram, n, .desc = TRUE))
 
 ccngram %>%
-  plot_ly(
-    x = ~n,
-    y = ~trigram,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      trigram,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  e_charts(trigram) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA") %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    axisLabel = list(hideOverlap = TRUE),
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  layout(
-    title = "Top 200 Trigram Frequencies of Chief Complaint Parsed",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Trigram")
+  e_y_axis(
+    name = "Trigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        return('<b>Trigram:</b> ' + params.value[1] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Trigram Frequencies of Chief Complaint Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Column 
@@ -743,20 +791,28 @@ Column
 ### Discharge Diagnosis  
 
 ```{r DD trigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
-
 unnested_dd_trigrams <- dd_tokens %>%
   tokens_ngrams(n = 3, concatenator = " ") %>%
   dfm(tolower = FALSE) %>%
   tidytext::tidy() %>%
-  as.data.table()  %>%
+  as.data.table() %>%
   .[, document := gsub("text", "", document, fixed = TRUE)] %>%
   .[, document := as.numeric(document)] %>%
   setorderv("document") %>%
   merge(docvars(dd_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
-    linenumber = document, 
+    linenumber = document,
     trigram = term
-  ) 
+  ) %>%
+  .[, c("word1", "word2", "word3") := tstrsplit(trigram, " ", fixed = TRUE)] %>%
+  .[, trigram := fcase(
+    word3 < word1 & word1 < word2, paste(word3, word1, word2),
+    word3 < word2 & word2 < word1, paste(word3, word2, word1),
+    word2 < word1 & word1 < word3, paste(word2, word1, word3),
+    word2 < word3 & word3 < word1, paste(word2, word3, word1),
+    word1 < word2 & word2 < word3, paste(word1, word2, word3),
+    word1 < word2 & word3 < word2, paste(word1, word3, word2)
+  )]
 
 ddngram <- unnested_dd_trigrams %>%
   count(trigram) %>%
@@ -771,31 +827,48 @@ ddngram <- unnested_dd_trigrams %>%
     description3 = description
   ) %>%
   distinct() %>%
-  mutate_at(.vars = c("description1", "description2", "description3"), ~ifelse(is.na(.), "ICD-9, SNOMED, or invalid DD code", .)) %>%
-  mutate(trigram = fct_reorder(trigram, n, .desc = TRUE)) 
+  mutate_at(.vars = c("description1", "description2", "description3"), ~ ifelse(is.na(.), "ICD-9, SNOMED, or invalid DD code", .)) %>%
+  mutate(trigram = fct_reorder(trigram, n, .desc = TRUE))
 
 ddngram %>%
-  plot_ly(
-    x = ~n,
-    y = ~trigram,
-    type = "bar",
-    orientation = "h",
-    hoverinfo = "text",
-    text = ~ paste(
-      code1, ": ", description1,
-      "<br>", code2, ": ", description2,
-      "<br>", code3, ": ", description3,
-      "<br> Frequency: ", n
-    ),
-    textposition = "none"
+  arrange(n) %>%
+  mutate(
+    code1 = str_wrap(paste(code1, description1, sep = "-"), 90),
+    code2 = str_wrap(paste(code2, description2, sep = "-"), 90),
+    code3 = str_wrap(paste(code3, description3, sep = "-"), 90),
+    model = paste(code1, code2, code3, sep = "_"),
+    model = gsub("\n", "<br />", model)
   ) %>%
-  layout(
-    title = "Top 200 Trigram Frequencies of Discharge Diagnosis",
-    xaxis = list(title = "Frequency"),
-    yaxis = list(autorange = "reversed", title = "Trigram")
+  e_charts(trigram) %>%
+  e_bar(n, name = "Frequency", color = "#005EAA", bind = model) %>%
+  e_flip_coords() %>%
+  e_x_axis(
+    name = "Frequency",
+    nameLocation = "center",
+    nameTextStyle = list(
+      padding = c(20, 0, 0, 0)
+    )
   ) %>%
-  config(displayModeBar = FALSE)
-
+  e_y_axis(
+    name = "Trigram",
+    axisLine = list(show = TRUE),
+    axisTick = list(show = FALSE)
+  ) %>%
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        var vals = params.name.split('_')
+        return('<b>Code 1:</b> ' + vals[0] +
+        '<br /><b>Code 2:</b> ' + vals[1] +
+        '<br /><b>Code 3:</b> ' + vals[2] +
+        '<br /><b>Frequency:</b> ' + echarts.format.addCommas(params.value[0].toLocaleString()))
+      }
+    "),
+    textStyle = list(overflow = "break", fontSize = 11)
+  ) %>%
+  e_legend(show = FALSE) %>%
+  e_title("Top 200 Bigram Frequencies of Discharge Diagnosis Parsed") %>%
+  e_grid(containLabel = TRUE)
 ```
 
 Chief Complaint Co-occurrence {data-navmenu="Term Network Graphs"} 
@@ -804,9 +877,8 @@ Chief Complaint Co-occurrence {data-navmenu="Term Network Graphs"}
 ### Chief Complaint Parsed Term Co-occurrence Network Graph
 
 ```{r CC network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
-
 cc_unigram_dfm <- cc_tokens %>%
-  tokens_ngrams(n = 1) %>% 
+  tokens_ngrams(n = 1) %>%
   dfm(tolower = FALSE) %>%
   dfm_trim(min_termfreq = 0.2)
 
@@ -816,8 +888,8 @@ edges <- cc_fcm %>%
   tidytext::tidy() %>%
   slice_max(count, n = 200) %>%
   select(
-    from = document, 
-    to = term, 
+    from = document,
+    to = term,
     value = count
   ) %>%
   mutate(title = value)
@@ -828,7 +900,7 @@ cluster_df <- edges %>%
   membership() %>%
   as.list() %>%
   as.data.frame() %>%
-  pivot_longer(cols = everything(), names_to = "label", values_to = "group") 
+  pivot_longer(cols = everything(), names_to = "label", values_to = "group")
 
 nodes <- unique(c(edges$from, edges$to)) %>%
   as_tibble() %>%
@@ -842,39 +914,40 @@ nodes <- unique(c(edges$from, edges$to)) %>%
 visNetwork(nodes, edges, height = "500px", width = "100%") %>%
   visPhysics(solver = "forceAtlas2Based") %>%
   visInteraction(zoomView = FALSE) %>%
-  visNodes(shape = "dot",
-  color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
-  shadow = list(enabled = TRUE, size = 10)) %>%
+  visNodes(
+    shape = "dot",
+    color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
+    shadow = list(enabled = TRUE, size = 10)
+  ) %>%
   visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
-  visOptions(selectedBy = "group",
-             highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
-             nodesIdSelection = TRUE) %>%
-  visLayout(randomSeed = 1993)
-
+  visOptions(
+    selectedBy = "group",
+    highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
+    nodesIdSelection = TRUE
+  ) %>%
+  visLayout(randomSeed = 1234)
 ```
 
-Chief Complaint and Discharge Diagnosis Co-occurrence {data-navmenu="Term Network Graphs"} 
+Discharge Diagnosis Co-occurrence {data-navmenu="Term Network Graphs"} 
 =======================================================================
 
-### CCDD Term Co-occurrence Network Graph
+### Discharge Diagnosis Parsed Code Co-occurrence Network Graph
 
-```{r CCDD network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
+```{r DD network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
+dd_unigram_dfm <- dd_tokens %>%
+  tokens_ngrams(n = 1) %>%
+  dfm(tolower = FALSE) %>%
+  dfm_trim(min_termfreq = 0.2)
 
-edges <- rbind(
-  unnested_cc_unigrams %>%
-    .[, c("word", "linenumber")],
-  unnested_dd_unigrams %>%
-    rename(word = code) %>%
-    .[, c("word", "linenumber")]
-) %>%
-  setorderv("linenumber") %>%
-  unique() %>%
-  pairwise_count(word, linenumber, sort = TRUE) %>%
-  slice_max(n, n = 200) %>%
-  rename(
-    from = item1, 
-    to = item2, 
-    value = n
+dd_fcm <- fcm(dd_unigram_dfm)
+
+edges <- dd_fcm %>%
+  tidytext::tidy() %>%
+  slice_max(count, n = 200) %>%
+  select(
+    from = document,
+    to = term,
+    value = count
   ) %>%
   mutate(title = value)
 
@@ -884,7 +957,7 @@ cluster_df <- edges %>%
   membership() %>%
   as.list() %>%
   as.data.frame() %>%
-  pivot_longer(cols = everything(), names_to = "label", values_to = "group") 
+  pivot_longer(cols = everything(), names_to = "label", values_to = "group")
 
 nodes <- unique(c(edges$from, edges$to)) %>%
   as_tibble() %>%
@@ -902,15 +975,90 @@ nodes <- unique(c(edges$from, edges$to)) %>%
 visNetwork(nodes, edges, height = "500px", width = "100%") %>%
   visPhysics(solver = "forceAtlas2Based") %>%
   visInteraction(zoomView = FALSE) %>%
-  visNodes(shape = "dot",
-  color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
-  shadow = list(enabled = TRUE, size = 10)) %>%
+  visNodes(
+    shape = "dot",
+    color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
+    shadow = list(enabled = TRUE, size = 10)
+  ) %>%
   visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
-  visOptions(selectedBy = "group",
-             highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
-             nodesIdSelection = TRUE) %>%
-  visLayout(randomSeed = 1993)
+  visOptions(
+    selectedBy = "group",
+    highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
+    nodesIdSelection = TRUE
+  ) %>%
+  visLayout(randomSeed = 1234)
+```
 
+Chief Complaint and Discharge Diagnosis Co-occurrence {data-navmenu="Term Network Graphs"} 
+=======================================================================
+
+### CCDD Term Co-occurrence Network Graph
+
+```{r CCDD network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
+ccdd_tokens <- data %>%
+  corpus(text_field = "ccdd_parsed") %>%
+  tokens(
+    what = "word",
+    remove_punct = TRUE,
+    remove_symbols = TRUE,
+    remove_separators = TRUE,
+    verbose = TRUE
+  ) %>%
+  tokens_select(pattern = stopterms$word, selection = "remove", min_nchar = 3)
+
+ccdd_unigram_dfm <- ccdd_tokens %>%
+  tokens_ngrams(n = 1) %>%
+  dfm(tolower = FALSE) %>%
+  dfm_trim(min_termfreq = 0.2)
+
+ccdd_fcm <- fcm(ccdd_unigram_dfm)
+
+edges <- ccdd_fcm %>%
+  tidytext::tidy() %>%
+  slice_max(count, n = 200) %>%
+  select(
+    from = document,
+    to = term,
+    value = count
+  ) %>%
+  mutate(title = value)
+
+cluster_df <- edges %>%
+  graph_from_data_frame(directed = FALSE) %>%
+  cluster_louvain() %>%
+  membership() %>%
+  as.list() %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "label", values_to = "group")
+
+nodes <- unique(c(edges$from, edges$to)) %>%
+  as_tibble() %>%
+  rename(label = value) %>%
+  mutate(
+    id = label,
+    font.size = 30
+  ) %>%
+  left_join(cluster_df, by = "label") %>%
+  left_join(icd_dictionary, by = c("id" = "code")) %>%
+  distinct() %>%
+  mutate(description = ifelse(is.na(description), "", description)) %>%
+  rename(title = description)
+
+visNetwork(nodes, edges, height = "500px", width = "100%") %>%
+  visPhysics(solver = "forceAtlas2Based") %>%
+  visInteraction(zoomView = FALSE) %>%
+  visNodes(
+    shape = "dot",
+    color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
+    shadow = list(enabled = TRUE, size = 10)
+  ) %>%
+  visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
+  visOptions(
+    selectedBy = "group",
+    highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
+    nodesIdSelection = TRUE
+  ) %>%
+  visLayout(randomSeed = 1234)
 ```
 
 Chief Complaint Correlation {data-navmenu="Term Network Graphs"} 
@@ -918,8 +1066,7 @@ Chief Complaint Correlation {data-navmenu="Term Network Graphs"}
 
 ### Chief Complaint Parsed Term Correlation Network Graph
 
-```{r CC correlation network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 10}
-
+```{r CC correlation network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 10, results = "asis"}
 check_row <- unnested_cc_unigrams %>%
   select(
     linenumber,
@@ -935,13 +1082,14 @@ check_cor <- unnested_cc_unigrams %>%
     word
   ) %>%
   group_by(word) %>%
-  {if(check_row != 0) filter(., n() >= 20) else filter(., n() > 0)} %>%
+  {
+    if (check_row != 0) filter(., n() >= 20) else filter(., n() > 0)
+  } %>%
   ungroup() %>%
   pairwise_cor(word, linenumber, sort = TRUE) %>%
-  filter(correlation > 0.25)
+  filter(correlation > 0.45)
 
 if (nrow(check_cor) > 10) {
-  
   cc_cor <- check_cor %>%
     mutate(
       pair1 = paste(item1, item2),
@@ -949,98 +1097,94 @@ if (nrow(check_cor) > 10) {
     ) %>%
     filter(!pair1 %in% unnested_cc_bigrams$bigram) %>%
     filter(!pair2 %in% unnested_cc_bigrams$bigram) %>%
-    mutate_at(.vars = c("item1", "item2"), ~toupper(.))
-  
+    mutate_at(.vars = c("item1", "item2"), ~ toupper(.))
+
   if (nrow(cc_cor) == 0) {
     cat("Not a sufficient number of terms to render network graph.")
   } else {
-  
-  cc_cor_edges <- cc_cor %>%
-    mutate(id = ifelse(item1 < item2, paste(item1, item2),  paste(item2, item1))) %>%
-    distinct(id, .keep_all = TRUE) %>%
-    select(
-      from = item1, 
-      to = item2, 
-      value = correlation
+    cc_cor_edges <- cc_cor %>%
+      mutate(id = ifelse(item1 < item2, paste(item1, item2), paste(item2, item1))) %>%
+      distinct(id, .keep_all = TRUE) %>%
+      select(
+        from = item1,
+        to = item2,
+        value = correlation
+      ) %>%
+      mutate(title = value)
+
+    cc_cor_cluster_df <- cc_cor_edges %>%
+      graph_from_data_frame(directed = FALSE) %>%
+      cluster_louvain() %>%
+      membership() %>%
+      as.list() %>%
+      as.data.frame() %>%
+      pivot_longer(cols = everything(), names_to = "label", values_to = "group")
+
+    cc_cor_nodes <- unique(c(cc_cor_edges$from, cc_cor_edges$to)) %>%
+      as_tibble() %>%
+      rename(label = value) %>%
+      mutate(
+        id = label,
+        font.size = 30
+      ) %>%
+      left_join(cc_cor_cluster_df, by = "label")
+
+    visNetwork(
+      cc_cor_nodes,
+      cc_cor_edges,
+      height = "500px",
+      width = "100%",
+      main = list(
+        text = "Pairs of terms with at least a 0.45 correlation of appearing within the same chief complaint. Consecutive term pairs/bigrams removed.",
+        style = "font-family:Arial;font-size:15px;font-weight:bold;text-align:center"
+      )
     ) %>%
-    mutate(title = value)
-  
-  cc_cor_cluster_df <- cc_cor_edges %>%
-    graph_from_data_frame(directed = FALSE) %>%
-    cluster_louvain() %>%
-    membership() %>%
-    as.list() %>%
-    as.data.frame() %>%
-    pivot_longer(cols = everything(), names_to = "label", values_to = "group")
-  
-  cc_cor_nodes <- unique(c(cc_cor_edges$from, cc_cor_edges$to)) %>%
-    as_tibble() %>%
-    rename(label = value) %>%
-    mutate(
-      id = label, 
-      font.size = 30
-    ) %>%
-    left_join(cc_cor_cluster_df, by = "label")
-  
-  visNetwork(
-    cc_cor_nodes, 
-    cc_cor_edges, 
-    height = "500px", 
-    width = "100%",
-    main = list(
-      text = "Pairs of terms with at least a 0.25 correlation of appearing within the same chief complaint. Consecutive term pairs/bigrams removed.",
-      style = "font-family:Arial;font-size:15px;font-weight:bold;text-align:center"
-    )
-  ) %>%
-    visPhysics(solver = "forceAtlas2Based") %>%
-    visInteraction(zoomView = FALSE) %>%
-    visNodes(
-      shape = "dot", 
-      color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"), 
-      shadow = list(enbaled = TRUE, size = 10)
-    ) %>%
-    visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
-    visOptions(
-      selectedBy = "group", 
-      highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
-      nodesIdSelection = TRUE
-    ) %>%
-    visLayout(randomSeed = 1993)
+      visPhysics(solver = "forceAtlas2Based") %>%
+      visInteraction(zoomView = FALSE) %>%
+      visNodes(
+        shape = "dot",
+        color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
+        shadow = list(enbaled = TRUE, size = 10)
+      ) %>%
+      visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
+      visOptions(
+        selectedBy = "group",
+        highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
+        nodesIdSelection = TRUE
+      ) %>%
+      visLayout(randomSeed = 1993)
   }
 } else {
   cat("Not a sufficient number of terms to render network graph.")
 }
-
 ```
 
 ### Chief Complaint Parsed Term Correlation Search Table
 
-```{r search table, echo = FALSE, warning = FALSE, message = FALSE}
-
+```{r search table, echo = FALSE, warning = FALSE, message = FALSE, results = "asis"}
 if (nrow(check_cor) > 10 & nrow(cc_cor) > 0) {
-cc_cor %>%
-  select(
-    `Term 1` = item1, 
-    `Term 2` = item2, 
-    `Correlation` = correlation
-  ) %>%
-  mutate(
-    `Term 1` = toupper(`Term 1`),
-    `Term 2` = toupper(`Term 2`),
-    `Correlation` = format(round(`Correlation`, 3), nsmall = 3)
-  ) %>%
-  datatable(
-    filter = list(position = "top", clear = FALSE),
-    options = list(
-      pageLength = 40, 
-      scrollY = 700, 
-      columnDefs = list(list(className = "dt-left", targets = "_all"))
+  cc_cor %>%
+    select(
+      `Term 1` = item1,
+      `Term 2` = item2,
+      `Correlation` = correlation
+    ) %>%
+    mutate(
+      `Term 1` = toupper(`Term 1`),
+      `Term 2` = toupper(`Term 2`),
+      `Correlation` = format(round(`Correlation`, 3), nsmall = 3)
+    ) %>%
+    datatable(
+      filter = list(position = "top", clear = FALSE),
+      options = list(
+        pageLength = 40,
+        scrollY = 700,
+        columnDefs = list(list(className = "dt-left", targets = "_all"))
+      )
     )
-  )
 } else {
   cat("Not a sufficient number of terms to render table.")
 }
-
 ```
 
 Discharge Diagnosis Correlation {data-navmenu="Term Network Graphs"} 
@@ -1048,10 +1192,9 @@ Discharge Diagnosis Correlation {data-navmenu="Term Network Graphs"}
 
 ### DD Term Correlation Network Graph
 
-```{r DD correlation network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 10}
-
+```{r DD correlation network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 10, results = "asis"}
 check_row <- unnested_dd_unigrams %>%
-    select(
+  select(
     linenumber,
     code
   ) %>%
@@ -1063,32 +1206,33 @@ check_row <- unnested_dd_unigrams %>%
 
 check_cor <- unnested_dd_unigrams %>%
   select(
-    linenumber, 
+    linenumber,
     code
   ) %>%
   inner_join(icd_dictionary, by = "code") %>%
   distinct() %>%
   group_by(code) %>%
-  {if(check_row != 0) filter(., n() >= 20) else filter(., n() > 0)} %>%
+  {
+    if (check_row != 0) filter(., n() >= 20) else filter(., n() > 0)
+  } %>%
   ungroup() %>%
   pairwise_cor(code, linenumber, sort = TRUE) %>%
-  filter(correlation > 0.25) 
+  filter(correlation > 0.45)
 
 if (nrow(check_cor) > 10) {
-  
   dd_cor <- check_cor %>%
-    mutate_at(.vars = c("item1", "item2"), ~toupper(.))
-  
+    mutate_at(.vars = c("item1", "item2"), ~ toupper(.))
+
   dd_cor_edges <- dd_cor %>%
     mutate(id = ifelse(item1 < item2, paste(item1, item2), paste(item2, item1))) %>%
     distinct(id, .keep_all = TRUE) %>%
     select(
-      from = item1, 
+      from = item1,
       to = item2,
       value = correlation
     ) %>%
     mutate(title = value)
-  
+
   dd_cor_cluster_df <- dd_cor_edges %>%
     graph_from_data_frame(directed = FALSE) %>%
     cluster_louvain() %>%
@@ -1103,91 +1247,85 @@ if (nrow(check_cor) > 10) {
     group_by(group) %>%
     mutate(group = cur_group_id()) %>%
     ungroup()
-  
+
   dd_cor_edges2 <- dd_cor_edges %>%
     filter(from %in% dd_cor_cluster_df$label | to %in% dd_cor_cluster_df$label)
-  
+
   dd_cor_nodes <- unique(c(dd_cor_edges$from, dd_cor_edges$to)) %>%
     as_tibble() %>%
     rename(label = value) %>%
     mutate(
-      id = label, 
+      id = label,
       font.size = 30
     ) %>%
     inner_join(dd_cor_cluster_df, by = "label") %>%
     left_join(icd_dictionary, by = c("id" = "code")) %>%
     distinct() %>%
     rename(title = description)
-  
+
   visNetwork(
-    dd_cor_nodes, 
-    dd_cor_edges2, 
-    height = "500px", 
+    dd_cor_nodes,
+    dd_cor_edges2,
+    height = "500px",
     width = "100%",
     main = list(
-      text = "Pairs of codes with at least a 0.25 correlation of appearing within the same Discharge Diagnosis.",
+      text = "Pairs of codes with at least a 0.45 correlation of appearing within the same Discharge Diagnosis.",
       style = "font-family:Arial;font-size:15px;font-weight:bold;text-align:center"
     )
   ) %>%
     visPhysics(solver = "forceAtlas2Based") %>%
     visInteraction(zoomView = FALSE) %>%
     visNodes(
-      shape = "dot", 
-      color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"), 
+      shape = "dot",
+      color = list(background = "#0085AF", border = "#013848", highlight = "#FF8000"),
       shadow = list(enbaled = TRUE, size = 10)
     ) %>%
     visEdges(color = list(color = "#0085AF", highlight = "#C62F4B")) %>%
     visOptions(
-      selectedBy = "group", 
+      selectedBy = "group",
       highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
       nodesIdSelection = TRUE
     ) %>%
-    visLayout(randomSeed = 1993)
+    visLayout(randomSeed = 1234)
 } else {
   cat("Not a sufficient number of codes to render network graph.")
 }
-
 ```
 
 ### DD Term Correlation Search Table 
 
-```{r DD search table, echo = FALSE, warning = FALSE, message = FALSE}
-
+```{r DD search table, echo = FALSE, warning = FALSE, message = FALSE, results = "asis"}
 if (nrow(check_cor) > 10) {
-
-dd_cor %>%
-  filter(item1 %in% dd_cor_nodes$id) %>%
-  left_join(icd_dictionary, by = c("item1" = "code")) %>%
-  rename(description1 = description) %>%
-  left_join(icd_dictionary, by = c("item2" = "code")) %>%
-  rename(description2 = description) %>%
-  mutate(
-    item1 = paste0(item1, ": ", description1),
-    item2 = paste0(item2, ": ", description2)
-  ) %>%
-  select(
-    `Code 1` = item1, 
-    `Code 2` = item2, 
-    `Correlation` = correlation
-  ) %>%
-  mutate(`Correlation` = format(round(`Correlation`, 3), nsmall = 3)) %>%
-  datatable(
-    filter = list(position = "top", clear = FALSE),
-    options = list(
-      pageLength = 40, 
-      scrollY = 700, 
-      columnDefs = list(list(className = "dt-left", targets = "_all"))
+  dd_cor %>%
+    filter(item1 %in% dd_cor_nodes$id) %>%
+    left_join(icd_dictionary, by = c("item1" = "code")) %>%
+    rename(description1 = description) %>%
+    left_join(icd_dictionary, by = c("item2" = "code")) %>%
+    rename(description2 = description) %>%
+    mutate(
+      item1 = paste0(item1, ": ", description1),
+      item2 = paste0(item2, ": ", description2)
+    ) %>%
+    select(
+      `Code 1` = item1,
+      `Code 2` = item2,
+      `Correlation` = correlation
+    ) %>%
+    mutate(`Correlation` = format(round(`Correlation`, 3), nsmall = 3)) %>%
+    datatable(
+      filter = list(position = "top", clear = FALSE),
+      options = list(
+        pageLength = 40,
+        scrollY = 700,
+        columnDefs = list(list(className = "dt-left", targets = "_all"))
+      )
     )
-  )
-  
 } else {
   cat("Not a sufficient number of codes to render table.")
 }
-
 ```
 
 ```{r ngram analysis, echo = FALSE, warning = FALSE, message = FALSE}
-
 cc_unigram_analysis <- unnested_cc_unigrams %>%
   mutate(time_floor = floor_date(date, unit = "1 week")) %>%
   count(time_floor, word) %>%
@@ -1334,7 +1472,7 @@ if (nrow(dd_bigram_analysis) > 0) {
       description1 = description.x,
       description2 = description.y
     ) %>%
-    distinct() 
+    distinct()
 } else {
   dd_bigram_filtered <- dd_bigram_analysis %>%
     mutate(statistic = NA)
@@ -1381,10 +1519,7 @@ Column
 
 ### Change in Individual CC Unigram Trends - Increasing
 
-```{r CC increasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht1}
-
-pal <- c("#003C67FF", "#4A6990FF")
-
+```{r CC increasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht1, results = "asis"}
 if (nrow(cc_unigrams_increasing) > 0) {
   tab_gg <- cc_unigrams_increasing %>%
     select(word, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1392,16 +1527,19 @@ if (nrow(cc_unigrams_increasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", linewidth = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1411,11 +1549,18 @@ if (nrow(cc_unigrams_increasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:3, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1427,8 +1572,7 @@ Column
 
 ### Change in Individual DD Unigram Trends - Increasing
 
-```{r DD increasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht1}
-
+```{r DD increasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht1, results = "asis"}
 if (nrow(dd_unigrams_increasing) > 0) {
   tab_gg <- dd_unigrams_increasing %>%
     select(word, description, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1436,16 +1580,19 @@ if (nrow(dd_unigrams_increasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", linewidth = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1456,11 +1603,18 @@ if (nrow(dd_unigrams_increasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:4, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly increasing unigrams found.")
@@ -1477,8 +1631,7 @@ Column
 
 ### Change in Individual CC Unigram Trends - Decreasing
 
-```{r CC decreasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht2}
-
+```{r CC decreasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht2, results = "asis"}
 if (nrow(cc_unigrams_decreasing) > 0) {
   tab_gg <- cc_unigrams_decreasing %>%
     select(word, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1486,16 +1639,19 @@ if (nrow(cc_unigrams_decreasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1505,11 +1661,18 @@ if (nrow(cc_unigrams_decreasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:3, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1521,8 +1684,7 @@ Column
 
 ### Change in Individual DD Term Trends - Decreasing
 
-```{r DD decreasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht2}
-
+```{r DD decreasing unigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht2, results = "asis"}
 if (nrow(dd_unigrams_decreasing) > 0) {
   tab_gg <- dd_unigrams_decreasing %>%
     select(word, description, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1530,16 +1692,19 @@ if (nrow(dd_unigrams_decreasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("word", "description", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1550,11 +1715,18 @@ if (nrow(dd_unigrams_decreasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:4, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly decreasing unigrams found.")
@@ -1571,10 +1743,7 @@ Column
 
 ### Change in CC Bigram Trends - Increasing
 
-```{r CC increasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht3}
-
-pal <- c("#003C67FF", "#4A6990FF")
-
+```{r CC increasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht3, results = "asis"}
 if (nrow(cc_bigrams_increasing) > 0) {
   tab_gg <- cc_bigrams_increasing %>%
     select(bigram, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1582,16 +1751,19 @@ if (nrow(cc_bigrams_increasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1601,11 +1773,18 @@ if (nrow(cc_bigrams_increasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:3, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1617,8 +1796,7 @@ Column
 
 ### Change in DD Bigram Trends - Increasing
 
-```{r DD increasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht3}
-
+```{r DD increasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht3, results = "asis"}
 if (nrow(dd_bigrams_increasing) > 0) {
   tab_gg <- dd_bigrams_increasing %>%
     select(bigram, description1, description2, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1626,16 +1804,19 @@ if (nrow(dd_bigrams_increasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1647,11 +1828,18 @@ if (nrow(dd_bigrams_increasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:5, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly increasing bigrams found.")
@@ -1668,10 +1856,7 @@ Column
 
 ### Change in CC Bigram Trends - Decreasing
 
-```{r CC decreasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht4}
-
-pal <- c("#003C67FF", "#4A6990FF")
-
+```{r CC decreasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht4, results = "asis"}
 if (nrow(cc_bigrams_decreasing) > 0) {
   tab_gg <- cc_bigrams_decreasing %>%
     select(bigram, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1679,16 +1864,19 @@ if (nrow(cc_bigrams_decreasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1698,11 +1886,18 @@ if (nrow(cc_bigrams_decreasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:3, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")
@@ -1714,8 +1909,7 @@ Column
 
 ### Change in DD Bigram Trends - Decreasing
 
-```{r DD decreasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht4}
-
+```{r DD decreasing bigram, echo = FALSE, message = FALSE, warning = FALSE, fig.height = ht4, results = "asis"}
 if (nrow(dd_bigrams_decreasing) > 0) {
   tab_gg <- dd_bigrams_decreasing %>%
     select(bigram, description1, description2, statistic, adjusted.p.value, time_floor, frequency) %>%
@@ -1723,16 +1917,19 @@ if (nrow(dd_bigrams_decreasing) > 0) {
     nest(data = c(time_floor, frequency)) %>%
     mutate(trend = map(.x = data, .f = function(.x) {
       ggplot(data = .x) +
-        geom_line(aes(x = time_floor, y = frequency), color = pal[2], size = 1.0) +
+        geom_line(aes(x = time_floor, y = frequency), color = "#005EAA", size = 1.0) +
         scale_y_continuous(limits = c(0, NA)) +
         theme_minimal() +
         labs(
           x = "",
           y = ""
         ) +
-        theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"))
+        theme(
+          plot.margin = unit(c(0.5, 1, 0.5, 0.5), "lines"),
+          panel.grid.minor = element_blank()
+        )
     }))
-  
+
   ft_gg <- tab_gg %>%
     flextable(col_keys = c("bigram", "description1", "description2", "statistic", "adjusted.p.value", "trend")) %>%
     set_header_labels(
@@ -1744,11 +1941,18 @@ if (nrow(dd_bigrams_decreasing) > 0) {
       trend = "Trend"
     ) %>%
     mk_par(j = "trend", value = as_paragraph(
-      gg_chunk(value = trend, width = 4, height = 2)
+      gg_chunk(value = trend, width = 5, height = 2)
     )) %>%
     theme_box() %>%
-    colformat_double(digits = 2)
-  
+    border_outer(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    fix_border_issues() %>%
+    vline(j = 1:5, border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border_inner_h(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "body") %>%
+    border(border = officer::fp_border(color = "#E0E0E0", width = 1.2), part = "header") %>%
+    colformat_double(digits = 2) %>%
+    font(fontname = "Source Sans Pro", part = "all") %>%
+    autofit()
+
   ft_gg
 } else {
   cat("No significantly decreasing bigrams found.")
