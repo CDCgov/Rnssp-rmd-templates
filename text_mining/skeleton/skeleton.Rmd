@@ -50,7 +50,7 @@ params:
     label: "Definition (CCDD Category, Subsyndrome, or Syndrome): " 
     value: "None (Custom CCDD Query)"
     input: select
-    choices: !r definitions <- tibble::add_row(readRDS("syndef_new.rds"), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
     label: "CCDD Query:"
     value: ""
