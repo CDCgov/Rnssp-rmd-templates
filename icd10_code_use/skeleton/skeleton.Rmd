@@ -469,12 +469,18 @@ dd_trends <- dd_unigrams %>%
   ) %>%
   unnest(c(data, models))
 
-dd_significant <- dd_trends %>%
+dd_adjusted <- dd_trends %>%
+  distinct(code, p.value) %>%
   mutate(adjusted.p.value = p.adjust(p.value)) %>%
   filter(adjusted.p.value < 0.01) %>%
-  arrange(adjusted.p.value) %>%
+  arrange(adjusted.p.value)
+
+dd_significant <- dd_trends %>%
+  select(-p.value) %>%
+  inner_join(dd_adjusted, by = "code") %>%
   left_join(icd10, by = "code") %>%
   distinct()
+
 ```
 
 ```{r create demographic tables, echo = FALSE, warning = FALSE, message = FALSE}
