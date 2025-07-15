@@ -50,7 +50,7 @@ params:
     label: "Definition (CCDD Category, Subsyndrome, or Syndrome): " 
     value: "None (Custom CCDD Query)"
     input: select
-    choices: !r definitions <- tibble::add_row(readRDS("syndef_new.rds"), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
+    choices: !r fl <- tempfile(fileext =".rds"); download.file(file.path("https://raw.githubusercontent.com", "cdcgov", "Rnssp-rmd-templates", "master", "text_mining", "skeleton", "syndef.rds"), destfile = fl); definitions <- tibble::add_row(readRDS(fl), syndrome = "None (Custom CCDD Query)", query_logic = "", .before = 1); dplyr::pull(definitions, syndrome)
   ccdd_query: 
     label: "CCDD Query:"
     value: ""
@@ -94,9 +94,6 @@ library(MMWRweek)
 library(lubridate)
 library(tidytext)
 library(quanteda)
-library(quanteda.textmodels)
-library(quanteda.textstats)
-library(quanteda.textplots)
 library(shiny)
 library(flexdashboard)
 library(widyr)
@@ -184,10 +181,12 @@ if (nchar(params$complex_query) > 0) {
       filter(site_name == params$site) %>%
       pull(site_id)
   }
-  
+
   if (params$data_source == "Chief Complaint Query Validation") {
-    url <- paste0("https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE,
-"&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed")
+    url <- paste0(
+      "https://essence2.syndromicsurveillance.org/nssp_essence/api/dataDetails/csv?endDate=", endDate, "&timeResolution=weekly&percentParam=noPercent", definition_type, definition_string, "&userId=2362&datasource=va_erccdd&aqtTarget=DataDetails&detector=nodetectordetector&startDate=", startDate, "&hasBeenE=", hasBeenE,
+      "&field=Date&field=WeekYear&field=ChiefComplaintOrig&field=ChiefComplaintParsed&field=DischargeDiagnosis&field=CCDD&field=DDParsed&field=CCDDParsed"
+    )
   } else if (params$data_source == "Facility Location (Full Details)") {
     if (unique(length(params$age_groups) == 1 & params$age_groups == "All Ages")) {
       if (params$site == "All") {
@@ -265,7 +264,7 @@ data <- api_data %>%
   .[, discharge_diagnosis := gsub(";", " ", dd_parsed)] %>%
   .[, discharge_diagnosis := vapply(lapply(str_split(discharge_diagnosis, " "), unique), paste, character(1L), collapse = " ")] %>%
   .[, discharge_diagnosis := gsub("^\\s+|\\s+$", replacement = "", discharge_diagnosis)] %>%
-  .[, ccdd := vapply(lapply(str_split(ccdd_parsed, " "), unique), paste, character(1L), collapse = " ")]
+  .[, ccdd := paste(chief_complaint_parsed, discharge_diagnosis)]
 ```
 
 ```{r data and icd_dictionary import, echo = FALSE, warning = FALSE, message = FALSE}
@@ -522,6 +521,7 @@ Column
 
 ```{r DD unigram frequencies, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 50}
 dd_tokens <- data %>%
+  filter(discharge_diagnosis != "NA") %>%
   corpus(text_field = "discharge_diagnosis") %>%
   tokens(
     what = "word",
@@ -683,7 +683,6 @@ ddngram <- unnested_dd_bigrams %>%
   distinct() %>%
   mutate_at(.vars = c("description1", "description2"), ~ ifelse(is.na(.), "ICD-9, SNOMED, or invalid DD code", .)) %>%
   mutate(bigram = fct_reorder(bigram, n, .desc = TRUE))
-
 
 ddngram %>%
   arrange(n) %>%
@@ -886,7 +885,7 @@ cc_fcm <- fcm(cc_unigram_dfm)
 
 edges <- cc_fcm %>%
   tidytext::tidy() %>%
-  slice_max(count, n = 200) %>%
+  slice_max(count, n = 200, with_ties = FALSE) %>%
   select(
     from = document,
     to = term,
@@ -943,7 +942,7 @@ dd_fcm <- fcm(dd_unigram_dfm)
 
 edges <- dd_fcm %>%
   tidytext::tidy() %>%
-  slice_max(count, n = 200) %>%
+  slice_max(count, n = 200, with_ties = FALSE) %>%
   select(
     from = document,
     to = term,
@@ -996,7 +995,8 @@ Chief Complaint and Discharge Diagnosis Co-occurrence {data-navmenu="Term Networ
 
 ```{r CCDD network, echo = FALSE, message = FALSE, warning = FALSE, fig.width = 15, fig.height = 10}
 ccdd_tokens <- data %>%
-  corpus(text_field = "ccdd_parsed") %>%
+  filter(discharge_diagnosis != "NA") %>%
+  corpus(text_field = "ccdd") %>%
   tokens(
     what = "word",
     remove_punct = TRUE,
@@ -1015,7 +1015,7 @@ ccdd_fcm <- fcm(ccdd_unigram_dfm)
 
 edges <- ccdd_fcm %>%
   tidytext::tidy() %>%
-  slice_max(count, n = 200) %>%
+  slice_max(count, n = 200, with_ties = FALSE) %>%
   select(
     from = document,
     to = term,
@@ -1087,7 +1087,7 @@ check_cor <- unnested_cc_unigrams %>%
   } %>%
   ungroup() %>%
   pairwise_cor(word, linenumber, sort = TRUE) %>%
-  filter(correlation > 0.45)
+  filter(correlation > 0.25)
 
 if (nrow(check_cor) > 10) {
   cc_cor <- check_cor %>%
@@ -1135,7 +1135,7 @@ if (nrow(check_cor) > 10) {
       height = "500px",
       width = "100%",
       main = list(
-        text = "Pairs of terms with at least a 0.45 correlation of appearing within the same chief complaint. Consecutive term pairs/bigrams removed.",
+        text = "Pairs of terms with at least a 0.25 correlation of appearing within the same chief complaint. Consecutive term pairs/bigrams removed.",
         style = "font-family:Arial;font-size:15px;font-weight:bold;text-align:center"
       )
     ) %>%
@@ -1162,26 +1162,30 @@ if (nrow(check_cor) > 10) {
 ### Chief Complaint Parsed Term Correlation Search Table
 
 ```{r search table, echo = FALSE, warning = FALSE, message = FALSE, results = "asis"}
-if (nrow(check_cor) > 10 & nrow(cc_cor) > 0) {
-  cc_cor %>%
-    select(
-      `Term 1` = item1,
-      `Term 2` = item2,
-      `Correlation` = correlation
-    ) %>%
-    mutate(
-      `Term 1` = toupper(`Term 1`),
-      `Term 2` = toupper(`Term 2`),
-      `Correlation` = format(round(`Correlation`, 3), nsmall = 3)
-    ) %>%
-    datatable(
-      filter = list(position = "top", clear = FALSE),
-      options = list(
-        pageLength = 40,
-        scrollY = 700,
-        columnDefs = list(list(className = "dt-left", targets = "_all"))
+if (exists("cc_cor")) {
+  if (nrow(check_cor) > 10 & nrow(cc_cor) > 0) {
+    cc_cor %>%
+      select(
+        `Term 1` = item1,
+        `Term 2` = item2,
+        `Correlation` = correlation
+      ) %>%
+      mutate(
+        `Term 1` = toupper(`Term 1`),
+        `Term 2` = toupper(`Term 2`),
+        `Correlation` = format(round(`Correlation`, 3), nsmall = 3)
+      ) %>%
+      datatable(
+        filter = list(position = "top", clear = FALSE),
+        options = list(
+          pageLength = 40,
+          scrollY = 700,
+          columnDefs = list(list(className = "dt-left", targets = "_all"))
+        )
       )
-    )
+  } else {
+    cat("Not a sufficient number of terms to render table.")
+  }
 } else {
   cat("Not a sufficient number of terms to render table.")
 }
@@ -1217,7 +1221,7 @@ check_cor <- unnested_dd_unigrams %>%
   } %>%
   ungroup() %>%
   pairwise_cor(code, linenumber, sort = TRUE) %>%
-  filter(correlation > 0.45)
+  filter(correlation > 0.25)
 
 if (nrow(check_cor) > 10) {
   dd_cor <- check_cor %>%
@@ -1269,7 +1273,7 @@ if (nrow(check_cor) > 10) {
     height = "500px",
     width = "100%",
     main = list(
-      text = "Pairs of codes with at least a 0.45 correlation of appearing within the same Discharge Diagnosis.",
+      text = "Pairs of codes with at least a 0.25 correlation of appearing within the same Discharge Diagnosis.",
       style = "font-family:Arial;font-size:15px;font-weight:bold;text-align:center"
     )
   ) %>%
@@ -1286,7 +1290,7 @@ if (nrow(check_cor) > 10) {
       highlightNearest = list(enabled = TRUE, degree = 1, hover = TRUE),
       nodesIdSelection = TRUE
     ) %>%
-    visLayout(randomSeed = 1234)
+    visLayout(randomSeed = 1234) 
 } else {
   cat("Not a sufficient number of codes to render network graph.")
 }
@@ -1295,31 +1299,35 @@ if (nrow(check_cor) > 10) {
 ### DD Term Correlation Search Table 
 
 ```{r DD search table, echo = FALSE, warning = FALSE, message = FALSE, results = "asis"}
-if (nrow(check_cor) > 10) {
-  dd_cor %>%
-    filter(item1 %in% dd_cor_nodes$id) %>%
-    left_join(icd_dictionary, by = c("item1" = "code")) %>%
-    rename(description1 = description) %>%
-    left_join(icd_dictionary, by = c("item2" = "code")) %>%
-    rename(description2 = description) %>%
-    mutate(
-      item1 = paste0(item1, ": ", description1),
-      item2 = paste0(item2, ": ", description2)
-    ) %>%
-    select(
-      `Code 1` = item1,
-      `Code 2` = item2,
-      `Correlation` = correlation
-    ) %>%
-    mutate(`Correlation` = format(round(`Correlation`, 3), nsmall = 3)) %>%
-    datatable(
-      filter = list(position = "top", clear = FALSE),
-      options = list(
-        pageLength = 40,
-        scrollY = 700,
-        columnDefs = list(list(className = "dt-left", targets = "_all"))
+if (exists("dd_cor")) {
+  if (nrow(check_cor) > 10) {
+    dd_cor %>%
+      filter(item1 %in% dd_cor_nodes$id) %>%
+      left_join(icd_dictionary, by = c("item1" = "code")) %>%
+      rename(description1 = description) %>%
+      left_join(icd_dictionary, by = c("item2" = "code")) %>%
+      rename(description2 = description) %>%
+      mutate(
+        item1 = paste0(item1, ": ", description1),
+        item2 = paste0(item2, ": ", description2)
+      ) %>%
+      select(
+        `Code 1` = item1,
+        `Code 2` = item2,
+        `Correlation` = correlation
+      ) %>%
+      mutate(`Correlation` = format(round(`Correlation`, 3), nsmall = 3)) %>%
+      datatable(
+        filter = list(position = "top", clear = FALSE),
+        options = list(
+          pageLength = 40,
+          scrollY = 700,
+          columnDefs = list(list(className = "dt-left", targets = "_all"))
+        )
       )
-    )
+  } else {
+    cat("Not a sufficient number of codes to render table.")
+  }
 } else {
   cat("Not a sufficient number of codes to render table.")
 }
