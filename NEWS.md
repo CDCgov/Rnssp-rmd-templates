@@ -33,6 +33,19 @@ State Emergency Department template available.
 
 <details>
 
+<summary>3/5/2025</summary>
+The Text Mining template has been updated. 
+
+This version:
+
+* Has an updated user interface with interactive visualizations produces with `echarts4r`
+* Includes a co-occurrence network graph for discharge diagnosis codes
+* Uses the DDParsed field for discharge diagnosis codes
+
+</details>
+
+<details>
+
 <summary>2/14/2023</summary>
 The Text Mining template has been updated. 
 
