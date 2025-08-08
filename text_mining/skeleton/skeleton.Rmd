@@ -603,7 +603,7 @@ unnested_cc_bigrams <- cc_tokens %>%
   .[, document := gsub("text", "", document, fixed = TRUE)] %>%
   .[, document := as.numeric(document)] %>%
   setorderv("document") %>%
-  merge(docvars(dd_tokens), by.x = "document", by.y = "linenumber") %>%
+  merge(docvars(cc_tokens), by.x = "document", by.y = "linenumber") %>%
   rename(
     linenumber = document,
     bigram = term
