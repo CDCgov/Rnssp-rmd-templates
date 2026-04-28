@@ -442,8 +442,8 @@ dd_trends <- dd_unigrams %>%
   mutate(non_count = total - frequency) %>%
   mutate(
     prop = (frequency / total),
-    prop = ifelse(is.infinite(prop), 0, prop),
-    prop = ifelse(is.nan(prop), 0, prop)
+    prop = if_else(is.infinite(prop), 0, prop),
+    prop = if_else(is.nan(prop), 0, prop)
   ) %>%
   nest(data = -code) %>%
   mutate(
@@ -629,8 +629,8 @@ dd_increase <- dd_significant %>%
   ) %>%
   filter(!filter) %>%
   mutate(
-    description = ifelse(description == "" | is.na(description), current_description, description),
-    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
+    description = if_else(description == "" | is.na(description), current_description, description),
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
     conversion_status = factor(conversion_status, levels = c("Updated code for FY-2025", "No revision detected for FY-2025"))
   ) %>%
   select(
@@ -1100,7 +1100,7 @@ dd_decrease <- dd_significant %>%
     ts_url
   ) %>%
   mutate(
-    conversion_status = ifelse(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
     conversion_status = factor(conversion_status, levels = c("Code revised for FY-2025", "No revision detected for FY-2025"))
   ) %>%
   left_join(icd10_features, by = c("code", "description")) %>%
