@@ -544,13 +544,13 @@ icd10_feature_table <- summary_age_all %>%
   arrange(code) %>%
   fuzzyjoin::regex_left_join(icd10_chapters, by = c(code = "regex_match"))
 
-# ICD-10 FY-2025 conversion file
-code_updates <- readRDS("icd10_fy2025_conversion_ref.rds")
+# ICD-10 FY-2026 conversion file
+code_updates <- readRDS("icd10_fy2026_conversion_ref.rds")
 
 previous_codes <- code_updates %>%
   select(previous_clean) %>%
   distinct(previous_clean) %>%
-  mutate(conversion_status = "Code revised for FY-2025")
+  mutate(conversion_status = "Code revised for FY-2026")
 
 new_codes <- code_updates %>%
   select(
@@ -558,7 +558,7 @@ new_codes <- code_updates %>%
     current_description
   ) %>%
   distinct(current_clean, .keep_all = TRUE) %>%
-  mutate(conversion_status = "Updated code for FY-2025")
+  mutate(conversion_status = "Updated code for FY-2026")
 
 code_updates_limited <- code_updates %>%
   select(
@@ -630,8 +630,8 @@ dd_increase <- dd_significant %>%
   filter(!filter) %>%
   mutate(
     description = if_else(description == "" | is.na(description), current_description, description),
-    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2025", "No revision detected for FY-2025"))
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2026", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2026", "No revision detected for FY-2026"))
   ) %>%
   select(
     code,
@@ -690,7 +690,7 @@ dd_increase <- dd_significant %>%
   )
 
 dd_increase_shift <- dd_increase %>%
-  filter(conversion_status == "Updated code for FY-2025") %>%
+  filter(conversion_status == "Updated code for FY-2026") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   arrange(code)
 ```
@@ -889,9 +889,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2025**
+### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2026**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2025. Updated 2025 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2024 through September 30, 2025. These codes were identified by joining to a reference file derived from the 2025 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2026. Updated 2026 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2025 through September 30, 2026. These codes were identified by joining to a reference file derived from the 2026 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
   * Code Set
   * Effective Year
@@ -902,12 +902,12 @@ The following table includes a subset of ICD-10 codes identified as having recen
   * Current Code Clean (decimals removed)
   * Current Description
   
-The sparklines in the following table represent trends for updated FY-2025 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2025 code revisions are detected.
+The sparklines in the following table represent trends for updated FY-2026 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2026 code revisions are detected.
 
 ```{r increasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_increase_detailed <- dd_increase %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Updated code for FY-2025") %>%
+  filter(conversion_status == "Updated code for FY-2026") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   select(
     conversion_status,
@@ -958,7 +958,7 @@ tbl_increase_detailed <- dd_increase %>%
         sortable = TRUE
       ),
       code = colDef(
-        name = "Updated ICD-10 Code for FY-2025",
+        name = "Updated ICD-10 Code for FY-2026",
         width = 100,
         sortable = TRUE
       ),
@@ -1037,7 +1037,7 @@ tbl_increase_detailed <- dd_increase %>%
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2025"),
+  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2026"),
   tbl_increase_detailed
 )
 ```
@@ -1100,8 +1100,8 @@ dd_decrease <- dd_significant %>%
     ts_url
   ) %>%
   mutate(
-    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2025", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2025", "No revision detected for FY-2025"))
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2026", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2026", "No revision detected for FY-2026"))
   ) %>%
   left_join(icd10_features, by = c("code", "description")) %>%
   mutate(chapter = paste(chapter, codes)) %>%
@@ -1113,7 +1113,7 @@ dd_decrease <- dd_significant %>%
   )
 
 dd_decrease_shift <- dd_decrease %>%
-  filter(conversion_status == "Code revised for FY-2025") %>%
+  filter(conversion_status == "Code revised for FY-2026") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   group_by(code) %>%
   mutate(option = row_number()) %>%
@@ -1315,9 +1315,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2025**
+### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2026**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2025. Updated 2025 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2024 through September 30, 2025. These codes were identified by joining to a reference file derived from the 2025 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2026. Updated 2026 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2025 through September 30, 2026. These codes were identified by joining to a reference file derived from the 2026 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
   * Code Set
   * Effective Year
@@ -1328,18 +1328,19 @@ The following table includes a subset of ICD-10 codes identified as having recen
   * Current Code Clean (decimals removed)
   * Current Description
   
-Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2025 discharge diagnoses. As an example, FY-2025 revisions for the the E162 code for Hypoglycemia, unspecified include the following 3 options: 
+Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2026 discharge diagnoses. As an example, FY-2026 revisions for the the H0583 code for Thyroid orbitopathy include the following 3 options: 
 
-  1. E16A1: Hypoglycemia level 1
-  2. E16A2: Hypoglycemia level 2
-  3. E16A3: Hypoglycemia level 3
+  1. H05831: Thyroid orbitopathy, right orbit
+  2. H05832: Thyroid orbitopathy, left orbit
+  3. H05833: Thyroid orbitopathy, bilateral
+  4. H05839: Thyroid orbitopathy, unspecified orbit
   
-The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2025 code revisions are detected.
+The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2026 code revisions are detected.
 
 ```{r decreasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_decrease_detailed <- dd_decrease %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Code revised for FY-2025") %>%
+  filter(conversion_status == "Code revised for FY-2026") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   select(
     conversion_status,
@@ -1402,7 +1403,7 @@ tbl_decrease_detailed <- dd_decrease %>%
         name = "Previous ICD-10 Code Description"
       ),
       current_clean = colDef(
-        name = "Updated ICD-10 Code for FY-2025",
+        name = "Updated ICD-10 Code for FY-2026",
         width = 100,
         sortable = TRUE
       ),
@@ -1478,7 +1479,7 @@ tbl_decrease_detailed <- dd_decrease %>%
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2025"),
+  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2026"),
   tbl_decrease_detailed
 )
 ```
