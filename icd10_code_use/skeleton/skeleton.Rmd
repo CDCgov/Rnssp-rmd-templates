@@ -51,6 +51,7 @@ margin-right: auto;
 library(tidyverse)
 library(Rnssp)
 library(janitor)
+library(future)
 library(lubridate)
 library(ggpubr)
 library(ggsci)
@@ -67,6 +68,8 @@ library(quanteda)
 library(quanteda.textmodels)
 library(quanteda.textstats)
 library(quanteda.textplots)
+
+source("helper.R")
 ```
 
 ```{css, echo = FALSE}
@@ -187,11 +190,21 @@ if (nchar(params$complex_query) > 0) {
     change_dates(start_date, end_date)
 }
 
+site <- ifelse(nchar(params$complex_query) > 0, "", site)
 
 # Data Pull from NSSP-ESSENCE
-api_data <- try(get_api_data(url, fromCSV = TRUE),
-                silent = TRUE
-)
+if (nchar(params$complex_query) > 0) {
+  api_data <- try(
+    chunk_pull(url, start_date = start_date, end_date = end_date, by = 15, attempts = 10),
+    silent = TRUE
+  )
+} else {
+  api_data <- try(
+    get_api_data(url, fromCSV = TRUE),
+    silent = TRUE
+  )
+}
+
 
 premature_knit <- all(class(api_data) == "try-error") &
   nchar(params$complex_query) == 0
@@ -324,7 +337,7 @@ dd_codes_per_week <- code_types %>%
   ungroup()
 ```
 
-The visual below summarizes the number of unique discharge diagnosis codes by MMWR week by code class and the total number of `r ifelse(nchar(params$complex_query) > 0, "", site)` records from NSSP-ESSENCE as of `r format(Sys.Date(), "%B %d, %Y")`. Diagnosis codes from the discharge diagnosis parsed field are grouped into classes using the following regular expressions for the initial 3 characters (ICD-10 or ICD-9) or initial 6 characters (SNOMED).
+The visual below summarizes the number of unique discharge diagnosis codes by MMWR week by code class and the total number of `r site` records from NSSP-ESSENCE as of `r format(Sys.Date(), "%B %d, %Y")`. Diagnosis codes from the discharge diagnosis parsed field are grouped into classes using the following regular expressions for the initial 3 characters (ICD-10 or ICD-9) or initial 6 characters (SNOMED).
 
 * ICD-10: \^[A-Z][0-9][A-Z0-9]
 * SNOMED: \^[1-9][0-9][0-9][0-9][0-9][0-9]
