@@ -74,6 +74,22 @@ source("helper.R")
 
 ```{css, echo = FALSE}
 
+body {
+  font-family: Roboto Condensed !important;
+  font-size: 11pt;
+}
+
+h1,h2{
+  font-family: Roboto Condensed !important;
+  color:#005EAA !important;
+  font-weight: bold !important;
+}
+
+title {
+  font-family: Roboto Condensed !important; 
+  font-weight: bold !important; 
+}
+  
 caption {
 color:black;
 }
@@ -99,12 +115,12 @@ font-size: 20px;
 }
 
 .term-table-title {
-margin-top: 30px;
-padding: 8px;
-background-color: hsl(205, 100%, 5%);
-color: hsl(0, 0%, 98%);
-font-size: 25px;
-font-weight: 400;
+  margin-top: 30px;
+  padding: 8px;
+  background-color: hsl(206.82, 100%, 33.33%);
+  color: hsl(0, 0%, 100%);
+  font-size: 25px;
+  font-weight: 400;
 }
 
 .term-table-tbl {
@@ -113,32 +129,33 @@ letter-spacing: 0.2px;
 }
 
 .term-table-header {
-border-bottom-width: 1px;
-background-color: hsl(0, 0%, 47%);
-color: hsl(0, 0%, 98%);
-font-weight: 400;
-font-size: 11px;
-text-transform: uppercase;
-transition: box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-bottom-width: 1px;
+  background-color: hsl(207.14, 49.41%, 66.67%);
+  color: hsl(0, 0%, 0%);
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: uppercase;
+  transition: box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .term-table-header:hover,
 .term-table-header[aria-sort="ascending"],
 .term-table-header[aria-sort="descending"] {
-background-color: hsl(205, 100%, 5%);
+  background-color: hsl(206.82, 100%, 33.33%);
+  color: hsl(0, 0%, 100%);
 }
 
 .term-table-header[aria-sort="ascending"] {
-box-shadow: inset 0 10px 0 -6px #efaa10 !important;
+  box-shadow: inset 0 10px 0 -6px #FFAD42 !important;
 }
 
 .term-table-header[aria-sort="descending"] {
-box-shadow: inset 0 -10px 0 -6px #efaa10 !important;
+  box-shadow: inset 0 -10px 0 -6px #FFAD42 !important;
 }
 
 .term-table input {
-background-color: white;
-color: black;
+  background-color: white;
+  color: black;
 }
 
 .sorted {
@@ -186,7 +203,7 @@ if (has_been_e == 1) {
 }
 
 if (nchar(params$complex_query) > 0) {
-  url <- params$complex_query %>% 
+  url <- params$complex_query %>%
     change_dates(start_date, end_date)
 }
 
@@ -208,7 +225,6 @@ if (nchar(params$complex_query) > 0) {
 
 premature_knit <- all(class(api_data) == "try-error") &
   nchar(params$complex_query) == 0
-
 ```
 
 ```{r knit_exit_condition, echo=FALSE, message=FALSE, include=FALSE, warning=FALSE, eval=premature_knit}
@@ -337,6 +353,10 @@ dd_codes_per_week <- code_types %>%
   ungroup()
 ```
 
+## **Introduction**
+
+The purpose of this template is to pull all emergency department discharge diagnosis data for a selected site or user-supplied query over a specified date range and automate identification of ICD-10 diagnosis codes with statistically significant increases or decreases in trend. Similar to how the ESSENCE word alerts algorithm identifies terms appearing in the chief complaint with a recent anomalous increase, this report directs the attention of the consumer to ICD-10 diagnosis codes with increases in trend over the time period of interest. The methods automated in this report are intended for an asyndromic workflow in which the user does not supply a pre-defined list or query of diagnosis codes to limit their data to. This approach can assist users with flagging trends that may be of public health significance and warrant further investigation. In addition to flagging increasing trends, this report also includes summaries of ICD-10 diagnosis codes with significantly decreasing trends. Supplemental methods are implemented to account for increases or decreases in trend that reflect updates to ICD-10 coding guidance published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes) in October of each year.  
+
 The visual below summarizes the number of unique discharge diagnosis codes by MMWR week by code class and the total number of `r site` records from NSSP-ESSENCE as of `r format(Sys.Date(), "%B %d, %Y")`. Diagnosis codes from the discharge diagnosis parsed field are grouped into classes using the following regular expressions for the initial 3 characters (ICD-10 or ICD-9) or initial 6 characters (SNOMED).
 
 * ICD-10: \^[A-Z][0-9][A-Z0-9]
@@ -348,7 +368,7 @@ The regular expressions above are identical to those used to parse diagnosis cod
 **Note**: Codes identified by these regular expressions are not necessarily valid ICD or SNOMED diagnosis codes and should be interpreted as codes/strings that simply appear as or have the same structure as valid ICD-10, ICD-9, and SNOMED codes. 
 
 ```{r summary plot codes, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 12, fig.height = 4, fig.align = "center"}
-pal <- ggthemes::stata_pal()(5)
+pal <- c("#005DAA", "#80AED4", "#00928F", "#80C9C7", "#939598", "#000000")
 
 week_breaks <- unique(dd_codes_per_week$mmwr_date)
 
@@ -370,7 +390,7 @@ p1 <- ggplot(data = dd_codes_per_week) +
     y = "Unique DD Codes",
     title = "Number of Discharge Diagnosis Codes by MMWR Week"
   ) +
-  scale_fill_manual(values = pal, name = "Diagnosis Code Class") +
+  scale_fill_manual(values = pal[2:5], name = "Diagnosis Code Class") +
   theme(
     plot.title = element_text(face = "bold", size = 12),
     legend.position = "bottom",
@@ -378,7 +398,7 @@ p1 <- ggplot(data = dd_codes_per_week) +
   )
 
 p2 <- ggplot(data = visit_denom) +
-  geom_bar(aes(x = mmwr_date, y = visit_total), stat = "identity", fill = pal[5]) +
+  geom_bar(aes(x = mmwr_date, y = visit_total), stat = "identity", fill = pal[1]) +
   theme_minimal() +
   scale_y_continuous(
     limits = c(0, NA),
@@ -442,20 +462,20 @@ code_types_unique %>%
   align(align = "center", part = "header") %>%
   bold(part = "header") %>%
   fontsize(size = 9) %>%
-  fontsize(size = 10, part = "header") %>%
-  bg(bg = "#6E8E8480", part = "header") %>%
+  fontsize(size = 9, part = "header") %>%
+  bg(bg = pal[2], part = "header") %>%
   footnote(i = 1, j = 1, part = "header", value = as_paragraph(c("Diagnosis codes are grouped into code classes by matching to regular expressions defining the expected structure of the code type. A positive match to a code class does not imply that the character string is a valid diagnosis code.")), ref_symbols = "1") %>%
   footnote(i = 4, j = 1, value = as_paragraph(c("ICD-10 matches with 8 or more characters are classified as \"Unknown\" since valid ICD-10 codes never exceed 7 characters.")), ref_symbols = "2") %>%
-  flextable::font(font = "Calibri", part = "all") %>%
+  flextable::font(font = "Roboto", part = "all") %>%
   fontsize(size = 9, part = "footer") %>%
   set_caption(paste("Summary of Unique Codes Occurring in Discharge Diagnosis Parsed Between", date_range)) %>%
   add_body_row(values = c("All", format(sum(code_types_unique$n), big.mark = ","), "", "", "", ""), colwidths = rep(1, 6), top = FALSE) %>%
   border_inner_h(border = officer::fp_border(color = "black", width = 1)) %>%
-  border_outer(border = officer::fp_border(color = pal[5], width = 2)) %>%
+  border_outer(border = officer::fp_border(color = pal[1], width = 2)) %>%
   fix_border_issues() %>%
   flextable::border(i = 5, j = 1:5, border.right = officer::fp_border(color = "transparent")) %>%
-  bg(bg = "#6E8E8470", part = "footer") %>%
-  bg(bg = "#6E8E8470", i = 5, j = 1:6) %>%
+  bg(bg = pal[2], part = "footer") %>%
+  bg(bg = pal[2], i = 5, j = 1:6) %>%
   flextable::border(i = 5, j = 1:6, border.bottom = officer::fp_border(color = "transparent"))
 ```
 
@@ -485,15 +505,15 @@ dd_trends <- dd_unigrams %>%
   mutate(
     models = map(.x = data, function(.x) {
       n_recent <- 11
-      
+
       dat <- .x %>%
         tail(n_recent)
-      
+
       mod <- glm(cbind(frequency, non_count) ~ mmwr_date, family = "binomial", data = dat)
-      
+
       mod_tidy <- broom::tidy(mod) %>%
         filter(term == "mmwr_date")
-      
+
       tibble(
         fit = c(rep(NA, nrow(.x) - n_recent), mod$fitted.values)
       ) %>%
@@ -516,7 +536,6 @@ dd_significant <- dd_trends %>%
   inner_join(dd_adjusted, by = "code") %>%
   left_join(icd10, by = "code") %>%
   distinct()
-
 ```
 
 ```{r create demographic tables, echo = FALSE, warning = FALSE, message = FALSE}
@@ -580,13 +599,13 @@ icd10_feature_table <- summary_age_all %>%
   arrange(code) %>%
   fuzzyjoin::regex_left_join(icd10_chapters, by = c(code = "regex_match"))
 
-# ICD-10 FY-2026 conversion file
-code_updates <- readRDS("icd10_fy2026_conversion_ref.rds")
+# ICD-10 FY-2027 conversion file
+code_updates <- readRDS("icd10_fy2027_conversion_ref.rds")
 
 previous_codes <- code_updates %>%
   select(previous_clean) %>%
   distinct(previous_clean) %>%
-  mutate(conversion_status = "Code revised for FY-2026")
+  mutate(conversion_status = "Code revised for FY-2027")
 
 new_codes <- code_updates %>%
   select(
@@ -594,7 +613,7 @@ new_codes <- code_updates %>%
     current_description
   ) %>%
   distinct(current_clean, .keep_all = TRUE) %>%
-  mutate(conversion_status = "Updated code for FY-2026")
+  mutate(conversion_status = "Updated code for FY-2027")
 
 code_updates_limited <- code_updates %>%
   select(
@@ -631,11 +650,9 @@ recent_range <- dd_significant %>%
 date_range_assessed <- paste(format(min(recent_range), "%B %d, %Y"), "to", format(max(recent_range) + 6, "%B %d, %Y"))
 
 records <- format(nrow(df), big.mark = ",")
-
-pal <- pal_lancet()(5)
 ```
 
-### **Description**
+### **Methods**
 
 ```{r generate note, echo = FALSE, warning = FALSE, message = FALSE}
 note <- if (has_been_e == 1) {
@@ -646,6 +663,8 @@ note <- if (has_been_e == 1) {
 ```
 
 `r note` Discharge diagnoses are tokenized into unigrams from the *Discharge Diagnosis Parsed* field using the `quanteda` library. Discharge diagnosis unigram frequencies are computed on a weekly time resolution. To identify codes with overall significant decrease or increase in occurrence, binomial regression models are fit to each unigram's time series of weekly usage/occurrence proportions (number of unigram occurrences in week divided by total frequency of all unigrams in week). Discharge diagnosis codes with an adjusted p-value less than 0.01 are considered to have statistically significant change in occurrence and are binned into categories of: (1) significant increase if the sign of the time term in the model is positive; and (2). significant decrease if the sign of the time term in the model is negative. Diagnosis codes with high frequencies of occurrences and minuscule fluctuations often result in highly significant p-values. To eliminate such codes, an additional requirement of having $\leq$ -25% modeled change (for decreasing codes) or $\geq$ 25% modeled change (for increasing codes) is imposed.
+
+## **Statistically Significant Trends**
 
 **Note: Tables are filtered to valid ICD-10 codes only. Each table is sorted in decreasing order of significance.** The sparkline trends included in the tables in this report include weekly proportions for a longer date range spanning `r date_range`.
 
@@ -666,8 +685,8 @@ dd_increase <- dd_significant %>%
   filter(!filter) %>%
   mutate(
     description = if_else(description == "" | is.na(description), current_description, description),
-    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2026", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2026", "No revision detected for FY-2026"))
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2027", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Updated code for FY-2027", "No revision detected for FY-2027"))
   ) %>%
   select(
     code,
@@ -726,7 +745,7 @@ dd_increase <- dd_significant %>%
   )
 
 dd_increase_shift <- dd_increase %>%
-  filter(conversion_status == "Updated code for FY-2026") %>%
+  filter(conversion_status == "Updated code for FY-2027") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   arrange(code)
 ```
@@ -859,15 +878,15 @@ tbl_increase <- dd_increase %>%
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
-        filterable = FALSE, 
+        filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_increase$data[[index]]
-          
+
           .fig <- plot_ly(.dat) %>%
             add_trace(
               x = ~date,
               y = ~prop,
-              line = list(color = "#00468B", width = 1.0),
+              line = list(color = pal[1], width = 1.0),
               fill = "tozeroy",
               fillcolor = "rgba(0, 70, 139, 0.20)",
               mode = "lines",
@@ -882,7 +901,7 @@ tbl_increase <- dd_increase %>%
             add_trace(
               x = ~date,
               y = ~fit,
-              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              line = list(color = pal[1], dash = "dot", width = 0.9),
               mode = "lines",
               type = "scatter",
               showlegend = FALSE,
@@ -900,7 +919,7 @@ tbl_increase <- dd_increase %>%
               margin = margins
             ) %>%
             config(displayModeBar = FALSE)
-          
+
           div(.fig, style = "height:50px;", align = "left")
         },
         width = 150,
@@ -925,9 +944,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2026**
+### **ICD-10 Codes with Significant Increase in Occurrence Due to Code Revisions for FY-2027**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2026. Updated 2026 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2025 through September 30, 2026. These codes were identified by joining to a reference file derived from the 2026 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant increases in usage due to ICD-10-CM revisions and updates for FY-2027. Updated 2027 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2026 through September 30, 2027. These codes were identified by joining to a reference file derived from the 2027 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
 * Code Set
 * Effective Year
@@ -938,12 +957,12 @@ The following table includes a subset of ICD-10 codes identified as having recen
 * Current Code Clean (decimals removed)
 * Current Description
 
-The sparklines in the following table represent trends for updated FY-2026 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2026 code revisions are detected.
+The sparklines in the following table represent trends for updated FY-2027 codes. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant increases in usage corresponding to FY-2027 code revisions are detected.
 
 ```{r increasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_increase_detailed <- dd_increase %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Updated code for FY-2026") %>%
+  filter(conversion_status == "Updated code for FY-2027") %>%
   left_join(code_updates_limited, by = c("code" = "current_clean")) %>%
   select(
     conversion_status,
@@ -961,7 +980,7 @@ tbl_increase_detailed <- dd_increase %>%
     pagination = FALSE,
     borderless = FALSE,
     sortable = FALSE,
-    showSortable = TRUE, 
+    showSortable = TRUE,
     showSortIcon = TRUE,
     highlight = TRUE,
     striped = TRUE,
@@ -994,7 +1013,7 @@ tbl_increase_detailed <- dd_increase %>%
         sortable = TRUE
       ),
       code = colDef(
-        name = "Updated ICD-10 Code for FY-2026",
+        name = "Updated ICD-10 Code for FY-2027",
         width = 100,
         sortable = TRUE
       ),
@@ -1015,12 +1034,12 @@ tbl_increase_detailed <- dd_increase %>%
         filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_increase_shift$data[[index]]
-          
+
           .fig <- plot_ly(.dat) %>%
             add_trace(
               x = ~date,
               y = ~prop,
-              line = list(color = "#00468B", width = 1.0),
+              line = list(color = pal[1], width = 1.0),
               fill = "tozeroy",
               fillcolor = "rgba(0, 70, 139, 0.20)",
               mode = "lines",
@@ -1035,7 +1054,7 @@ tbl_increase_detailed <- dd_increase %>%
             add_trace(
               x = ~date,
               y = ~fit,
-              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              line = list(color = pal[1], dash = "dot", width = 0.9),
               mode = "lines",
               type = "scatter",
               showlegend = FALSE,
@@ -1053,7 +1072,7 @@ tbl_increase_detailed <- dd_increase %>%
               margin = margins
             ) %>%
             config(displayModeBar = FALSE)
-          
+
           div(.fig, style = "height:50px;", align = "left")
         },
         width = 150,
@@ -1061,7 +1080,7 @@ tbl_increase_detailed <- dd_increase %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
-        filterable = FALSE, 
+        filterable = FALSE,
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
@@ -1073,7 +1092,7 @@ tbl_increase_detailed <- dd_increase %>%
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2026"),
+  div(class = "term-table-title", "Increasing ICD-10 Diagnoses with Code Revisions for FY-2027"),
   tbl_increase_detailed
 )
 ```
@@ -1136,8 +1155,8 @@ dd_decrease <- dd_significant %>%
     ts_url
   ) %>%
   mutate(
-    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2026", conversion_status),
-    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2026", "No revision detected for FY-2026"))
+    conversion_status = if_else(is.na(conversion_status), "No revision detected for FY-2027", conversion_status),
+    conversion_status = factor(conversion_status, levels = c("Code revised for FY-2027", "No revision detected for FY-2027"))
   ) %>%
   left_join(icd10_features, by = c("code", "description")) %>%
   mutate(chapter = paste(chapter, codes)) %>%
@@ -1149,7 +1168,7 @@ dd_decrease <- dd_significant %>%
   )
 
 dd_decrease_shift <- dd_decrease %>%
-  filter(conversion_status == "Code revised for FY-2026") %>%
+  filter(conversion_status == "Code revised for FY-2027") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   group_by(code) %>%
   mutate(option = row_number()) %>%
@@ -1206,7 +1225,7 @@ tbl_decrease <- dd_decrease %>%
     pagination = FALSE,
     borderless = FALSE,
     sortable = FALSE,
-    showSortable = TRUE, 
+    showSortable = TRUE,
     showSortIcon = TRUE,
     highlight = TRUE,
     striped = TRUE,
@@ -1288,12 +1307,12 @@ tbl_decrease <- dd_decrease %>%
         filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_decrease$data[[index]]
-          
+
           .fig <- plot_ly(.dat) %>%
             add_trace(
               x = ~date,
               y = ~prop,
-              line = list(color = "#00468B", width = 1.0),
+              line = list(color = pal[1], width = 1.0),
               fill = "tozeroy",
               fillcolor = "rgba(0, 70, 139, 0.20)",
               mode = "lines",
@@ -1308,7 +1327,7 @@ tbl_decrease <- dd_decrease %>%
             add_trace(
               x = ~date,
               y = ~fit,
-              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              line = list(color = pal[1], dash = "dot", width = 0.9),
               mode = "lines",
               type = "scatter",
               showlegend = FALSE,
@@ -1326,7 +1345,7 @@ tbl_decrease <- dd_decrease %>%
               margin = margins
             ) %>%
             config(displayModeBar = FALSE)
-          
+
           div(.fig, style = "height:50px;", align = "left")
         },
         width = 150,
@@ -1351,9 +1370,9 @@ div(
 )
 ```
 
-### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2026**
+### **ICD-10 Codes with Significant Decrease in Occurrence Due to Code Revisions for FY-2027**
 
-The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2026. Updated 2026 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2025 through September 30, 2026. These codes were identified by joining to a reference file derived from the 2026 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
+The following table includes a subset of ICD-10 codes identified as having recent significant decreases in usage due to ICD-10-CM revisions and updates for FY-2027. Updated 2027 ICD-10-CM codes are to be used for discharge diagnoses and patient encounters occurring between October 1, 2026 through September 30, 2027. These codes were identified by joining to a reference file derived from the 2027 Conversion Table published on the [CMS website](https://www.cms.gov/medicare/coding-billing/icd-10-codes). This reference file contains the following fields: 
 
 * Code Set
 * Effective Year
@@ -1364,19 +1383,19 @@ The following table includes a subset of ICD-10 codes identified as having recen
 * Current Code Clean (decimals removed)
 * Current Description
 
-Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2026 discharge diagnoses. As an example, FY-2026 revisions for the the H0583 code for Thyroid orbitopathy include the following 3 options: 
+Keep in mind that previous codes may repeat over several rows for revisions that map to multiple options for FY-2027 discharge diagnoses. As an example, FY-2027 revisions for the the H0583 code for Thyroid orbitopathy include the following 3 options: 
 
 1. H05831: Thyroid orbitopathy, right orbit
 2. H05832: Thyroid orbitopathy, left orbit
 3. H05833: Thyroid orbitopathy, bilateral
 4. H05839: Thyroid orbitopathy, unspecified orbit
 
-The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2026 code revisions are detected.
+The sparklines in the following table represent trends for the previous code and will therefore repeat for rows representing multiple conversion options. The table below will display a message of "No rows found" in the event that 0 ICD-10 codes with significant decreases in usage corresponding to FY-2027 code revisions are detected.
 
 ```{r decreasing usage table details, echo = FALSE, warning = FALSE, message = FALSE, out.width = "12in"}
 tbl_decrease_detailed <- dd_decrease %>%
   mutate(ts_url = gsub("&userId=\\d{4}", "", ts_url)) %>%
-  filter(conversion_status == "Code revised for FY-2026") %>%
+  filter(conversion_status == "Code revised for FY-2027") %>%
   left_join(code_updates_limited, by = c("code" = "previous_clean")) %>%
   select(
     conversion_status,
@@ -1398,7 +1417,7 @@ tbl_decrease_detailed <- dd_decrease %>%
     pagination = FALSE,
     borderless = FALSE,
     sortable = FALSE,
-    showSortable = TRUE, 
+    showSortable = TRUE,
     showSortIcon = TRUE,
     highlight = TRUE,
     striped = TRUE,
@@ -1439,7 +1458,7 @@ tbl_decrease_detailed <- dd_decrease %>%
         name = "Previous ICD-10 Code Description"
       ),
       current_clean = colDef(
-        name = "Updated ICD-10 Code for FY-2026",
+        name = "Updated ICD-10 Code for FY-2027",
         width = 100,
         sortable = TRUE
       ),
@@ -1448,21 +1467,21 @@ tbl_decrease_detailed <- dd_decrease %>%
       ),
       option = colDef(
         name = "Conversion Option",
-        filterable = FALSE, 
+        filterable = FALSE,
         width = 100
       ),
       data = colDef(show = FALSE),
       sparkline = colDef(
         name = "Sparkline",
-        filterable = FALSE, 
+        filterable = FALSE,
         cell = function(value, index) {
           .dat <- dd_decrease_shift$data[[index]]
-          
+
           .fig <- plot_ly(.dat) %>%
             add_trace(
               x = ~date,
               y = ~prop,
-              line = list(color = "#00468B", width = 1.0),
+              line = list(color = pal[1], width = 1.0),
               fill = "tozeroy",
               fillcolor = "rgba(0, 70, 139, 0.20)",
               mode = "lines",
@@ -1477,7 +1496,7 @@ tbl_decrease_detailed <- dd_decrease %>%
             add_trace(
               x = ~date,
               y = ~fit,
-              line = list(color = "#00468B", dash = "dot", width = 0.9),
+              line = list(color = pal[1], dash = "dot", width = 0.9),
               mode = "lines",
               type = "scatter",
               showlegend = FALSE,
@@ -1495,7 +1514,7 @@ tbl_decrease_detailed <- dd_decrease %>%
               margin = margins
             ) %>%
             config(displayModeBar = FALSE)
-          
+
           div(.fig, style = "height:50px;", align = "left")
         },
         width = 150,
@@ -1503,7 +1522,7 @@ tbl_decrease_detailed <- dd_decrease %>%
       ),
       ts_url = colDef(
         name = "ESSENCE Time Series URL",
-        filterable = FALSE, 
+        filterable = FALSE,
         cell = function(value) {
           htmltools::tags$a(href = value, target = "_blank", rel = "noopener noreferrer", "URL")
         },
@@ -1515,7 +1534,7 @@ tbl_decrease_detailed <- dd_decrease %>%
 
 div(
   class = "term-table",
-  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2026"),
+  div(class = "term-table-title", "Decreasing ICD-10 Diagnoses with Code Revisions for FY-2027"),
   tbl_decrease_detailed
 )
 ```
