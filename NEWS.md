@@ -425,6 +425,21 @@ This template generates a trend report of testing volume and the percent of test
 
 <details>
 
+<summary>10/16/2026</summary>
+The ICD-10 Discharge Diagnosis Code Usage and Features template has been updated. This version:
+
+* Accounts for ICD-10 coding changes for FY-2027
+
+* Uses an up-to-date ICD-10 code to description crosswalk
+
+* Now includes introductory text at the beginning of the template summarizing the purpose of the report
+
+* Includes enhancements and updates to theming and formatting elements
+
+</details>
+
+<details>
+
 <summary>7/22/2026</summary>
 The ICD-10 Discharge Diagnosis Code Usage and Features template has been updated. 
 
